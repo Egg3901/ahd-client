@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "NODE_ENV=development electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -49,8 +49,12 @@
   "author": "Egg3901",
   "license": "MIT",
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "cross-env": "^10.1.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
+    "electron-playwright-helpers": "^2.1.0",
+    "jest": "^30.3.0",
     "prettier": "^3.8.1"
   },
   "dependencies": {
