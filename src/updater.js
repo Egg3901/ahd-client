@@ -1,5 +1,5 @@
 const { autoUpdater } = require('electron-updater');
-const { dialog, BrowserWindow } = require('electron');
+const { dialog } = require('electron');
 
 /**
  * Auto-updater tied to deployment.
@@ -8,9 +8,15 @@ const { dialog, BrowserWindow } = require('electron');
  */
 
 class UpdateManager {
+  /**
+   * @param {Electron.BrowserWindow} mainWindow
+   */
   constructor(mainWindow) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {boolean} */
     this.updateAvailable = false;
+    /** @type {object|null} */
     this.updateInfo = null;
 
     // Don't auto-download — let user decide
@@ -20,6 +26,7 @@ class UpdateManager {
     this.setupListeners();
   }
 
+  /** @private */
   setupListeners() {
     autoUpdater.on('checking-for-update', () => {
       this.sendStatus('Checking for updates...');
@@ -55,6 +62,7 @@ class UpdateManager {
     });
   }
 
+  /** Trigger a check for available updates. Safe to call repeatedly. */
   checkForUpdates() {
     try {
       autoUpdater.checkForUpdates();
@@ -63,6 +71,11 @@ class UpdateManager {
     }
   }
 
+  /**
+   * Show a dialog asking the user to download the update.
+   * @param {{version: string, releaseNotes?: string}} info
+   * @private
+   */
   async promptUpdate(info) {
     const version = info.version || 'unknown';
     const releaseNotes =
@@ -85,6 +98,11 @@ class UpdateManager {
     }
   }
 
+  /**
+   * Show a dialog asking the user to restart and install the downloaded update.
+   * @param {{version: string}} info
+   * @private
+   */
   async promptInstall(info) {
     const version = info.version || 'unknown';
 
@@ -103,12 +121,18 @@ class UpdateManager {
     }
   }
 
+  /**
+   * Send an update status message to the renderer.
+   * @param {string} message
+   * @private
+   */
   sendStatus(message) {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send('update-status', message);
     }
   }
 
+  /** @param {Electron.BrowserWindow} win */
   setWindow(win) {
     this.mainWindow = win;
   }

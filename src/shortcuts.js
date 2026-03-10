@@ -50,12 +50,22 @@ const DEFAULT_SHORTCUTS = {
 };
 
 class ShortcutManager {
+  /**
+   * @param {Electron.BrowserWindow} mainWindow
+   */
   constructor(mainWindow) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {boolean} */
     this.registered = false;
+    /** @type {Record<string, () => void>} */
     this.customHandlers = {};
   }
 
+  /**
+   * Register all default shortcuts with the OS.
+   * Safe to call multiple times — no-ops if already registered.
+   */
   registerAll() {
     if (this.registered) return;
 
@@ -72,6 +82,11 @@ class ShortcutManager {
     this.registered = true;
   }
 
+  /**
+   * Execute a shortcut action (navigate or custom handler).
+   * @param {{action: string, route?: string, handler?: string}} shortcut
+   * @private
+   */
   handleShortcut(shortcut) {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
 
@@ -90,14 +105,23 @@ class ShortcutManager {
     }
   }
 
+  /**
+   * Register a named handler for 'custom' action shortcuts.
+   * @param {string} name - Handler name matching shortcut.handler
+   * @param {() => void} handler
+   */
   onCustom(name, handler) {
     this.customHandlers[name] = handler;
   }
 
+  /** @param {Electron.BrowserWindow} win */
   setWindow(win) {
     this.mainWindow = win;
   }
 
+  /**
+   * Unregister all global shortcuts. Called on app quit.
+   */
   unregisterAll() {
     globalShortcut.unregisterAll();
     this.registered = false;

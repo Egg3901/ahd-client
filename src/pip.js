@@ -8,9 +8,13 @@ const path = require('path');
  */
 
 class PipManager {
+  /** @param {Electron.BrowserWindow} mainWindow */
   constructor(mainWindow) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {Electron.BrowserWindow|null} */
     this.pipWindow = null;
+    /** @type {{currentDate: string, nextTurnIn: string, actionPoints: string|number}} */
     this.gameState = {
       currentDate: '',
       nextTurnIn: '',
@@ -19,6 +23,7 @@ class PipManager {
     this.updateInterval = null;
   }
 
+  /** Toggle the PiP window open/closed. */
   toggle() {
     if (this.pipWindow && !this.pipWindow.isDestroyed()) {
       this.close();
@@ -27,6 +32,7 @@ class PipManager {
     }
   }
 
+  /** Create and show the PiP mini-mode window. */
   open() {
     if (this.pipWindow && !this.pipWindow.isDestroyed()) {
       this.pipWindow.focus();
@@ -67,6 +73,7 @@ class PipManager {
     this.startUpdates();
   }
 
+  /** Close the PiP window if open. */
   close() {
     if (this.pipWindow && !this.pipWindow.isDestroyed()) {
       this.pipWindow.close();
@@ -75,11 +82,16 @@ class PipManager {
     this.stopUpdates();
   }
 
+  /**
+   * Merge new game state and refresh the PiP display.
+   * @param {{currentDate?: string, nextTurnIn?: string, actionPoints?: number}} state
+   */
   updateGameState(state) {
     Object.assign(this.gameState, state);
     this.updateDisplay();
   }
 
+  /** @private Push current game state to the PiP HTML */
   updateDisplay() {
     if (!this.pipWindow || this.pipWindow.isDestroyed()) return;
 
@@ -90,6 +102,7 @@ class PipManager {
     `);
   }
 
+  /** Close PiP and bring the main window to front. */
   expandToFull() {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.show();
@@ -98,11 +111,13 @@ class PipManager {
     this.close();
   }
 
+  /** @private Start the 10-second display refresh interval. */
   startUpdates() {
     // Refresh display every 10 seconds
     this.updateInterval = setInterval(() => this.updateDisplay(), 10000);
   }
 
+  /** @private */
   stopUpdates() {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
@@ -110,14 +125,17 @@ class PipManager {
     }
   }
 
+  /** @returns {boolean} */
   isOpen() {
     return this.pipWindow && !this.pipWindow.isDestroyed();
   }
 
+  /** @param {Electron.BrowserWindow} win */
   setWindow(win) {
     this.mainWindow = win;
   }
 
+  /** Close PiP window and clean up timers. */
   destroy() {
     this.close();
     this.stopUpdates();

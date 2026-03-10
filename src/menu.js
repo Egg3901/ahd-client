@@ -3,9 +3,11 @@ const config = require('./config');
 
 /**
  * Custom application menu replacing the default Electron menu.
- * Game-aware menus: Game, Navigate, Admin, View, Help.
+ * Game-aware menus: Game, Navigate, Admin (conditional), View (with themes), Help.
+ * The Admin menu only appears when setAdmin(true) is called from the renderer.
  */
 
+/** @type {{id: string, label: string}[]} The 7 CSS custom-property themes from the game */
 const THEMES = [
   { id: 'default', label: 'Default' },
   { id: 'dark', label: 'Dark' },
@@ -17,15 +19,32 @@ const THEMES = [
 ];
 
 class MenuManager {
+  /**
+   * @param {Electron.BrowserWindow} mainWindow
+   * @param {import('./windows')} windowManager - For pop-out window presets
+   * @param {{onThemeChange?: (id: string) => void, onTogglePip?: () => void, onOpenFeedback?: () => void, isAdmin?: boolean}} [options]
+   */
   constructor(mainWindow, windowManager, options = {}) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {import('./windows')} */
     this.windowManager = windowManager;
+    /** @type {boolean} */
     this.isAdmin = options.isAdmin || false;
+    /** @type {((id: string) => void)|null} */
     this.onThemeChange = options.onThemeChange || null;
+    /** @type {(() => void)|null} */
     this.onTogglePip = options.onTogglePip || null;
+    /** @type {(() => void)|null} */
     this.onOpenFeedback = options.onOpenFeedback || null;
+    /** @type {(() => void)|null} Set externally by main.js for dev event log */
+    this.onOpenEventLog = null;
   }
 
+  /**
+   * Build and set the application menu from all submenus.
+   * Call again after setAdmin() to refresh.
+   */
   build() {
     const template = [
       this.gameMenu(),
@@ -81,7 +100,9 @@ class MenuManager {
         {
           label: 'Clear Cache & Reload',
           click: async () => {
-            await session.defaultSession.clearCache();
+            // Clear the persist:ahd partition cache, not defaultSession
+            const ses = session.fromPartition('persist:ahd');
+            await ses.clearCache();
             this.mainWindow.loadURL(config.GAME_URL);
           },
         },
@@ -247,12 +268,20 @@ class MenuManager {
     };
   }
 
+  /**
+   * Navigate the main window to a game route.
+   * @param {string} route - Path relative to GAME_URL
+   */
   navigate(route) {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.loadURL(`${config.GAME_URL}${route}`);
     }
   }
 
+  /**
+   * Toggle the Admin menu visibility and rebuild.
+   * @param {boolean} isAdmin
+   */
   setAdmin(isAdmin) {
     this.isAdmin = isAdmin;
     this.build();

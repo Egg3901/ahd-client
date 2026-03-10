@@ -1,8 +1,7 @@
-const { desktopCapturer, dialog } = require('electron');
+const { dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const config = require('./config');
 
 /**
  * Screenshot and feedback integration.
@@ -11,10 +10,18 @@ const config = require('./config');
  */
 
 class FeedbackManager {
+  /**
+   * @param {Electron.BrowserWindow} mainWindow
+   */
   constructor(mainWindow) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
   }
 
+  /**
+   * Capture the current page as a PNG buffer.
+   * @returns {Promise<Buffer|null>} PNG image data, or null on failure
+   */
   async captureScreenshot() {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return null;
 
@@ -27,6 +34,10 @@ class FeedbackManager {
     }
   }
 
+  /**
+   * Collect system and app version info for bug reports.
+   * @returns {{platform: string, arch: string, osVersion: string, electronVersion: string, chromeVersion: string, nodeVersion: string, appVersion: string, totalMemory: string, freeMemory: string, cpus: number}}
+   */
   getSystemInfo() {
     return {
       platform: process.platform,
@@ -42,6 +53,10 @@ class FeedbackManager {
     };
   }
 
+  /**
+   * Capture a screenshot, collect system info, and trigger the in-app
+   * feedback modal via a CustomEvent dispatched to the renderer.
+   */
   async openFeedbackDialog() {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
 
@@ -70,6 +85,9 @@ class FeedbackManager {
     `);
   }
 
+  /**
+   * Prompt the user to save a screenshot to disk via a native Save dialog.
+   */
   async saveScreenshotDialog() {
     const screenshot = await this.captureScreenshot();
     if (!screenshot) {
@@ -88,6 +106,7 @@ class FeedbackManager {
     }
   }
 
+  /** @param {Electron.BrowserWindow} win */
   setWindow(win) {
     this.mainWindow = win;
   }

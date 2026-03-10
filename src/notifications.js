@@ -4,8 +4,10 @@ const path = require('path');
 /**
  * Maps SSE event types to user-friendly notification content.
  * Wires game events into native OS notifications.
+ * Only fires when the main window is not focused.
  */
 
+/** @type {Record<string, {title: string, format: (data: object) => string, urgent: boolean}>} */
 const EVENT_CONFIG = {
   turn_complete: {
     title: 'Turn Complete',
@@ -78,8 +80,13 @@ const EVENT_CONFIG = {
   },
 };
 
+/** @type {Electron.NativeImage|null} Lazily-loaded app icon for notifications */
 let appIcon = null;
 
+/**
+ * Load and cache the app icon for notifications.
+ * @returns {Electron.NativeImage|null}
+ */
 function getIcon() {
   if (!appIcon) {
     try {
@@ -94,16 +101,31 @@ function getIcon() {
 }
 
 class NotificationManager {
+  /**
+   * @param {Electron.BrowserWindow} mainWindow - The primary app window
+   */
   constructor(mainWindow) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {boolean} */
     this.enabled = true;
+    /** @type {number} */
     this.unreadCount = 0;
   }
 
+  /**
+   * Update the reference to the main window.
+   * @param {Electron.BrowserWindow} win
+   */
   setWindow(win) {
     this.mainWindow = win;
   }
 
+  /**
+   * Process an SSE event and show a native notification if appropriate.
+   * Notifications are suppressed when the window is focused.
+   * @param {{type: string, data: object}} event - The parsed SSE event
+   */
   handleSSEEvent(event) {
     if (!this.enabled) return;
     if (!Notification.isSupported()) return;
@@ -146,21 +168,31 @@ class NotificationManager {
     notification.show();
   }
 
+  /**
+   * Reset the unread notification counter and clear any progress bar badge.
+   */
   clearUnread() {
     this.unreadCount = 0;
-    if (this.mainWindow && this.mainWindow.setProgressBar) {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       try {
         this.mainWindow.setProgressBar(-1);
       } catch {
-        // ignore
+        // ignore — progress bar not supported on all platforms
       }
     }
   }
 
+  /**
+   * @returns {number} The current unread notification count.
+   */
   getUnreadCount() {
     return this.unreadCount;
   }
 
+  /**
+   * Enable or disable notifications.
+   * @param {boolean} enabled
+   */
   setEnabled(enabled) {
     this.enabled = enabled;
   }

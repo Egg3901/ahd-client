@@ -8,17 +8,32 @@ const config = require('./config');
  * Badge the dock/taskbar icon with unread count.
  */
 class TrayManager {
+  /**
+   * @param {Electron.BrowserWindow} mainWindow - The primary app window
+   * @param {import('./notifications')} notificationManager - For reading unread counts
+   */
   constructor(mainWindow, notificationManager) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {import('./notifications')} */
     this.notificationManager = notificationManager;
+    /** @type {Electron.Tray|null} */
     this.tray = null;
+    /** @type {{turnsUntilElection: string|number, actionPoints: string|number, currentDate: string}} */
     this.gameState = {
       turnsUntilElection: '?',
       actionPoints: '?',
       currentDate: '',
     };
+    /** @type {NodeJS.Timeout|null} Throttle timer for menu rebuilds */
+    this._menuThrottle = null;
+    /** @type {number} Minimum ms between tray menu rebuilds */
+    this._menuThrottleMs = 1000;
   }
 
+  /**
+   * Create the system tray icon and attach event handlers.
+   */
   create() {
     const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
     let icon;
@@ -26,7 +41,6 @@ class TrayManager {
       icon = nativeImage.createFromPath(iconPath);
       icon = icon.resize({ width: 16, height: 16 });
     } catch {
-      // Create a simple fallback icon
       icon = nativeImage.createEmpty();
     }
 
@@ -43,16 +57,36 @@ class TrayManager {
       }
     });
 
-    this.updateMenu();
+    this.rebuildMenu();
   }
 
+  /**
+   * Merge new game state and refresh the tray display.
+   * @param {{turnsUntilElection?: number, actionPoints?: number, currentDate?: string}} state
+   */
   updateGameState(state) {
     Object.assign(this.gameState, state);
     this.updateMenu();
     this.updateBadge();
   }
 
+  /**
+   * Throttled wrapper around rebuildMenu(). Prevents excessive context menu
+   * reconstructions when SSE events arrive in bursts.
+   */
   updateMenu() {
+    if (this._menuThrottle) return;
+    this._menuThrottle = setTimeout(() => {
+      this._menuThrottle = null;
+      this.rebuildMenu();
+    }, this._menuThrottleMs);
+  }
+
+  /**
+   * Rebuild the tray context menu and tooltip with current state.
+   * @private
+   */
+  rebuildMenu() {
     if (!this.tray) return;
 
     const unread = this.notificationManager
@@ -106,6 +140,9 @@ class TrayManager {
     this.tray.setToolTip(tooltip);
   }
 
+  /**
+   * Update dock/taskbar badge with the current unread count.
+   */
   updateBadge() {
     const unread = this.notificationManager
       ? this.notificationManager.getUnreadCount()
@@ -134,6 +171,10 @@ class TrayManager {
     }
   }
 
+  /**
+   * Navigate the main window to a game route and bring it to front.
+   * @param {string} route - Path relative to GAME_URL (e.g. '/campaign')
+   */
   navigateTo(route) {
     if (this.mainWindow) {
       this.mainWindow.show();
@@ -142,11 +183,21 @@ class TrayManager {
     }
   }
 
+  /**
+   * @param {Electron.BrowserWindow} win
+   */
   setWindow(win) {
     this.mainWindow = win;
   }
 
+  /**
+   * Remove the tray icon and clean up throttle timers.
+   */
   destroy() {
+    if (this._menuThrottle) {
+      clearTimeout(this._menuThrottle);
+      this._menuThrottle = null;
+    }
     if (this.tray) {
       this.tray.destroy();
       this.tray = null;

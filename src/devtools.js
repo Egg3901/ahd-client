@@ -1,6 +1,5 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
-const config = require('./config');
 
 /**
  * Developer-focused features.
@@ -15,14 +14,29 @@ const SERVER_PRESETS = {
 };
 
 class DevToolsManager {
+  /**
+   * @param {Electron.BrowserWindow} mainWindow
+   * @param {import('./sse')} sseClient
+   */
   constructor(mainWindow, sseClient) {
+    /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {import('./sse')} */
     this.sseClient = sseClient;
+    /** @type {Electron.BrowserWindow|null} */
     this.eventLogWindow = null;
+    /** @type {Array<{timestamp: string, type: string, data: *}>} Ring buffer of SSE events */
     this.eventLog = [];
+    /** @type {number} */
     this.maxLogEntries = 500;
+    /** @type {NodeJS.Timeout|null} Batched update timer for event log window */
+    this._logUpdateTimer = null;
   }
 
+  /**
+   * Record an SSE event in the ring buffer and schedule a batched UI update.
+   * @param {{type: string, data: *}} event
+   */
   logEvent(event) {
     this.eventLog.push({
       timestamp: new Date().toISOString(),
@@ -34,9 +48,16 @@ class DevToolsManager {
       this.eventLog = this.eventLog.slice(-this.maxLogEntries);
     }
 
-    this.updateEventLogWindow();
+    // Batch UI updates — at most once per 500ms to avoid thrashing
+    if (!this._logUpdateTimer) {
+      this._logUpdateTimer = setTimeout(() => {
+        this._logUpdateTimer = null;
+        this.updateEventLogWindow();
+      }, 500);
+    }
   }
 
+  /** Open the SSE event log viewer window (singleton). */
   openEventLog() {
     if (this.eventLogWindow && !this.eventLogWindow.isDestroyed()) {
       this.eventLogWindow.focus();
@@ -64,6 +85,7 @@ class DevToolsManager {
     });
   }
 
+  /** @private Push latest events to the event log window */
   updateEventLogWindow() {
     if (!this.eventLogWindow || this.eventLogWindow.isDestroyed()) return;
 
@@ -74,6 +96,10 @@ class DevToolsManager {
     `);
   }
 
+  /**
+   * Switch the main window to a different server.
+   * @param {'local'|'staging'|'production'} preset
+   */
   switchServer(preset) {
     const url = SERVER_PRESETS[preset];
     if (!url) return;
@@ -83,10 +109,12 @@ class DevToolsManager {
     }
   }
 
+  /** @returns {Record<string, string>} */
   getServerPresets() {
     return SERVER_PRESETS;
   }
 
+  /** @returns {{sse: boolean, eventCount: number}} */
   getConnectionStatus() {
     return {
       sse: this.sseClient ? this.sseClient.isConnected() : false,
@@ -94,6 +122,10 @@ class DevToolsManager {
     };
   }
 
+  /**
+   * Build a Developer menu template for use in the application menu.
+   * @returns {Electron.MenuItemConstructorOptions}
+   */
   buildDevMenu() {
     const serverSubmenu = Object.entries(SERVER_PRESETS).map(([name, url]) => ({
       label: `${name.charAt(0).toUpperCase() + name.slice(1)} (${url})`,
@@ -129,11 +161,17 @@ class DevToolsManager {
     };
   }
 
+  /** @param {Electron.BrowserWindow} win */
   setWindow(win) {
     this.mainWindow = win;
   }
 
+  /** Close the event log window and clear the buffer. */
   destroy() {
+    if (this._logUpdateTimer) {
+      clearTimeout(this._logUpdateTimer);
+      this._logUpdateTimer = null;
+    }
     if (this.eventLogWindow && !this.eventLogWindow.isDestroyed()) {
       this.eventLogWindow.close();
     }

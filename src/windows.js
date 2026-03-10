@@ -1,12 +1,14 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
-const config = require('./config');
+const appConfig = require('./config');
 
 /**
  * Multi-window support. Lets users pop out election maps,
  * Congress tracker, Campaign HQ into separate resizable windows.
+ * Each preset is a singleton — opening the same preset twice focuses the existing window.
  */
 
+/** @type {Record<string, {title: string, route: string, width: number, height: number}>} */
 const WINDOW_PRESETS = {
   elections: {
     title: 'Elections — A House Divided',
@@ -48,12 +50,19 @@ const WINDOW_PRESETS = {
 
 class WindowManager {
   constructor() {
+    /** @type {Map<string, Electron.BrowserWindow>} */
     this.windows = new Map();
   }
 
+  /**
+   * Open a preset pop-out window (or focus it if already open).
+   * @param {string} preset - Key from WINDOW_PRESETS (e.g. 'elections', 'congress')
+   * @param {Electron.BrowserWindow} [parentWindow] - Optional parent for child window behavior
+   * @returns {Electron.BrowserWindow|null}
+   */
   openWindow(preset, parentWindow) {
-    const config_ = WINDOW_PRESETS[preset];
-    if (!config_) return null;
+    const presetConfig = WINDOW_PRESETS[preset];
+    if (!presetConfig) return null;
 
     // If window already open, focus it
     if (this.windows.has(preset)) {
@@ -66,11 +75,11 @@ class WindowManager {
     }
 
     const win = new BrowserWindow({
-      width: config_.width,
-      height: config_.height,
+      width: presetConfig.width,
+      height: presetConfig.height,
       minWidth: 400,
       minHeight: 300,
-      title: config_.title,
+      title: presetConfig.title,
       icon: path.join(__dirname, '..', 'assets', 'icon.png'),
       parent: parentWindow || undefined,
       webPreferences: {
@@ -81,7 +90,7 @@ class WindowManager {
       },
     });
 
-    win.loadURL(`${config.GAME_URL}${config_.route}`);
+    win.loadURL(`${appConfig.GAME_URL}${presetConfig.route}`);
     win.setMenuBarVisibility(false);
 
     win.on('closed', () => {
@@ -92,6 +101,12 @@ class WindowManager {
     return win;
   }
 
+  /**
+   * Open an arbitrary URL in a new window (non-singleton).
+   * @param {string} url - Full URL or path relative to GAME_URL
+   * @param {{width?: number, height?: number, title?: string}} [options]
+   * @returns {Electron.BrowserWindow}
+   */
   openCustom(url, options = {}) {
     const win = new BrowserWindow({
       width: options.width || 800,
@@ -108,7 +123,7 @@ class WindowManager {
       },
     });
 
-    win.loadURL(url.startsWith('http') ? url : `${config.GAME_URL}${url}`);
+    win.loadURL(url.startsWith('http') ? url : `${appConfig.GAME_URL}${url}`);
     win.setMenuBarVisibility(false);
 
     const id = `custom-${Date.now()}`;
@@ -117,6 +132,9 @@ class WindowManager {
     return win;
   }
 
+  /**
+   * Close all managed pop-out windows.
+   */
   closeAll() {
     for (const [key, win] of this.windows) {
       if (!win.isDestroyed()) {
@@ -126,10 +144,15 @@ class WindowManager {
     this.windows.clear();
   }
 
+  /** @returns {string[]} Available preset names */
   getPresets() {
     return Object.keys(WINDOW_PRESETS);
   }
 
+  /**
+   * @param {string} preset
+   * @returns {{title: string, route: string, width: number, height: number}|undefined}
+   */
   getPresetConfig(preset) {
     return WINDOW_PRESETS[preset];
   }
