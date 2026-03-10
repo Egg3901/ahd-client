@@ -11,7 +11,12 @@
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "jest",
+    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:e2e": "npx playwright test --config=tests/e2e/playwright.config.js",
+    "test:coverage": "jest --coverage"
   },
   "build": {
     "appId": "com.ahousedivided.client",
