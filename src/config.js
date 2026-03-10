@@ -7,4 +7,7 @@ module.exports = {
   WINDOW_HEIGHT: 800,
   MIN_WIDTH: 800,
   MIN_HEIGHT: 600,
+
+  // Auto-updater
+  UPDATE_CHECK_INTERVAL: 60 * 60 * 1000, // 1 hour
 };

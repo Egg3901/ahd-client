@@ -1,0 +1,160 @@
+const Store = require('electron-store');
+
+/**
+ * Offline caching and action queuing.
+ * Caches last turn data so the app opens instantly.
+ * Queues actions locally when server is unreachable and syncs on reconnect.
+ */
+
+const schema = {
+  lastTurnData: {
+    type: 'object',
+    default: {},
+  },
+  actionQueue: {
+    type: 'array',
+    default: [],
+    items: {
+      type: 'object',
+    },
+  },
+  userPreferences: {
+    type: 'object',
+    default: {},
+    properties: {
+      theme: { type: 'string', default: 'default' },
+      notificationsEnabled: { type: 'boolean', default: true },
+      miniModeEnabled: { type: 'boolean', default: false },
+    },
+  },
+  gameState: {
+    type: 'object',
+    default: {
+      turnsUntilElection: null,
+      actionPoints: null,
+      currentDate: null,
+      lastTurnTimestamp: null,
+    },
+  },
+};
+
+class CacheManager {
+  constructor() {
+    /** @type {Store} */
+    this.store = new Store({
+      name: 'ahd-cache',
+      schema,
+      encryptionKey: 'ahd-client-v1',
+    });
+  }
+
+  // --- Turn data caching ---
+
+  /**
+   * Cache turn data with a timestamp for freshness tracking.
+   * @param {object} data - Turn data from the SSE turn_complete event
+   */
+  cacheTurnData(data) {
+    this.store.set('lastTurnData', {
+      ...data,
+      cachedAt: Date.now(),
+    });
+  }
+
+  /** @returns {object} The last cached turn data, or {} if none */
+  getCachedTurnData() {
+    return this.store.get('lastTurnData', {});
+  }
+
+  // --- Action queuing ---
+
+  /**
+   * Add an action to the offline queue. Each gets a unique ID and timestamp.
+   * @param {object} action - The action payload to queue
+   * @returns {number} New queue length
+   */
+  queueAction(action) {
+    const queue = this.store.get('actionQueue', []);
+    queue.push({
+      ...action,
+      queuedAt: Date.now(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    });
+    this.store.set('actionQueue', queue);
+    return queue.length;
+  }
+
+  /** @returns {object[]} All queued actions */
+  getQueuedActions() {
+    return this.store.get('actionQueue', []);
+  }
+
+  /** Clear the entire action queue (called after successful flush). */
+  clearQueue() {
+    this.store.set('actionQueue', []);
+  }
+
+  /** @param {string} actionId - ID of the action to remove */
+  removeFromQueue(actionId) {
+    const queue = this.store.get('actionQueue', []);
+    this.store.set(
+      'actionQueue',
+      queue.filter((a) => a.id !== actionId),
+    );
+  }
+
+  /** @returns {number} */
+  getQueueLength() {
+    return this.store.get('actionQueue', []).length;
+  }
+
+  // --- User preferences ---
+
+  /**
+   * @param {string} key - Preference key (e.g. 'notificationsEnabled')
+   * @returns {*}
+   */
+  getPreference(key) {
+    return this.store.get(`userPreferences.${key}`);
+  }
+
+  /** @param {string} key @param {*} value */
+  setPreference(key, value) {
+    this.store.set(`userPreferences.${key}`, value);
+  }
+
+  /** @returns {string} Theme ID (default: 'default') */
+  getTheme() {
+    return this.store.get('userPreferences.theme', 'default');
+  }
+
+  /** @param {string} themeId */
+  setTheme(themeId) {
+    this.store.set('userPreferences.theme', themeId);
+  }
+
+  // --- Game state ---
+
+  /**
+   * Merge partial game state into the persisted store.
+   * @param {object} state - Partial game state to merge
+   */
+  updateGameState(state) {
+    const current = this.store.get('gameState', {});
+    this.store.set('gameState', { ...current, ...state });
+  }
+
+  /** @returns {object} Full cached game state */
+  getGameState() {
+    return this.store.get('gameState', {});
+  }
+
+  // --- General ---
+
+  /** Clear all cached data (turn data, queue, preferences, game state). */
+  clear() {
+    this.store.clear();
+  }
+}
+
+module.exports = CacheManager;

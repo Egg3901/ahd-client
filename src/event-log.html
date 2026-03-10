@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SSE Event Log</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #0d1117;
+        color: #c9d1d9;
+        font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+        font-size: 12px;
+        padding: 12px;
+        overflow-y: auto;
+        height: 100vh;
+      }
+
+      h1 {
+        font-size: 14px;
+        color: #c9a959;
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+
+      .controls {
+        margin-bottom: 10px;
+        display: flex;
+        gap: 8px;
+      }
+
+      button {
+        background: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        padding: 4px 10px;
+        font-size: 11px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+
+      button:hover {
+        background: #30363d;
+      }
+
+      .filter-input {
+        background: #0d1117;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        padding: 4px 8px;
+        font-size: 11px;
+        border-radius: 4px;
+        flex: 1;
+      }
+
+      #log {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .entry {
+        display: flex;
+        gap: 8px;
+        padding: 4px 6px;
+        border-radius: 3px;
+        line-height: 1.4;
+      }
+
+      .entry:hover {
+        background: #161b22;
+      }
+
+      .time {
+        color: #484f58;
+        white-space: nowrap;
+        min-width: 80px;
+      }
+
+      .type {
+        color: #c9a959;
+        font-weight: 600;
+        min-width: 140px;
+        white-space: nowrap;
+      }
+
+      .data {
+        color: #7ee787;
+        word-break: break-all;
+        flex: 1;
+      }
+
+      .empty {
+        color: #484f58;
+        text-align: center;
+        padding: 40px;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SSE Event Log</h1>
+    <div class="controls">
+      <input
+        class="filter-input"
+        id="filter"
+        placeholder="Filter events..."
+        oninput="applyFilter()"
+      />
+      <button onclick="clearLog()">Clear</button>
+      <button onclick="scrollToBottom()">Latest</button>
+    </div>
+    <div id="log">
+      <div class="empty">Waiting for events...</div>
+    </div>
+    <script>
+      let allEntries = [];
+      let filterText = '';
+
+      function updateLog(entries) {
+        allEntries = entries;
+        render();
+      }
+
+      function render() {
+        const log = document.getElementById('log');
+        const filtered = allEntries.filter(
+          (e) =>
+            !filterText ||
+            e.type.toLowerCase().includes(filterText) ||
+            JSON.stringify(e.data).toLowerCase().includes(filterText),
+        );
+
+        if (filtered.length === 0) {
+          log.innerHTML = '<div class="empty">No matching events</div>';
+          return;
+        }
+
+        log.innerHTML = filtered
+          .map(
+            (e) =>
+              `<div class="entry">
+              <span class="time">${new Date(e.timestamp).toLocaleTimeString()}</span>
+              <span class="type">${e.type}</span>
+              <span class="data">${typeof e.data === 'object' ? JSON.stringify(e.data) : e.data}</span>
+            </div>`,
+          )
+          .join('');
+      }
+
+      function applyFilter() {
+        filterText = document.getElementById('filter').value.toLowerCase();
+        render();
+      }
+
+      function clearLog() {
+        allEntries = [];
+        render();
+      }
+
+      function scrollToBottom() {
+        window.scrollTo(0, document.body.scrollHeight);
+      }
+    </script>
+  </body>
+</html>

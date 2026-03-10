@@ -1,7 +1,97 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose a minimal API to the renderer process
+// Channels the renderer is allowed to receive on
+const RECEIVE_CHANNELS = [
+  'sse-status',
+  'flush-queue',
+  'open-feedback',
+  'update-status',
+];
+
+// Channels the renderer is allowed to invoke (request/response)
+const INVOKE_CHANNELS = [
+  'get-game-state',
+  'get-cached-turn',
+  'queue-action',
+  'get-queue',
+  'get-theme',
+  'set-theme',
+  'get-preferences',
+  'set-preference',
+  'update-game-state',
+  'open-window',
+  'toggle-pip',
+  'capture-screenshot',
+  'get-system-info',
+  'check-updates',
+  'get-sse-status',
+  'set-admin',
+];
+
 contextBridge.exposeInMainWorld('ahdClient', {
   platform: process.platform,
   isElectron: true,
+
+  // --- IPC invoke (request/response) ---
+  invoke: (channel, ...args) => {
+    if (INVOKE_CHANNELS.includes(channel)) {
+      return ipcRenderer.invoke(channel, ...args);
+    }
+    return Promise.reject(new Error(`Blocked channel: ${channel}`));
+  },
+
+  // --- IPC listeners (main -> renderer) ---
+  on: (channel, callback) => {
+    if (RECEIVE_CHANNELS.includes(channel)) {
+      const listener = (event, ...args) => callback(...args);
+      ipcRenderer.on(channel, listener);
+      return () => ipcRenderer.removeListener(channel, listener);
+    }
+    return () => {};
+  },
+
+  once: (channel, callback) => {
+    if (RECEIVE_CHANNELS.includes(channel)) {
+      ipcRenderer.once(channel, (event, ...args) => callback(...args));
+    }
+  },
+
+  // --- Convenience methods ---
+
+  // Game state
+  getGameState: () => ipcRenderer.invoke('get-game-state'),
+  getCachedTurn: () => ipcRenderer.invoke('get-cached-turn'),
+  updateGameState: (state) => ipcRenderer.invoke('update-game-state', state),
+
+  // Theme
+  getTheme: () => ipcRenderer.invoke('get-theme'),
+  setTheme: (themeId) => ipcRenderer.invoke('set-theme', themeId),
+
+  // Preferences
+  getPreferences: () => ipcRenderer.invoke('get-preferences'),
+  setPreference: (key, value) =>
+    ipcRenderer.invoke('set-preference', { key, value }),
+
+  // Action queue (offline support)
+  queueAction: (action) => ipcRenderer.invoke('queue-action', action),
+  getQueue: () => ipcRenderer.invoke('get-queue'),
+
+  // Multi-window
+  openWindow: (preset) => ipcRenderer.invoke('open-window', preset),
+
+  // PiP
+  togglePip: () => ipcRenderer.invoke('toggle-pip'),
+
+  // Feedback
+  captureScreenshot: () => ipcRenderer.invoke('capture-screenshot'),
+  getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
+
+  // Updates
+  checkUpdates: () => ipcRenderer.invoke('check-updates'),
+
+  // SSE status
+  getSSEStatus: () => ipcRenderer.invoke('get-sse-status'),
+
+  // Admin
+  setAdmin: (isAdmin) => ipcRenderer.invoke('set-admin', isAdmin),
 });

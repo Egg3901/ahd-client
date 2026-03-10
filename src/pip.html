@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-app-region: drag;
+      }
+
+      body {
+        background: #1a1a2e;
+        color: #e0e0e0;
+        font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
+        font-size: 12px;
+        overflow: hidden;
+        border: 1px solid #2a2a4e;
+        border-radius: 8px;
+        cursor: move;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 10px 14px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+
+      .title {
+        font-size: 10px;
+        color: #c9a959;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-weight: 600;
+      }
+
+      .close-btn {
+        -webkit-app-region: no-drag;
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        padding: 0 2px;
+      }
+
+      .close-btn:hover {
+        color: #e44;
+      }
+
+      .stats {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .stat {
+        flex: 1;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 16px;
+        font-weight: 700;
+        color: #c9a959;
+        line-height: 1.2;
+      }
+
+      .stat-label {
+        font-size: 9px;
+        color: #6666aa;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .expand-hint {
+        text-align: center;
+        margin-top: 6px;
+        font-size: 9px;
+        color: #444;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <span class="title">A House Divided</span>
+      <button class="close-btn" onclick="window.close()">&times;</button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="date">—</div>
+        <div class="stat-label">Game Date</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="timer">—</div>
+        <div class="stat-label">Next Turn</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="ap">—</div>
+        <div class="stat-label">AP</div>
+      </div>
+    </div>
+    <div class="expand-hint">click to expand</div>
+    <script>
+      function updatePip(state) {
+        if (state.currentDate)
+          document.getElementById('date').textContent = state.currentDate;
+        if (state.nextTurnIn)
+          document.getElementById('timer').textContent = state.nextTurnIn;
+        if (state.actionPoints !== undefined)
+          document.getElementById('ap').textContent = state.actionPoints;
+      }
+    </script>
+  </body>
+</html>
