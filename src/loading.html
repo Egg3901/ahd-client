@@ -1,74 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A House Divided</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A House Divided</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    body {
-      background: #1a1a2e;
-      color: #e0e0e0;
-      font-family: 'Georgia', 'Times New Roman', serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      overflow: hidden;
-    }
+      body {
+        background: #1a1a2e;
+        color: #e0e0e0;
+        font-family: 'Georgia', 'Times New Roman', serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+      }
 
-    .container {
-      text-align: center;
-      animation: fadeIn 0.8s ease-in;
-    }
+      .container {
+        text-align: center;
+        animation: fadeIn 0.8s ease-in;
+      }
 
-    h1 {
-      font-size: 2.4rem;
-      color: #c9a959;
-      margin-bottom: 0.5rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
+      h1 {
+        font-size: 2.4rem;
+        color: #c9a959;
+        margin-bottom: 0.5rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
 
-    .subtitle {
-      font-size: 1rem;
-      color: #8888aa;
-      margin-bottom: 2.5rem;
-      font-style: italic;
-    }
+      .subtitle {
+        font-size: 1rem;
+        color: #8888aa;
+        margin-bottom: 2.5rem;
+        font-style: italic;
+      }
 
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #2a2a4e;
-      border-top-color: #c9a959;
-      border-radius: 50%;
-      margin: 0 auto 1.5rem;
-      animation: spin 1s linear infinite;
-    }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #2a2a4e;
+        border-top-color: #c9a959;
+        border-radius: 50%;
+        margin: 0 auto 1.5rem;
+        animation: spin 1s linear infinite;
+      }
 
-    .status {
-      font-size: 0.9rem;
-      color: #6666aa;
-    }
+      .status {
+        font-size: 0.9rem;
+        color: #6666aa;
+      }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>A House Divided</h1>
-    <p class="subtitle">A Political Strategy Game</p>
-    <div class="spinner"></div>
-    <p class="status">Connecting to server&hellip;</p>
-  </div>
-</body>
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>A House Divided</h1>
+      <p class="subtitle">A Political Strategy Game</p>
+      <div class="spinner"></div>
+      <p class="status">Connecting to server&hellip;</p>
+    </div>
+  </body>
 </html>

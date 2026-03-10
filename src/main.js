@@ -105,9 +105,7 @@ function buildMenu() {
   if (process.env.NODE_ENV === 'development') {
     template.push({
       label: 'Developer',
-      submenu: [
-        { role: 'toggleDevTools' },
-      ],
+      submenu: [{ role: 'toggleDevTools' }],
     });
   }
 
