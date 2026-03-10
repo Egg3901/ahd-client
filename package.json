@@ -34,6 +34,11 @@
     "linux": {
       "target": "AppImage",
       "icon": "assets/icon.png"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Egg3901",
+      "repo": "ahd-client"
     }
   },
   "keywords": [
@@ -47,5 +52,9 @@
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
     "prettier": "^3.8.1"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3"
   }
 }
