@@ -13,7 +13,7 @@ describe('config', () => {
   test('exports default GAME_URL', () => {
     delete process.env.AHD_GAME_URL;
     const config = require('../../src/config');
-    expect(config.GAME_URL).toBe('https://ahousedividedgame.com');
+    expect(config.GAME_URL).toBe('https://www.ahousedividedgame.com');
   });
 
   test('respects AHD_GAME_URL env var', () => {
