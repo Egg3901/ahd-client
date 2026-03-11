@@ -25,6 +25,7 @@ const schema = {
       theme: { type: 'string', default: 'default' },
       notificationsEnabled: { type: 'boolean', default: true },
       miniModeEnabled: { type: 'boolean', default: false },
+      displayMode: { type: 'string', default: 'focused' },
     },
   },
   gameState: {

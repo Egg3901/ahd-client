@@ -1,5 +1,21 @@
-const { app, BrowserWindow, shell, session, nativeTheme } = require('electron');
+const { app, BrowserWindow, shell, session, nativeTheme, net, Menu } = require('electron');
 const path = require('path');
+
+// Allow Playwright E2E tests to connect on Windows (Electron 33).
+// On Windows, Playwright cannot pass --remote-debugging-port as a CLI flag to Electron 33,
+// and the -r preload loader.js cannot access the Electron app API.
+// Instead, Playwright sets an env var, and we register the port and __playwright_run here.
+if (process.env.PLAYWRIGHT_REMOTE_DEBUGGING_PORT) {
+  app.commandLine.appendSwitch(
+    'remote-debugging-port',
+    process.env.PLAYWRIGHT_REMOTE_DEBUGGING_PORT,
+  );
+  // Provide the __playwright_run hook that Playwright calls via the Node debugger.
+  // Since we cannot intercept app.whenReady() from the loader preload, we let the app
+  // start normally and Playwright connects once the DevTools port is open.
+  globalThis.__playwright_run = () => {};
+}
+
 const config = require('./config');
 const { registerIpcHandlers } = require('./ipc');
 
@@ -71,7 +87,15 @@ function createWindow() {
   // Show loading screen, then navigate to game server
   mainWindow.loadFile(path.join(__dirname, 'loading.html'));
   mainWindow.once('ready-to-show', () => mainWindow.show());
-  mainWindow.webContents.once('did-finish-load', () => {
+  mainWindow.webContents.once('did-finish-load', async () => {
+    const displayMode = cacheManager.getPreference('displayMode') || 'focused';
+    await session.fromPartition('persist:ahd').cookies.set({
+      url: config.GAME_URL,
+      name: 'ahd-display-mode',
+      value: displayMode,
+      path: '/',
+      sameSite: 'lax',
+    });
     mainWindow.loadURL(config.GAME_URL);
   });
 
@@ -82,7 +106,7 @@ function createWindow() {
 
   // External links open in system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(config.GAME_URL)) {
+    if (!isGameUrl(url)) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
@@ -90,7 +114,7 @@ function createWindow() {
   });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(config.GAME_URL) && !url.startsWith('file://')) {
+    if (!isGameUrl(url) && !url.startsWith('file://')) {
       event.preventDefault();
       shell.openExternal(url);
     }
@@ -113,6 +137,84 @@ function createWindow() {
   initModules();
 }
 
+// --- Theme sync ---
+
+/**
+ * Push a theme change to the site via PATCH /api/settings/theme.
+ * Uses cookies from the persist:ahd session for auth.
+ * @param {string} themeId
+ */
+function pushThemeToSite(themeId) {
+  session
+    .fromPartition('persist:ahd')
+    .cookies.get({ url: config.GAME_URL })
+    .then((cookies) => {
+      const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+      const body = JSON.stringify({ theme: themeId });
+      const request = net.request({
+        url: `${config.GAME_URL}/api/settings/theme`,
+        method: 'PATCH',
+      });
+      request.setHeader('Cookie', cookieStr);
+      request.setHeader('Content-Type', 'application/json');
+      request.on('response', () => {});
+      request.on('error', (err) => {
+        console.error('Failed to push theme to site:', err.message);
+      });
+      request.write(body);
+      request.end();
+    })
+    .catch((err) => {
+      console.error('Failed to get cookies for theme push:', err.message);
+    });
+}
+
+// --- Auth ---
+
+/** @type {NodeJS.Timeout|null} */
+let unreadPollTimer = null;
+
+/**
+ * Fetch the current user from GET /api/auth/me using session cookies.
+ * Returns the user object or null if unauthenticated/error.
+ * @returns {Promise<object|null>}
+ */
+function fetchAuthMe() {
+  return new Promise((resolve) => {
+    session
+      .fromPartition('persist:ahd')
+      .cookies.get({ url: config.GAME_URL })
+      .then((cookies) => {
+        const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+        const req = net.request({
+          url: `${config.GAME_URL}/api/auth/me`,
+          method: 'GET',
+        });
+        req.setHeader('Cookie', cookieStr);
+        req.setHeader('Accept', 'application/json');
+
+        let body = '';
+        req.on('response', (res) => {
+          res.on('data', (chunk) => {
+            body += chunk.toString();
+          });
+          res.on('end', () => {
+            try {
+              const data = JSON.parse(body);
+              resolve(data.user || null);
+            } catch {
+              resolve(null);
+            }
+          });
+          res.on('error', () => resolve(null));
+        });
+        req.on('error', () => resolve(null));
+        req.end();
+      })
+      .catch(() => resolve(null));
+  });
+}
+
 // --- Module initialization ---
 
 /**
@@ -132,6 +234,48 @@ function initModules() {
         if (!sseClient.isConnected()) sseClient.connect();
       })
       .catch(() => {});
+  });
+
+  // Read site theme and inject MutationObserver after page loads
+  mainWindow.webContents.on('did-finish-load', () => {
+    // Sync Electron theme from the site's data-theme attribute
+    mainWindow.webContents
+      .executeJavaScript(
+        `document.documentElement.getAttribute('data-theme')`,
+      )
+      .then((siteTheme) => {
+        if (siteTheme && siteTheme !== cacheManager.getTheme()) {
+          cacheManager.setTheme(siteTheme);
+          syncNativeTheme(siteTheme);
+        }
+      })
+      .catch(() => {});
+
+    // Watch for theme changes made on the site via MutationObserver
+    mainWindow.webContents.executeJavaScript(`
+      (() => {
+        if (window.__ahdThemeObserver) return;
+        window.__ahdThemeObserver = new MutationObserver((mutations) => {
+          for (const m of mutations) {
+            if (m.attributeName === 'data-theme') {
+              const theme = document.documentElement.getAttribute('data-theme');
+              if (theme && window.ahdClient) {
+                window.ahdClient.invoke('theme-changed-on-site', theme);
+              }
+            }
+          }
+        });
+        window.__ahdThemeObserver.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      })();
+    `);
+
+    // Fetch auth state and push to renderer
+    fetchAuthMe().then((user) => {
+      sendToRenderer('auth-state', { user });
+    });
   });
 
   // Notifications (#1)
@@ -179,21 +323,40 @@ function initModules() {
 
   // Dev Tools (#10)
   devToolsManager = new DevToolsManager(mainWindow, sseClient);
+  if (process.env.NODE_ENV === 'development') {
+    devToolsManager.patchIpcMain();
+  }
   sseClient.on('event', (event) => {
     if (devToolsManager) devToolsManager.logEvent(event);
   });
 
   // Menu (#5)
   menuManager = new MenuManager(mainWindow, windowManager, {
+    isFocusedMode: (cacheManager.getPreference('displayMode') || 'focused') === 'focused',
     onThemeChange: (themeId) => {
       cacheManager.setTheme(themeId);
       syncNativeTheme(themeId);
+      pushThemeToSite(themeId);
     },
     onTogglePip: () => pipManager.toggle(),
     onOpenFeedback: () => feedbackManager.openFeedbackDialog(),
+    onToggleFocusedMode: (enabled) => {
+      const mode = enabled ? 'focused' : 'classic';
+      cacheManager.setPreference('displayMode', mode);
+      session.fromPartition('persist:ahd').cookies.set({
+        url: config.GAME_URL,
+        name: 'ahd-display-mode',
+        value: mode,
+        path: '/',
+        sameSite: 'lax',
+      }).then(() => {
+        mainWindow.loadURL(config.GAME_URL);
+      });
+      menuManager.setFocusedMode(enabled);
+    },
   });
   if (process.env.NODE_ENV === 'development') {
-    menuManager.onOpenEventLog = () => devToolsManager.openEventLog();
+    menuManager.onOpenEventLog = () => devToolsManager.openPanel();
   }
   menuManager.build();
 
@@ -237,6 +400,82 @@ function initModules() {
     mainWindow,
     syncNativeTheme,
     handleGameStateEvent,
+    pushThemeToSite,
+  });
+
+  if (process.env.NODE_ENV === 'development') {
+    devToolsManager.registerDevIpc(cacheManager);
+  }
+
+  // Route tracking, nav-state, and window title on navigation
+  function onNavigate(_event, url) {
+    try {
+      const { pathname, search } = new URL(url);
+      const path = pathname + search;
+      sendToRenderer('route-changed', { path });
+      sendNavState();
+      mainWindow.setTitle(`A House Divided \u2014 ${getTitleForPath(pathname)}`);
+
+      // Optimistically clear unread badge when user visits notifications
+      if (pathname === '/notifications' && notificationManager) {
+        notificationManager.clearUnread();
+        sendToRenderer('unread-count', { count: 0 });
+        if (trayManager) trayManager.updateMenu();
+      }
+    } catch {
+      // url may be file:// during loading screen — ignore
+    }
+  }
+
+  mainWindow.webContents.on('did-navigate', onNavigate);
+  mainWindow.webContents.on('did-navigate-in-page', onNavigate);
+
+  // Loading indicator
+  mainWindow.webContents.on('did-start-loading', () => {
+    sendToRenderer('loading-state', { loading: true });
+  });
+  mainWindow.webContents.on('did-stop-loading', () => {
+    sendToRenderer('loading-state', { loading: false });
+  });
+
+  // Context menu (browser chrome is hidden in focused mode)
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const items = [];
+
+    if (params.isEditable) {
+      items.push(
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+        { type: 'separator' },
+      );
+    } else if (params.selectionText) {
+      items.push({ role: 'copy' }, { type: 'separator' });
+    }
+
+    items.push({
+      label: 'Reload',
+      click: () => mainWindow.loadURL(config.GAME_URL),
+    });
+
+    Menu.buildFromTemplate(items).popup({ window: mainWindow });
+  });
+
+  // Poll /api/auth/me every 60s for unread notification count
+  sseClient.once('connected', () => {
+    function pollUnreadCount() {
+      fetchAuthMe().then((user) => {
+        if (user) {
+          sendToRenderer('unread-count', { count: user.unreadCount || 0 });
+        }
+      });
+    }
+    pollUnreadCount();
+    unreadPollTimer = setInterval(pollUnreadCount, 60 * 1000);
   });
 }
 
@@ -269,11 +508,28 @@ function handleGameStateEvent(event) {
 
 /**
  * Map a theme ID to Electron's nativeTheme.themeSource.
- * @param {string} themeId - One of the 7 game theme IDs
+ * @param {string} themeId - One of the site's theme IDs
  */
 function syncNativeTheme(themeId) {
-  const darkThemes = ['default', 'dark', 'gilded', 'federal'];
-  nativeTheme.themeSource = darkThemes.includes(themeId) ? 'dark' : 'light';
+  const lightThemes = ['light', 'pastel', 'usa'];
+  nativeTheme.themeSource = lightThemes.includes(themeId) ? 'light' : 'dark';
+}
+
+/**
+ * Check whether a URL belongs to the game server.
+ * Allows both www and non-www variants (e.g. the site redirects
+ * https://ahousedividedgame.com → https://www.ahousedividedgame.com).
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isGameUrl(url) {
+  try {
+    const gameHost = new URL(config.GAME_URL).hostname; // 'ahousedividedgame.com'
+    const urlHost = new URL(url).hostname;
+    return urlHost === gameHost || urlHost === `www.${gameHost}`;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -288,9 +544,60 @@ function sendToRenderer(channel, data) {
 }
 
 /**
+ * Send current back/forward availability to the renderer.
+ */
+function sendNavState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const history = mainWindow.webContents.navigationHistory;
+    sendToRenderer('nav-state', {
+      canGoBack: history.canGoBack(),
+      canGoForward: history.canGoForward(),
+    });
+  }
+}
+
+/**
+ * Map a URL pathname to a human-readable window title segment.
+ * Uses the first path segment so /state/ohio → "State".
+ * @param {string} pathname
+ * @returns {string}
+ */
+function getTitleForPath(pathname) {
+  const section = pathname.split('/').filter(Boolean)[0] || '';
+  const titles = {
+    '': 'Home',
+    politician: 'My Politician',
+    campaign: 'Campaign HQ',
+    notifications: 'Notifications',
+    achievements: 'Achievements',
+    elections: 'Elections',
+    legislature: 'Congress',
+    bills: 'Legislature',
+    state: 'State',
+    country: 'Country',
+    world: 'World',
+    wiki: 'Game Wiki',
+    roadmap: 'Roadmap',
+    changelog: 'Changelog',
+    admin: 'Admin',
+    login: 'Login',
+    register: 'Register',
+    settings: 'Settings',
+    feedback: 'Feedback',
+    actions: 'Actions',
+    profile: 'Profile',
+  };
+  return titles[section] || section || 'A House Divided';
+}
+
+/**
  * Tear down all modules. Called on window close and app quit.
  */
 function cleanup() {
+  if (unreadPollTimer) {
+    clearInterval(unreadPollTimer);
+    unreadPollTimer = null;
+  }
   if (sseClient) sseClient.disconnect();
   if (shortcutManager) shortcutManager.unregisterAll();
   if (trayManager) trayManager.destroy();

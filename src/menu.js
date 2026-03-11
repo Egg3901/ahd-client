@@ -7,22 +7,21 @@ const config = require('./config');
  * The Admin menu only appears when setAdmin(true) is called from the renderer.
  */
 
-/** @type {{id: string, label: string}[]} The 7 CSS custom-property themes from the game */
+/** @type {{id: string, label: string}[]} The site's available themes */
 const THEMES = [
   { id: 'default', label: 'Default' },
-  { id: 'dark', label: 'Dark' },
   { id: 'light', label: 'Light' },
-  { id: 'patriot', label: 'Patriot' },
-  { id: 'gilded', label: 'Gilded Age' },
-  { id: 'liberty', label: 'Liberty' },
-  { id: 'federal', label: 'Federal' },
+  { id: 'oled', label: 'OLED' },
+  { id: 'usa', label: 'USA' },
+  { id: 'pastel', label: 'Pastel' },
+  { id: 'dark-pastel', label: 'Dark Pastel' },
 ];
 
 class MenuManager {
   /**
    * @param {Electron.BrowserWindow} mainWindow
    * @param {import('./windows')} windowManager - For pop-out window presets
-   * @param {{onThemeChange?: (id: string) => void, onTogglePip?: () => void, onOpenFeedback?: () => void, isAdmin?: boolean}} [options]
+   * @param {{onThemeChange?: (id: string) => void, onTogglePip?: () => void, onOpenFeedback?: () => void, onToggleFocusedMode?: (enabled: boolean) => void, isAdmin?: boolean, isFocusedMode?: boolean}} [options]
    */
   constructor(mainWindow, windowManager, options = {}) {
     /** @type {Electron.BrowserWindow} */
@@ -31,12 +30,16 @@ class MenuManager {
     this.windowManager = windowManager;
     /** @type {boolean} */
     this.isAdmin = options.isAdmin || false;
+    /** @type {boolean} */
+    this.isFocusedMode = options.isFocusedMode !== false;
     /** @type {((id: string) => void)|null} */
     this.onThemeChange = options.onThemeChange || null;
     /** @type {(() => void)|null} */
     this.onTogglePip = options.onTogglePip || null;
     /** @type {(() => void)|null} */
     this.onOpenFeedback = options.onOpenFeedback || null;
+    /** @type {((enabled: boolean) => void)|null} */
+    this.onToggleFocusedMode = options.onToggleFocusedMode || null;
     /** @type {(() => void)|null} Set externally by main.js for dev event log */
     this.onOpenEventLog = null;
   }
@@ -190,12 +193,24 @@ class MenuManager {
               if (this.onThemeChange) {
                 this.onThemeChange(theme.id);
               }
-              // Inject theme change into the renderer
+              // Set data-theme attribute and dispatch event for the site's ThemeContext
               this.mainWindow.webContents.executeJavaScript(
-                `document.dispatchEvent(new CustomEvent('ahd-theme-change', { detail: '${theme.id}' }))`,
+                `document.documentElement.setAttribute('data-theme', '${theme.id}');
+                 document.dispatchEvent(new CustomEvent('ahd-theme-change', { detail: '${theme.id}' }))`,
               );
             },
           })),
+        },
+        { type: 'separator' },
+        {
+          label: 'Focused Mode',
+          type: 'checkbox',
+          checked: this.isFocusedMode,
+          click: (menuItem) => {
+            if (this.onToggleFocusedMode) {
+              this.onToggleFocusedMode(menuItem.checked);
+            }
+          },
         },
         { type: 'separator' },
         { role: 'zoomIn' },
@@ -284,6 +299,15 @@ class MenuManager {
    */
   setAdmin(isAdmin) {
     this.isAdmin = isAdmin;
+    this.build();
+  }
+
+  /**
+   * Update the Focused Mode checkbox state and rebuild the menu.
+   * @param {boolean} enabled
+   */
+  setFocusedMode(enabled) {
+    this.isFocusedMode = enabled;
     this.build();
   }
 

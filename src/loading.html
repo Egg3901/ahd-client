@@ -12,9 +12,9 @@
       }
 
       body {
-        background: #1a1a2e;
-        color: #e0e0e0;
-        font-family: 'Georgia', 'Times New Roman', serif;
+        background: #09090d;
+        color: #f0f0f4;
+        font-family: system-ui, -apple-system, sans-serif;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -22,39 +22,52 @@
         overflow: hidden;
       }
 
+      /* Animated gradient accent line at top */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(-45deg, #dc2626, #1d4ed8, #dc2626, #1d4ed8);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+      }
+
       .container {
         text-align: center;
         animation: fadeIn 0.8s ease-in;
       }
 
-      h1 {
-        font-size: 2.4rem;
-        color: #c9a959;
-        margin-bottom: 0.5rem;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-      }
-
-      .subtitle {
-        font-size: 1rem;
-        color: #8888aa;
-        margin-bottom: 2.5rem;
-        font-style: italic;
-      }
-
-      .spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid #2a2a4e;
-        border-top-color: #c9a959;
-        border-radius: 50%;
+      .spinner-wrapper {
+        width: 80px;
+        height: 80px;
         margin: 0 auto 1.5rem;
-        animation: spin 1s linear infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        filter: drop-shadow(0 0 20px rgb(220 38 38 / 0.15))
+          drop-shadow(0 0 40px rgb(220 38 38 / 0.07));
       }
 
-      .status {
-        font-size: 0.9rem;
-        color: #6666aa;
+      .spinner-icon {
+        animation: spin 2s linear infinite;
+        color: #dc2626;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        color: #f0f0f4;
+        margin-bottom: 0.5rem;
+        letter-spacing: 1px;
+        font-weight: 600;
+      }
+
+      .subtext {
+        font-size: 0.875rem;
+        color: #6b6b7a;
       }
 
       @keyframes spin {
@@ -73,14 +86,61 @@
           transform: translateY(0);
         }
       }
+
+      @keyframes gradientShift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      /* Scrollbar styling */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #09090d;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1d1d2e;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #6b6b7a;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>A House Divided</h1>
-      <p class="subtitle">A Political Strategy Game</p>
-      <div class="spinner"></div>
-      <p class="status">Connecting to server&hellip;</p>
+      <div class="spinner-wrapper">
+        <svg
+          class="spinner-icon"
+          xmlns="http://www.w3.org/2000/svg"
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="3" x2="21" y1="22" y2="22" />
+          <line x1="6" x2="6" y1="18" y2="11" />
+          <line x1="10" x2="10" y1="18" y2="11" />
+          <line x1="14" x2="14" y1="18" y2="11" />
+          <line x1="18" x2="18" y1="18" y2="11" />
+          <polygon points="12 2 20 7 4 7" />
+          <line x1="2" x2="22" y1="18" y2="18" />
+        </svg>
+      </div>
+      <h1>Loading</h1>
+      <p class="subtext">Convening the chamber&hellip;</p>
     </div>
   </body>
 </html>

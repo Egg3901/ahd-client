@@ -95,7 +95,7 @@ npm start
 
 ### Configuration
 
-Set the game server URL via environment variable (defaults to `https://ahousedivided.online`):
+Set the game server URL via environment variable (defaults to `https://ahousedividedgame.com`):
 
 ```bash
 AHD_GAME_URL=https://your-server.com npm start

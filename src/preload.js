@@ -6,6 +6,11 @@ const RECEIVE_CHANNELS = [
   'flush-queue',
   'open-feedback',
   'update-status',
+  'route-changed',
+  'nav-state',
+  'loading-state',
+  'auth-state',
+  'unread-count',
 ];
 
 // Channels the renderer is allowed to invoke (request/response)
@@ -26,6 +31,11 @@ const INVOKE_CHANNELS = [
   'check-updates',
   'get-sse-status',
   'set-admin',
+  'theme-changed-on-site',
+  'go-back',
+  'go-forward',
+  'set-zoom',
+  'get-zoom',
 ];
 
 contextBridge.exposeInMainWorld('ahdClient', {
@@ -94,4 +104,12 @@ contextBridge.exposeInMainWorld('ahdClient', {
 
   // Admin
   setAdmin: (isAdmin) => ipcRenderer.invoke('set-admin', isAdmin),
+
+  // Navigation
+  goBack: () => ipcRenderer.invoke('go-back'),
+  goForward: () => ipcRenderer.invoke('go-forward'),
+
+  // Zoom
+  setZoom: (factor) => ipcRenderer.invoke('set-zoom', factor),
+  getZoom: () => ipcRenderer.invoke('get-zoom'),
 });

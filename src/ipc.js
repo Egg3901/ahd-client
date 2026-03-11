@@ -31,6 +31,7 @@ function registerIpcHandlers(deps) {
     mainWindow,
     syncNativeTheme,
     handleGameStateEvent,
+    pushThemeToSite,
   } = deps;
 
   ipcMain.handle('get-game-state', () => {
@@ -56,6 +57,14 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('set-theme', (_event, themeId) => {
     if (cacheManager) {
+      cacheManager.setTheme(themeId);
+      syncNativeTheme(themeId);
+      pushThemeToSite(themeId);
+    }
+  });
+
+  ipcMain.handle('theme-changed-on-site', (_event, themeId) => {
+    if (cacheManager && themeId !== cacheManager.getTheme()) {
       cacheManager.setTheme(themeId);
       syncNativeTheme(themeId);
     }
@@ -111,6 +120,26 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('set-admin', (_event, isAdmin) => {
     if (menuManager) menuManager.setAdmin(isAdmin);
+  });
+
+  ipcMain.handle('go-back', () => {
+    if (mainWindow && mainWindow.webContents.navigationHistory.canGoBack()) {
+      mainWindow.webContents.navigationHistory.goBack();
+    }
+  });
+
+  ipcMain.handle('go-forward', () => {
+    if (mainWindow && mainWindow.webContents.navigationHistory.canGoForward()) {
+      mainWindow.webContents.navigationHistory.goForward();
+    }
+  });
+
+  ipcMain.handle('set-zoom', (_event, factor) => {
+    if (mainWindow) mainWindow.webContents.setZoomFactor(factor);
+  });
+
+  ipcMain.handle('get-zoom', () => {
+    return mainWindow ? mainWindow.webContents.getZoomFactor() : 1;
   });
 }
 
