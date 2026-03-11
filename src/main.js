@@ -15,6 +15,7 @@ const UpdateManager = require('./updater');
 const PipManager = require('./pip');
 const FeedbackManager = require('./feedback');
 const DevToolsManager = require('./devtools');
+const DashboardPoller = require('./dashboard');
 
 // --- Module singletons (initialized in createWindow) ---
 
@@ -42,6 +43,8 @@ let pipManager = null;
 let feedbackManager = null;
 /** @type {DevToolsManager|null} */
 let devToolsManager = null;
+/** @type {DashboardPoller|null} */
+let dashboardPoller = null;
 
 // --- Window creation ---
 
@@ -174,6 +177,30 @@ function initModules() {
   // PiP (#8)
   pipManager = new PipManager(mainWindow);
 
+  // Dashboard poller (#11) — polls /api/game/turn/dashboard and feeds
+  // the rich response into the same handleGameStateEvent pipeline so tray,
+  // pip, and cache all stay in sync from a single source of truth.
+  dashboardPoller = new DashboardPoller();
+  // Start polling once SSE is connected (session cookies are ready)
+  sseClient.once('connected', () => {
+    dashboardPoller.start((mapped) =>
+      handleGameStateEvent({ data: mapped }),
+    );
+  });
+  // Re-poll immediately after any event that changes character state
+  const REPOLL_EVENTS = [
+    'turn_complete',
+    'action_points_refreshed',
+    'campaign_update',
+    'election_resolved',
+    'bill_enacted',
+  ];
+  sseClient.on('event', ({ type }) => {
+    if (REPOLL_EVENTS.includes(type) && dashboardPoller) {
+      dashboardPoller.poll();
+    }
+  });
+
   // Feedback (#9)
   feedbackManager = new FeedbackManager(mainWindow);
 
@@ -250,10 +277,28 @@ function initModules() {
 function handleGameStateEvent(event) {
   const data = event.data || {};
   const fields = [
+    // Core (original)
     'turnsUntilElection',
     'actionPoints',
+    'maxActionPoints',
     'currentDate',
     'nextTurnIn',
+    // Funds & income
+    'funds',
+    'projectedIncome',
+    'incomeBreakdown',
+    // Decay stats
+    'politicalInfluence',
+    'politicalInfluenceDecayWarning',
+    'favorability',
+    'favorabilityDecayWarning',
+    'infamy',
+    'infamyDecayWarning',
+    // Election countdown
+    'electionDate',
+    'electionName',
+    // Per-action AP costs
+    'actionCosts',
   ];
   const gameState = {};
   for (const field of fields) {
@@ -292,6 +337,7 @@ function sendToRenderer(channel, data) {
  */
 function cleanup() {
   if (sseClient) sseClient.disconnect();
+  if (dashboardPoller) dashboardPoller.stop();
   if (shortcutManager) shortcutManager.unregisterAll();
   if (trayManager) trayManager.destroy();
   if (pipManager) pipManager.destroy();

@@ -10,113 +10,737 @@
         -webkit-app-region: drag;
       }
 
-      body {
-        background: #1a1a2e;
-        color: #e0e0e0;
-        font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
-        font-size: 12px;
-        overflow: hidden;
-        border: 1px solid #2a2a4e;
-        border-radius: 8px;
-        cursor: move;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        padding: 10px 14px;
+      :root {
+        --bg: #1a1a2e;
+        --border: #2a2a4e;
+        --gold: #c9a959;
+        --dim: #6666aa;
+        --text: #e0e0e0;
+        --green: #4caf50;
+        --amber: #ff9800;
+        --red: #e44;
+        --warn: #ff6b35;
       }
 
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
+        font-size: 11px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        padding: 8px 10px 5px;
+        gap: 5px;
+        user-select: none;
+        cursor: default;
+      }
+
+      /* ── Drag override ── */
+      button,
+      .no-drag {
+        -webkit-app-region: no-drag;
+      }
+
+      /* ── Header ── */
       .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 6px;
       }
 
       .title {
-        font-size: 10px;
-        color: #c9a959;
+        font-size: 9px;
+        color: var(--gold);
         text-transform: uppercase;
         letter-spacing: 1.5px;
         font-weight: 600;
       }
 
-      .close-btn {
+      .header-btns {
+        display: flex;
+        gap: 4px;
         -webkit-app-region: no-drag;
+      }
+
+      .icon-btn {
         background: none;
         border: none;
-        color: #666;
+        color: #555;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 13px;
         line-height: 1;
         padding: 0 2px;
       }
 
-      .close-btn:hover {
-        color: #e44;
+      .icon-btn:hover {
+        color: var(--gold);
       }
 
-      .stats {
+      .icon-btn.close:hover {
+        color: var(--red);
+      }
+
+      /* ── AP Section ── */
+      .ap-section {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .ap-header {
         display: flex;
         justify-content: space-between;
-        gap: 8px;
+        align-items: center;
+      }
+
+      .ap-label {
+        font-size: 9px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .ap-value {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--gold);
+      }
+
+      .ap-track {
+        height: 6px;
+        background: #22223a;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .ap-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--green), var(--gold));
+        border-radius: 3px;
+        transition: width 0.4s ease;
+      }
+
+      .ap-tiers {
+        display: flex;
+        gap: 3px;
+        flex-wrap: wrap;
+        -webkit-app-region: no-drag;
+      }
+
+      .ap-tier {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      .ap-tier.t1 {
+        background: rgba(76, 175, 80, 0.15);
+        color: var(--green);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+      }
+
+      .ap-tier.t2 {
+        background: rgba(255, 152, 0, 0.15);
+        color: var(--amber);
+        border: 1px solid rgba(255, 152, 0, 0.3);
+      }
+
+      .ap-tier.t3 {
+        background: rgba(238, 68, 68, 0.15);
+        color: var(--red);
+        border: 1px solid rgba(238, 68, 68, 0.3);
+      }
+
+      .ap-tier.zero {
+        opacity: 0.35;
+      }
+
+      /* ── Stats Row ── */
+      .stats-row {
+        display: flex;
       }
 
       .stat {
         flex: 1;
         text-align: center;
+        -webkit-app-region: no-drag;
+        cursor: pointer;
+        padding: 2px 0;
+        border-radius: 3px;
+      }
+
+      .stat:hover {
+        background: rgba(255, 255, 255, 0.04);
       }
 
       .stat-value {
-        font-size: 16px;
+        font-size: 13px;
         font-weight: 700;
-        color: #c9a959;
+        color: var(--gold);
         line-height: 1.2;
       }
 
       .stat-label {
-        font-size: 9px;
-        color: #6666aa;
+        font-size: 8px;
+        color: var(--dim);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
-      .expand-hint {
-        text-align: center;
-        margin-top: 6px;
+      .income-badge {
+        font-size: 8px;
+        display: block;
+        line-height: 1;
+      }
+
+      /* ── Decay Row ── */
+      .decay-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .decay-stats {
+        display: flex;
+        gap: 8px;
+      }
+
+      .decay-stat {
         font-size: 9px;
-        color: #444;
+        color: var(--dim);
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .decay-stat .val {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .d-ok {
+        color: var(--green);
+      }
+
+      .d-warn {
+        color: var(--warn);
+      }
+
+      .d-danger {
+        color: var(--red);
+      }
+
+      .election-chip {
+        font-size: 9px;
+        color: var(--gold);
+        background: rgba(201, 169, 89, 0.1);
+        border: 1px solid rgba(201, 169, 89, 0.25);
+        border-radius: 3px;
+        padding: 1px 5px;
+        white-space: nowrap;
+      }
+
+      /* ── Expanded Content ── */
+      .expanded-content {
+        display: none;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .expanded-content.visible {
+        display: flex;
+      }
+
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 0 -10px;
+      }
+
+      .section {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 5px 7px;
+      }
+
+      .section-title {
+        font-size: 8px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 4px;
+        font-weight: 600;
+      }
+
+      /* Income grid */
+      .income-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px 8px;
+        font-size: 9px;
+      }
+
+      .income-item {
+        color: var(--dim);
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .ival {
+        font-weight: 600;
+      }
+
+      .pos {
+        color: var(--green);
+      }
+
+      .neg {
+        color: var(--red);
+      }
+
+      .income-net {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--gold);
+        margin-top: 4px;
+        border-top: 1px solid var(--border);
+        padding-top: 3px;
+      }
+
+      /* Decay detail */
+      .decay-detail {
+        display: flex;
+        justify-content: space-around;
+      }
+
+      .dd-item {
+        text-align: center;
+      }
+
+      .dd-val {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gold);
+        display: block;
+        line-height: 1.2;
+      }
+
+      .dd-label {
+        font-size: 8px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .dd-warning {
+        font-size: 8px;
+        margin-top: 1px;
+        min-height: 10px;
+      }
+
+      /* Election detail */
+      .election-detail .edate {
+        font-weight: 700;
+        color: var(--gold);
+      }
+
+      .election-detail .ecountdown {
+        font-size: 9px;
+        color: var(--dim);
+      }
+
+      /* ── Toggle hint ── */
+      .toggle-hint {
+        text-align: center;
+        font-size: 8px;
+        color: #3a3a5a;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+        padding: 0;
+        line-height: 1.2;
+      }
+
+      .toggle-hint:hover {
+        color: var(--dim);
       }
     </style>
   </head>
   <body>
+    <!-- Header -->
     <div class="header">
       <span class="title">A House Divided</span>
-      <button class="close-btn" onclick="window.close()">&times;</button>
-    </div>
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-value" id="date">—</div>
-        <div class="stat-label">Game Date</div>
+      <div class="header-btns">
+        <button class="icon-btn" onclick="openMain()" title="Open full app">⊞</button>
+        <button class="icon-btn close" onclick="window.close()" title="Close">×</button>
       </div>
-      <div class="stat">
+    </div>
+
+    <!-- AP Section -->
+    <div class="ap-section">
+      <div class="ap-header">
+        <span class="ap-label">Action Points</span>
+        <span class="ap-value" id="ap-value">— AP</span>
+      </div>
+      <div class="ap-track">
+        <div class="ap-fill" id="ap-fill" style="width: 0%"></div>
+      </div>
+      <div class="ap-tiers" id="ap-tiers"></div>
+    </div>
+
+    <!-- Core Stats Row -->
+    <div class="stats-row">
+      <div class="stat" onclick="openMain()">
+        <div class="stat-value" id="date">—</div>
+        <div class="stat-label">Date</div>
+      </div>
+      <div class="stat" onclick="openMain()">
         <div class="stat-value" id="timer">—</div>
         <div class="stat-label">Next Turn</div>
       </div>
-      <div class="stat">
-        <div class="stat-value" id="ap">—</div>
-        <div class="stat-label">AP</div>
+      <div class="stat no-drag" onclick="toggleExpanded()">
+        <div class="stat-value" id="funds">—</div>
+        <span class="income-badge" id="income-badge"></span>
+        <div class="stat-label">Funds</div>
       </div>
     </div>
-    <div class="expand-hint">click to expand</div>
+
+    <!-- Decay + Election Row -->
+    <div class="decay-row">
+      <div class="decay-stats">
+        <div class="decay-stat">
+          PI <span class="val" id="pi-val">—</span>
+          <span id="pi-ind"></span>
+        </div>
+        <div class="decay-stat">
+          FAV <span class="val" id="fav-val">—</span>
+          <span id="fav-ind"></span>
+        </div>
+        <div class="decay-stat">
+          INF <span class="val" id="inf-val">—</span>
+          <span id="inf-ind"></span>
+        </div>
+      </div>
+      <div class="election-chip" id="election-chip">—</div>
+    </div>
+
+    <!-- Expanded Content -->
+    <div class="expanded-content" id="expanded-content">
+      <div class="divider"></div>
+
+      <!-- Income Breakdown -->
+      <div class="section">
+        <div class="section-title">Income / hr</div>
+        <div class="income-grid">
+          <div class="income-item">
+            Base <span class="ival pos" id="inc-base">—</span>
+          </div>
+          <div class="income-item">
+            Donors <span class="ival pos" id="inc-donors">—</span>
+          </div>
+          <div class="income-item">
+            Salary <span class="ival pos" id="inc-salary">—</span>
+          </div>
+          <div class="income-item">
+            Party Tax <span class="ival neg" id="inc-tax">—</span>
+          </div>
+        </div>
+        <div class="income-net" id="income-net">Net: —</div>
+      </div>
+
+      <!-- Stat Detail with Decay Warnings -->
+      <div class="section">
+        <div class="section-title">Stats</div>
+        <div class="decay-detail">
+          <div class="dd-item">
+            <span class="dd-val" id="pi-detail">—</span>
+            <span class="dd-label">Pol. Influence</span>
+            <div class="dd-warning" id="pi-warning"></div>
+          </div>
+          <div class="dd-item">
+            <span class="dd-val" id="fav-detail">—</span>
+            <span class="dd-label">Favorability</span>
+            <div class="dd-warning" id="fav-warning"></div>
+          </div>
+          <div class="dd-item">
+            <span class="dd-val" id="inf-detail">—</span>
+            <span class="dd-label">Infamy</span>
+            <div class="dd-warning" id="inf-warning"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Election Detail -->
+      <div class="section" id="election-section">
+        <div class="section-title">Next Election</div>
+        <div class="election-detail">
+          <span class="edate" id="election-name">—</span>
+          <span class="ecountdown" id="election-countdown"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toggle Hint -->
+    <div class="toggle-hint" id="toggle-hint" onclick="toggleExpanded()">
+      ▼ details
+    </div>
+
     <script>
-      function updatePip(state) {
+      let expanded = false;
+
+      let state = {
+        currentDate: null,
+        nextTurnIn: null,
+        actionPoints: null,
+        maxActionPoints: 15,
+        funds: null,
+        projectedIncome: null,
+        incomeBreakdown: null,
+        politicalInfluence: null,
+        politicalInfluenceDecayWarning: false,
+        favorability: null,
+        favorabilityDecayWarning: false,
+        infamy: null,
+        infamyDecayWarning: false,
+        electionDate: null,
+        electionName: null,
+        actionCosts: { fundraise: 1, advertise: 2, donorBuild: 3, poll: 1 },
+      };
+
+      // ── Actions ──
+
+      function openMain() {
+        if (window.pipBridge) window.pipBridge.openMain();
+      }
+
+      function toggleExpanded() {
+        expanded = !expanded;
+        document
+          .getElementById('expanded-content')
+          .classList.toggle('visible', expanded);
+        document.getElementById('toggle-hint').textContent = expanded
+          ? '▲ collapse'
+          : '▼ details';
+        if (window.pipBridge) window.pipBridge.setExpanded(expanded);
+      }
+
+      // ── Public update entry point (called by pip.js via executeJavaScript) ──
+
+      function updatePip(newState) {
+        Object.assign(state, newState);
+        render();
+      }
+
+      // ── Render ──
+
+      function render() {
+        renderAP();
+        renderStats();
+        renderDecayRow();
+        renderElectionChip();
+        renderExpanded();
+      }
+
+      function renderAP() {
+        const ap = state.actionPoints ?? 0;
+        const maxAp = state.maxActionPoints ?? 15;
+        const pct = maxAp > 0 ? Math.min(100, (ap / maxAp) * 100) : 0;
+
+        document.getElementById('ap-value').textContent = `${ap} / ${maxAp} AP`;
+        document.getElementById('ap-fill').style.width = `${pct}%`;
+
+        const costs = state.actionCosts || {};
+        const ACTIONS = [
+          { name: 'Fundraise', cost: costs.fundraise ?? 1, tier: 1 },
+          { name: 'Advertise', cost: costs.advertise ?? 2, tier: 2 },
+          { name: 'Donor Build', cost: costs.donorBuild ?? 3, tier: 3 },
+          { name: 'Poll', cost: costs.poll ?? 1, tier: 1 },
+        ];
+
+        const tiersEl = document.getElementById('ap-tiers');
+        tiersEl.innerHTML = '';
+        ACTIONS.forEach(({ name, cost, tier }) => {
+          const count = cost > 0 ? Math.floor(ap / cost) : 0;
+          const el = document.createElement('div');
+          el.className = `ap-tier t${tier}${count === 0 ? ' zero' : ''}`;
+          el.title = `${cost} AP each`;
+          el.textContent = `×${count} ${name}`;
+          tiersEl.appendChild(el);
+        });
+      }
+
+      function renderStats() {
         if (state.currentDate)
           document.getElementById('date').textContent = state.currentDate;
         if (state.nextTurnIn)
           document.getElementById('timer').textContent = state.nextTurnIn;
-        if (state.actionPoints !== undefined)
-          document.getElementById('ap').textContent = state.actionPoints;
+
+        const fundsEl = document.getElementById('funds');
+        if (state.funds != null) {
+          fundsEl.textContent = '$' + Number(state.funds).toLocaleString();
+        }
+
+        const badge = document.getElementById('income-badge');
+        if (state.projectedIncome != null) {
+          const n = Number(state.projectedIncome);
+          badge.textContent =
+            (n >= 0 ? '+' : '-') + '$' + Math.abs(n).toLocaleString() + '/hr';
+          badge.style.color = n >= 0 ? '#4caf50' : '#e44';
+        }
+      }
+
+      function renderDecayRow() {
+        setDecayStat(
+          'pi',
+          state.politicalInfluence,
+          state.politicalInfluenceDecayWarning,
+          false,
+        );
+        setDecayStat(
+          'fav',
+          state.favorability,
+          state.favorabilityDecayWarning,
+          false,
+        );
+        setDecayStat('inf', state.infamy, state.infamyDecayWarning, true);
+      }
+
+      function setDecayStat(key, value, warn, highIsBad) {
+        const valEl = document.getElementById(`${key}-val`);
+        const indEl = document.getElementById(`${key}-ind`);
+        if (value != null) valEl.textContent = value;
+        if (warn == null) {
+          indEl.textContent = '';
+          return;
+        }
+        const isDanger = highIsBad ? value > 88 : value < 10;
+        if (isDanger) {
+          indEl.textContent = highIsBad ? '▲!' : '▼!';
+          indEl.className = 'd-danger';
+        } else if (warn) {
+          indEl.textContent = highIsBad ? '▲' : '▼';
+          indEl.className = 'd-warn';
+        } else {
+          indEl.textContent = '●';
+          indEl.className = 'd-ok';
+        }
+      }
+
+      function renderElectionChip() {
+        const chip = document.getElementById('election-chip');
+        if (state.electionDate) {
+          const cd = getCountdown(state.electionDate);
+          chip.textContent = cd ? `⚑ ${cd}` : '—';
+        }
+      }
+
+      function renderExpanded() {
+        const ib = state.incomeBreakdown;
+        if (ib) {
+          setText('inc-base', ib.base != null ? '$' + ib.base : '—');
+          setText(
+            'inc-donors',
+            ib.donorBonus != null ? '+$' + ib.donorBonus : '—',
+          );
+          setText(
+            'inc-salary',
+            ib.officeSalary != null ? '+$' + ib.officeSalary : '—',
+          );
+          setText(
+            'inc-tax',
+            ib.partyTax != null ? '-$' + ib.partyTax : '—',
+          );
+        }
+
+        const net = state.projectedIncome;
+        if (net != null) {
+          const n = Number(net);
+          const netEl = document.getElementById('income-net');
+          netEl.textContent =
+            'Net: ' +
+            (n >= 0 ? '+' : '-') +
+            '$' +
+            Math.abs(n).toLocaleString() +
+            '/hr';
+          netEl.style.color = n >= 0 ? '#c9a959' : '#e44';
+        }
+
+        setDetailStat(
+          'pi',
+          state.politicalInfluence,
+          state.politicalInfluenceDecayWarning,
+          false,
+        );
+        setDetailStat(
+          'fav',
+          state.favorability,
+          state.favorabilityDecayWarning,
+          false,
+        );
+        setDetailStat('inf', state.infamy, state.infamyDecayWarning, true);
+
+        if (state.electionDate) {
+          const nameEl = document.getElementById('election-name');
+          const countEl = document.getElementById('election-countdown');
+          nameEl.textContent =
+            state.electionName || fmtDate(state.electionDate);
+          const cd = getCountdown(state.electionDate);
+          countEl.textContent = cd ? ' · ' + cd : '';
+        }
+      }
+
+      function setDetailStat(key, value, warn, highIsBad) {
+        if (value != null)
+          document.getElementById(`${key}-detail`).textContent = value;
+        const wEl = document.getElementById(`${key}-warning`);
+        if (!warn) {
+          wEl.textContent = '';
+          wEl.style.color = '';
+          return;
+        }
+        wEl.style.color = '#ff6b35';
+        wEl.textContent = highIsBad ? '▲ approaching limit' : '▼ decay warning';
+      }
+
+      // ── Utilities ──
+
+      function setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+      }
+
+      function getCountdown(dateStr) {
+        if (!dateStr) return null;
+        try {
+          const diff = new Date(dateStr) - new Date();
+          if (diff <= 0) return 'Today';
+          const d = Math.floor(diff / 86400000);
+          const h = Math.floor((diff % 86400000) / 3600000);
+          if (d > 0) return `${d}d ${h}h`;
+          const m = Math.floor((diff % 3600000) / 60000);
+          return `${h}h ${m}m`;
+        } catch {
+          return null;
+        }
+      }
+
+      function fmtDate(dateStr) {
+        if (!dateStr) return '—';
+        try {
+          return new Date(dateStr).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          });
+        } catch {
+          return dateStr;
+        }
       }
     </script>
   </body>
