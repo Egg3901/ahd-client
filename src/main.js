@@ -250,10 +250,28 @@ function initModules() {
 function handleGameStateEvent(event) {
   const data = event.data || {};
   const fields = [
+    // Core (original)
     'turnsUntilElection',
     'actionPoints',
+    'maxActionPoints',
     'currentDate',
     'nextTurnIn',
+    // Funds & income
+    'funds',
+    'projectedIncome',
+    'incomeBreakdown',
+    // Decay stats
+    'politicalInfluence',
+    'politicalInfluenceDecayWarning',
+    'favorability',
+    'favorabilityDecayWarning',
+    'infamy',
+    'infamyDecayWarning',
+    // Election countdown
+    'electionDate',
+    'electionName',
+    // Per-action AP costs
+    'actionCosts',
   ];
   const gameState = {};
   for (const field of fields) {

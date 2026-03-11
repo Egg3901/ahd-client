@@ -30,10 +30,29 @@ const schema = {
   gameState: {
     type: 'object',
     default: {
+      // Core
       turnsUntilElection: null,
       actionPoints: null,
+      maxActionPoints: null,
       currentDate: null,
+      nextTurnIn: null,
       lastTurnTimestamp: null,
+      // Funds & income
+      funds: null,
+      projectedIncome: null,
+      incomeBreakdown: null,
+      // Decay stats
+      politicalInfluence: null,
+      politicalInfluenceDecayWarning: false,
+      favorability: null,
+      favorabilityDecayWarning: false,
+      infamy: null,
+      infamyDecayWarning: false,
+      // Election countdown
+      electionDate: null,
+      electionName: null,
+      // Per-action AP costs
+      actionCosts: null,
     },
   },
 };
