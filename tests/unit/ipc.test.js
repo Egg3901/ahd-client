@@ -48,6 +48,8 @@ describe('registerIpcHandlers', () => {
         isConnected: jest.fn().mockReturnValue(true),
       },
       mainWindow: {
+        loadURL: jest.fn(),
+        isDestroyed: jest.fn().mockReturnValue(false),
         webContents: {
           canGoBack: jest.fn().mockReturnValue(true),
           canGoForward: jest.fn().mockReturnValue(true),
@@ -57,6 +59,7 @@ describe('registerIpcHandlers', () => {
           getZoomFactor: jest.fn().mockReturnValue(1),
         },
       },
+      config: { GAME_URL: 'https://ahousedividedgame.com' },
       syncNativeTheme: jest.fn(),
       handleGameStateEvent: jest.fn(),
       pushThemeToSite: jest.fn(),
@@ -231,5 +234,12 @@ describe('registerIpcHandlers', () => {
   test('set-admin calls menuManager.setAdmin with isAdmin value', async () => {
     await handlers['set-admin']({}, true);
     expect(deps.menuManager.setAdmin).toHaveBeenCalledWith(true);
+  });
+
+  // --- go-home ---
+
+  test('go-home calls mainWindow.loadURL with GAME_URL', async () => {
+    await handlers['go-home']();
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(deps.config.GAME_URL);
   });
 });

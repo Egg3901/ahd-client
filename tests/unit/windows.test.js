@@ -109,6 +109,74 @@ describe('WindowManager', () => {
     });
   });
 
+  describe('updatePresets()', () => {
+    let origCongressRoute, origCongressTitle, origCountryRoute, origCountryTitle;
+    let _snapWM;
+
+    beforeEach(() => {
+      _snapWM = new WindowManager();
+      const congress = _snapWM.getPresetConfig('congress');
+      const country  = _snapWM.getPresetConfig('country');
+      origCongressRoute = congress.route;
+      origCongressTitle = congress.title;
+      origCountryRoute  = country.route;
+      origCountryTitle  = country.title;
+    });
+
+    afterEach(() => {
+      const congress = _snapWM.getPresetConfig('congress');
+      const country  = _snapWM.getPresetConfig('country');
+      congress.route = origCongressRoute;
+      congress.title = origCongressTitle;
+      country.route  = origCountryRoute;
+      country.title  = origCountryTitle;
+    });
+
+    it('updates the congress preset route and title to match nav.legislature', () => {
+      const wm = new WindowManager();
+      wm.updatePresets({
+        legislature: { route: '/legislature/uk', label: 'Parliament' },
+        map: { route: '/uk/map', label: 'Map' },
+      });
+      const cfg = wm.getPresetConfig('congress');
+      expect(cfg.route).toBe('/legislature/uk');
+      expect(cfg.title).toBe('Parliament — A House Divided');
+    });
+
+    it('updates the country preset route to match nav.map', () => {
+      const wm = new WindowManager();
+      wm.updatePresets({
+        legislature: { route: '/legislature/ca', label: 'Parliament' },
+        map: { route: '/country/ca/map', label: 'Map' },
+      });
+      const cfg = wm.getPresetConfig('country');
+      expect(cfg.route).toBe('/country/ca/map');
+      expect(cfg.title).toBe('Map — A House Divided');
+    });
+
+    it('does NOT change the campaign preset route', () => {
+      const wm = new WindowManager();
+      const originalCampaign = wm.getPresetConfig('campaign').route;
+      wm.updatePresets({
+        legislature: { route: '/legislature/de', label: 'Bundestag' },
+        map: { route: '/country/de/map', label: 'Map' },
+      });
+      expect(wm.getPresetConfig('campaign').route).toBe(originalCampaign);
+    });
+
+    it('openWindow uses updated route after updatePresets', () => {
+      const wm = new WindowManager();
+      wm.updatePresets({
+        legislature: { route: '/legislature/uk', label: 'Parliament' },
+        map: { route: '/uk/map', label: 'Map' },
+      });
+      wm.openWindow('congress');
+      expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
+        `${appConfig.GAME_URL}/legislature/uk`
+      );
+    });
+  });
+
   describe('closeAll()', () => {
     it('closes all open windows', () => {
       const wm = new WindowManager();

@@ -75,6 +75,25 @@ describe('preload', () => {
     expect(ipcRenderer.removeListener).toHaveBeenCalledWith('sse-status', registeredListener);
   });
 
+  // --- New channels (client-nav, go-home) ---
+
+  test('api.on("client-nav", fn) calls ipcRenderer.on and returns cleanup', () => {
+    const fn = jest.fn();
+    const cleanup = api.on('client-nav', fn);
+    expect(ipcRenderer.on).toHaveBeenCalledWith('client-nav', expect.any(Function));
+    expect(typeof cleanup).toBe('function');
+  });
+
+  test('api.invoke("go-home") calls ipcRenderer.invoke("go-home")', () => {
+    api.invoke('go-home');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('go-home');
+  });
+
+  test('api.goHome() calls ipcRenderer.invoke("go-home")', () => {
+    api.goHome();
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('go-home');
+  });
+
   // --- on: invalid channels ---
 
   test('api.on("invalid-channel", fn) returns no-op and does NOT call ipcRenderer.on', () => {

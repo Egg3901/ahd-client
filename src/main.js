@@ -18,6 +18,8 @@ if (process.env.PLAYWRIGHT_REMOTE_DEBUGGING_PORT) {
 
 const config = require('./config');
 const { registerIpcHandlers } = require('./ipc');
+const { getNavForCountry } = require('./nav');
+const { getTitleForPath } = require('./title-for-path');
 
 // Module classes
 const SSEClient = require('./sse');
@@ -87,6 +89,9 @@ const THEME_BACKGROUNDS = {
   pastel:       '#fdf4f0',
   usa:          '#f0f0f5',
 };
+
+/** @type {object} Current country nav (defaults to US until manifest arrives) */
+let currentNav = getNavForCountry(null);
 
 // --- Window creation ---
 
@@ -207,17 +212,16 @@ function pushThemeToSite(themeId) {
     });
 }
 
-// --- Auth ---
+// --- Client nav ---
 
 /** @type {NodeJS.Timeout|null} */
 let unreadPollTimer = null;
 
 /**
- * Fetch the current user from GET /api/auth/me using session cookies.
- * Returns the user object or null if unauthenticated/error.
+ * Fetch the consolidated client-nav manifest from /api/client-nav.
  * @returns {Promise<object|null>}
  */
-function fetchAuthMe() {
+function fetchClientNav() {
   return new Promise((resolve) => {
     session
       .fromPartition('persist:ahd')
@@ -225,7 +229,7 @@ function fetchAuthMe() {
       .then((cookies) => {
         const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
         const req = net.request({
-          url: `${config.GAME_URL}/api/auth/me`,
+          url: `${config.GAME_URL}/api/client-nav`,
           method: 'GET',
         });
         req.setHeader('Cookie', cookieStr);
@@ -233,16 +237,9 @@ function fetchAuthMe() {
 
         let body = '';
         req.on('response', (res) => {
-          res.on('data', (chunk) => {
-            body += chunk.toString();
-          });
+          res.on('data', (chunk) => { body += chunk.toString(); });
           res.on('end', () => {
-            try {
-              const data = JSON.parse(body);
-              resolve(data.user || null);
-            } catch {
-              resolve(null);
-            }
+            try { resolve(JSON.parse(body)); } catch { resolve(null); }
           });
           res.on('error', () => resolve(null));
         });
@@ -251,6 +248,35 @@ function fetchAuthMe() {
       })
       .catch(() => resolve(null));
   });
+}
+
+/**
+ * Apply country-specific nav config to menus and window presets.
+ * @param {string|null} countryId
+ * @param {object} manifest
+ */
+function applyNavForCountry(countryId, manifest) {
+  currentNav = getNavForCountry(countryId);
+  if (menuManager)   menuManager.setNavConfig(currentNav, manifest);
+  if (windowManager) windowManager.updatePresets(currentNav);
+}
+
+/**
+ * Handle a fresh client-nav manifest: update auth state, unread count,
+ * admin menu, and country-aware nav.
+ * @param {object|null} manifest
+ */
+function handleClientNav(manifest) {
+  if (!manifest) return;
+  sendToRenderer('auth-state', {
+    user: manifest.user,
+    hasCharacter: manifest.hasCharacter,
+    missingDemographics: manifest.missingDemographics,
+  });
+  sendToRenderer('client-nav', manifest);
+  sendToRenderer('unread-count', { count: manifest.unreadCount || 0 });
+  if (menuManager) menuManager.setAdmin(manifest.user?.isAdmin ?? false);
+  applyNavForCountry(manifest.characterCountryId, manifest);
 }
 
 // --- Module initialization ---
@@ -310,10 +336,8 @@ function initModules() {
       })();
     `);
 
-    // Fetch auth state and push to renderer
-    fetchAuthMe().then((user) => {
-      sendToRenderer('auth-state', { user });
-    });
+    // Fetch client-nav manifest and apply
+    fetchClientNav().then(handleClientNav);
   });
 
   // Notifications (#1)
@@ -463,6 +487,7 @@ function initModules() {
     syncNativeTheme,
     handleGameStateEvent,
     pushThemeToSite,
+    config,
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -476,7 +501,7 @@ function initModules() {
       const path = pathname + search;
       sendToRenderer('route-changed', { path });
       sendNavState();
-      mainWindow.setTitle(`A House Divided \u2014 ${getTitleForPath(pathname)}`);
+      mainWindow.setTitle(getTitleForPath(pathname, currentNav));
 
       // Optimistically clear unread badge when user visits notifications
       if (pathname === '/notifications' && notificationManager) {
@@ -499,6 +524,29 @@ function initModules() {
   mainWindow.webContents.on('did-stop-loading', () => {
     sendToRenderer('loading-state', { loading: false });
   });
+
+  // 404 recovery overlay
+  mainWindow.webContents.on(
+    'did-navigate',
+    (_event, _url, httpResponseCode, _statusText, isMainFrame) => {
+      if (isMainFrame && httpResponseCode === 404) {
+        injectErrorOverlay('not-found');
+      }
+    },
+  );
+
+  // Network failure overlay
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
+      if (isMainFrame && errorCode !== -3) {
+        injectErrorOverlay('connection');
+      }
+    },
+  );
+
+  // Dismiss overlay when a new load starts
+  mainWindow.webContents.on('did-start-loading', dismissErrorOverlay);
 
   // Context menu (browser chrome is hidden in focused mode)
   mainWindow.webContents.on('context-menu', (_event, params) => {
@@ -527,17 +575,10 @@ function initModules() {
     Menu.buildFromTemplate(items).popup({ window: mainWindow });
   });
 
-  // Poll /api/auth/me every 60s for unread notification count
+  // Fetch client-nav once connected, then poll every 60s
   sseClient.once('connected', () => {
-    function pollUnreadCount() {
-      fetchAuthMe().then((user) => {
-        if (user) {
-          sendToRenderer('unread-count', { count: user.unreadCount || 0 });
-        }
-      });
-    }
-    pollUnreadCount();
-    unreadPollTimer = setInterval(pollUnreadCount, 60 * 1000);
+    fetchClientNav().then(handleClientNav);
+    unreadPollTimer = setInterval(() => fetchClientNav().then(handleClientNav), 60 * 1000);
   });
 }
 
@@ -646,37 +687,53 @@ function sendNavState() {
 }
 
 /**
- * Map a URL pathname to a human-readable window title segment.
- * Uses the first path segment so /state/ohio → "State".
- * @param {string} pathname
- * @returns {string}
+ * Inject a recovery overlay into the main window.
+ * @param {'not-found'|'connection'} type
  */
-function getTitleForPath(pathname) {
-  const section = pathname.split('/').filter(Boolean)[0] || '';
-  const titles = {
-    '': 'Home',
-    politician: 'My Politician',
-    campaign: 'Campaign HQ',
-    notifications: 'Notifications',
-    achievements: 'Achievements',
-    elections: 'Elections',
-    legislature: 'Congress',
-    bills: 'Legislature',
-    state: 'State',
-    country: 'Country',
-    world: 'World',
-    wiki: 'Game Wiki',
-    roadmap: 'Roadmap',
-    changelog: 'Changelog',
-    admin: 'Admin',
-    login: 'Login',
-    register: 'Register',
-    settings: 'Settings',
-    feedback: 'Feedback',
-    actions: 'Actions',
-    profile: 'Profile',
-  };
-  return titles[section] || section || 'A House Divided';
+function injectErrorOverlay(type) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const message =
+    type === 'connection'
+      ? "Couldn't connect — check your internet connection"
+      : "This page isn't available yet";
+  mainWindow.webContents
+    .executeJavaScript(
+      `(function() {
+        if (document.getElementById('ahd-error-overlay')) return;
+        const el = document.createElement('div');
+        el.id = 'ahd-error-overlay';
+        Object.assign(el.style, {
+          position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+          background: '#0f0f1a', color: '#e0e0e0', display: 'flex',
+          flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          zIndex: '999999', fontFamily: 'system-ui, sans-serif', gap: '16px',
+        });
+        el.innerHTML = \`
+          <p style="font-size:1.1rem;margin:0">${message}</p>
+          <div style="display:flex;gap:12px">
+            <button onclick="window.history.back()"
+              style="padding:8px 20px;cursor:pointer;border-radius:6px;border:1px solid #444;background:#1a1a2e;color:#e0e0e0">
+              Go Back
+            </button>
+            <button onclick="window.ahdClient&&window.ahdClient.invoke('go-home')"
+              style="padding:8px 20px;cursor:pointer;border-radius:6px;border:none;background:#4a6fa5;color:#fff">
+              Go Home
+            </button>
+          </div>
+        \`;
+        document.body.appendChild(el);
+      })();`,
+    )
+    .catch(() => {});
+}
+
+function dismissErrorOverlay() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents
+    .executeJavaScript(
+      `(function() { const el = document.getElementById('ahd-error-overlay'); if (el) el.remove(); })();`,
+    )
+    .catch(() => {});
 }
 
 /**

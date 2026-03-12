@@ -1,5 +1,6 @@
 const { Menu, session } = require('electron');
 const config = require('./config');
+const { getNavForCountry } = require('./nav');
 
 /**
  * Custom application menu replacing the default Electron menu.
@@ -42,6 +43,10 @@ class MenuManager {
     this.onToggleFocusedMode = options.onToggleFocusedMode || null;
     /** @type {(() => void)|null} Set externally by main.js for dev event log */
     this.onOpenEventLog = null;
+    /** @type {object} Current country nav config */
+    this.nav = getNavForCountry(null);
+    /** @type {object|null} Latest client-nav manifest */
+    this.manifest = null;
   }
 
   /**
@@ -116,44 +121,57 @@ class MenuManager {
   }
 
   navigateMenu() {
-    return {
-      label: 'Navigate',
-      submenu: [
-        {
-          label: 'Elections',
-          click: () => this.navigate('/elections'),
-        },
-        {
-          label: 'Congress',
-          click: () => this.navigate('/legislature'),
-        },
-        {
-          label: 'Legislature',
-          click: () => this.navigate('/bills'),
-        },
-        {
-          label: 'State',
-          click: () => this.navigate('/state'),
-        },
-        {
-          label: 'Country',
-          click: () => this.navigate('/country'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Pop Out Window',
-          submenu: this.windowManager
-            ? this.windowManager.getPresets().map((preset) => ({
-                label: this.windowManager
-                  .getPresetConfig(preset)
-                  .title.split(' — ')[0],
-                click: () =>
-                  this.windowManager.openWindow(preset, this.mainWindow),
-              }))
-            : [],
-        },
-      ],
-    };
+    const nav = this.nav;
+    const manifest = this.manifest;
+
+    const items = [
+      { label: nav.legislature.label, click: () => this.navigate(nav.legislature.route) },
+      { label: nav.executive.label,   click: () => this.navigate(nav.executive.route) },
+      { label: 'Elections',           click: () => this.navigate(nav.elections.route) },
+      { label: nav.map.label,         click: () => this.navigate(nav.map.route) },
+      { type: 'separator' },
+      { label: 'Political Parties',   click: () => this.navigate(nav.parties.route) },
+      { label: 'National Metrics',    click: () => this.navigate(nav.metrics.route) },
+      { label: 'Policy',              click: () => this.navigate(nav.policy.route) },
+      { type: 'separator' },
+      { label: 'World / Nations',     click: () => this.navigate('/world') },
+      { label: 'Politicians',         click: () => this.navigate(nav.politicians.route) },
+      { label: 'News',                click: () => this.navigate(nav.news.route) },
+    ];
+
+    if (manifest?.currentParty) {
+      items.push({ type: 'separator' });
+      items.push({ label: 'My Party', click: () => this.navigate(`/parties/${manifest.currentParty.id}`) });
+    }
+
+    if (nav.presidentElection && manifest?.activePresidentElectionId) {
+      if (!manifest?.currentParty) items.push({ type: 'separator' });
+      items.push({ label: 'Presidential Election', click: () => this.navigate(`/elections/${manifest.activePresidentElectionId}`) });
+    }
+
+    items.push({ type: 'separator' });
+    items.push({
+      label: 'Pop Out Window',
+      submenu: this.windowManager
+        ? this.windowManager.getPresets().map((preset) => ({
+            label: this.windowManager.getPresetConfig(preset).title.split(' — ')[0],
+            click: () => this.windowManager.openWindow(preset, this.mainWindow),
+          }))
+        : [],
+    });
+
+    return { label: 'Navigate', submenu: items };
+  }
+
+  /**
+   * Update nav config and manifest, then rebuild the menu.
+   * @param {object} nav - From getNavForCountry()
+   * @param {object|null} manifest - From fetchClientNav()
+   */
+  setNavConfig(nav, manifest) {
+    this.nav = nav;
+    this.manifest = manifest;
+    this.build();
   }
 
   adminMenu() {

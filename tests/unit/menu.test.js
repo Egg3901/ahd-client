@@ -184,6 +184,70 @@ describe('MenuManager', () => {
     });
   });
 
+  describe('setNavConfig()', () => {
+    function getNavigateSubmenu(mm) {
+      mm.build();
+      const template = Menu.buildFromTemplate.mock.calls[0][0];
+      return template.find((m) => m.label === 'Navigate').submenu;
+    }
+
+    it('Navigate menu uses nav.legislature.label as first item', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('UK');
+      mm.setNavConfig(nav, null);
+      const submenu = getNavigateSubmenu(mm);
+      expect(submenu[0].label).toBe('Parliament');
+    });
+
+    it('Navigate menu uses nav.executive.label as second item', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('UK');
+      mm.setNavConfig(nav, null);
+      const submenu = getNavigateSubmenu(mm);
+      expect(submenu[1].label).toBe('10 Downing Street');
+    });
+
+    it('setNavConfig triggers a menu rebuild', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('DE');
+      jest.clearAllMocks();
+      mm.setNavConfig(nav, null);
+      expect(Menu.buildFromTemplate).toHaveBeenCalledTimes(1);
+    });
+
+    it('My Party item is present when manifest.currentParty is set', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('US');
+      mm.setNavConfig(nav, { currentParty: { id: 'p1', name: 'Democrats' }, activePresidentElectionId: null });
+      const submenu = getNavigateSubmenu(mm);
+      expect(submenu.map((i) => i.label).filter(Boolean)).toContain('My Party');
+    });
+
+    it('My Party item is absent when manifest.currentParty is null', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('US');
+      mm.setNavConfig(nav, null);
+      const submenu = getNavigateSubmenu(mm);
+      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain('My Party');
+    });
+
+    it('Presidential Election item present for US with activePresidentElectionId', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('US');
+      mm.setNavConfig(nav, { currentParty: null, activePresidentElectionId: 'elec-123' });
+      const submenu = getNavigateSubmenu(mm);
+      expect(submenu.map((i) => i.label).filter(Boolean)).toContain('Presidential Election');
+    });
+
+    it('Presidential Election item absent for UK', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('UK');
+      mm.setNavConfig(nav, { currentParty: null, activePresidentElectionId: 'elec-123' });
+      const submenu = getNavigateSubmenu(mm);
+      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain('Presidential Election');
+    });
+  });
+
   describe('setWindow()', () => {
     it('updates the mainWindow reference', () => {
       const win1 = makeMockWindow();

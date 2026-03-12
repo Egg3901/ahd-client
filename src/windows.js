@@ -133,6 +133,21 @@ class WindowManager {
   }
 
   /**
+   * Update the congress and country preset routes/titles to match the given nav config.
+   * @param {{ legislature: {route: string, label: string}, map: {route: string, label: string} }} nav
+   */
+  updatePresets(nav) {
+    if (WINDOW_PRESETS.congress) {
+      WINDOW_PRESETS.congress.route = nav.legislature.route;
+      WINDOW_PRESETS.congress.title = `${nav.legislature.label} — A House Divided`;
+    }
+    if (WINDOW_PRESETS.country) {
+      WINDOW_PRESETS.country.route = nav.map.route;
+      WINDOW_PRESETS.country.title = 'Map — A House Divided';
+    }
+  }
+
+  /**
    * Close all managed pop-out windows.
    */
   closeAll() {

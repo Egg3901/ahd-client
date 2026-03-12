@@ -11,6 +11,7 @@ const RECEIVE_CHANNELS = [
   'loading-state',
   'auth-state',
   'unread-count',
+  'client-nav',
 ];
 
 // Channels the renderer is allowed to invoke (request/response)
@@ -36,6 +37,7 @@ const INVOKE_CHANNELS = [
   'go-forward',
   'set-zoom',
   'get-zoom',
+  'go-home',
 ];
 
 contextBridge.exposeInMainWorld('ahdClient', {
@@ -108,6 +110,7 @@ contextBridge.exposeInMainWorld('ahdClient', {
   // Navigation
   goBack: () => ipcRenderer.invoke('go-back'),
   goForward: () => ipcRenderer.invoke('go-forward'),
+  goHome: () => ipcRenderer.invoke('go-home'),
 
   // Zoom
   setZoom: (factor) => ipcRenderer.invoke('set-zoom', factor),
