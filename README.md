@@ -5,7 +5,7 @@
 ---
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version 0.1.0" />
+  <img src="https://img.shields.io/badge/version-1.0.1-blue" alt="version 1.0.1" />
   <img src="https://img.shields.io/badge/last%20commit-recent-green" alt="last commit recent" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
   <img src="https://img.shields.io/badge/code%20style-prettier-ff69b4" alt="code style prettier" />
@@ -118,6 +118,24 @@ npm run build:linux
 ```
 
 Output goes to the `dist/` directory.
+
+---
+
+## :link: Releases
+
+Releases are automated via GitHub Actions. To publish a new version:
+
+1. Bump the version in `package.json`
+2. Tag and push:
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+The workflow in [`.github/workflows/release.yml`](.github/workflows/release.yml) will build the Windows installer and attach it to a GitHub Release automatically.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ---
 
