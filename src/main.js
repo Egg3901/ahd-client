@@ -64,6 +64,32 @@ let devToolsManager = null;
 /** @type {DashboardPoller|null} */
 let dashboardPoller = null;
 
+// --- Theme colours ---
+
+/**
+ * Per-theme titlebar overlay colours (Windows only).
+ * `color` = background behind the window control buttons.
+ * `symbolColor` = colour of the close/min/max icons.
+ */
+const THEME_OVERLAY = {
+  default:      { color: '#0f0f1a', symbolColor: '#ffffff' },
+  oled:         { color: '#000000', symbolColor: '#ffffff' },
+  'dark-pastel':{ color: '#1a1527', symbolColor: '#ffffff' },
+  light:        { color: '#f5f5f5', symbolColor: '#111111' },
+  pastel:       { color: '#fdf4f0', symbolColor: '#111111' },
+  usa:          { color: '#f0f0f5', symbolColor: '#111111' },
+};
+
+/** Web-content background per theme (eliminates load-flash). */
+const THEME_BACKGROUNDS = {
+  default:      '#0f0f1a',
+  oled:         '#000000',
+  'dark-pastel':'#1a1527',
+  light:        '#f5f5f5',
+  pastel:       '#fdf4f0',
+  usa:          '#f0f0f5',
+};
+
 /** @type {object} Current country nav (defaults to US until manifest arrives) */
 let currentNav = getNavForCountry(null);
 
@@ -75,6 +101,8 @@ let currentNav = getNavForCountry(null);
 function createWindow() {
   cacheManager = new CacheManager();
 
+  const savedTheme = cacheManager.getTheme();
+  const overlay = THEME_OVERLAY[savedTheme] ?? THEME_OVERLAY.default;
   mainWindow = new BrowserWindow({
     width: config.WINDOW_WIDTH,
     height: config.WINDOW_HEIGHT,
@@ -82,6 +110,13 @@ function createWindow() {
     minHeight: config.MIN_HEIGHT,
     title: 'A House Divided',
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    backgroundColor: THEME_BACKGROUNDS[savedTheme] ?? THEME_BACKGROUNDS.default,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: overlay.color,
+      symbolColor: overlay.symbolColor,
+      height: 32,
+    },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -593,12 +628,21 @@ function handleGameStateEvent(event) {
 }
 
 /**
- * Map a theme ID to Electron's nativeTheme.themeSource.
+ * Map a theme ID to Electron's nativeTheme.themeSource, update the titlebar
+ * overlay colour (Windows), and set the window background colour.
  * @param {string} themeId - One of the site's theme IDs
  */
 function syncNativeTheme(themeId) {
   const lightThemes = ['light', 'pastel', 'usa'];
   nativeTheme.themeSource = lightThemes.includes(themeId) ? 'light' : 'dark';
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const bg = THEME_BACKGROUNDS[themeId] ?? THEME_BACKGROUNDS.default;
+    mainWindow.setBackgroundColor(bg);
+    if (process.platform === 'win32') {
+      const overlay = THEME_OVERLAY[themeId] ?? THEME_OVERLAY.default;
+      mainWindow.setTitleBarOverlay({ color: overlay.color, symbolColor: overlay.symbolColor });
+    }
+  }
 }
 
 /**
