@@ -20,8 +20,8 @@ The desktop client hardcodes US-centric routes and labels in `menu.js` and `wind
 Three coordinated changes:
 
 1. **`src/nav.js`** — New module. Static per-country route/label config. Single source of truth for all navigation in the client.
-2. **`fetchClientNav()`** — Replaces `fetchAuthMe()`. Hits the new `/api/client-nav` endpoint to get the full player manifest in one call. Drives menu rebuild, unread count, and auth state.
-3. **404 recovery overlay** — `did-navigate` listener injects a recovery UI when `httpResponseCode === 404` on the main frame.
+2. **`fetchClientNav()`** — Replaces `fetchAuthMe()`. Hits `/api/client-nav` to get the full player manifest in one call. Drives menu rebuild, unread count, and auth state.
+3. **404 recovery overlay** — `did-navigate` listener injects a recovery UI when `httpResponseCode === 404` on the main frame. `did-fail-load` injects the same overlay for network failures.
 
 ---
 
@@ -29,16 +29,18 @@ Three coordinated changes:
 
 | File | Change |
 |------|--------|
-| `src/nav.js` | **New** — country nav config table + helpers |
-| `src/main.js` | Replace `fetchAuthMe()` + `unreadPollTimer` with `fetchClientNav()`; add `applyNavForCountry()`; add 404 overlay listener |
+| `src/nav.js` | **New** — country nav config table + `getNavForCountry()` |
+| `src/main.js` | Replace `fetchAuthMe()` + `unreadPollTimer` with `fetchClientNav()`; add `applyNavForCountry(countryId, manifest)`; add 404/fail overlay listeners; update `getTitleForPath` for `/legislature/*` |
 | `src/menu.js` | Add `setNavConfig(nav, manifest)`; rebuild Navigate submenu from nav config |
-| `src/windows.js` | Add `updatePresets(nav)`; fix congress/country/campaign preset routes |
+| `src/windows.js` | Add `updatePresets(nav)`; update preset route **and title** for `congress` and `country` |
+| `src/preload.js` | Add `'client-nav'` to `RECEIVE_CHANNELS` whitelist |
+| `src/ipc.js` | Add `'go-home'` IPC handler → `mainWindow.loadURL(config.GAME_URL)` |
 
 ---
 
 ## Section 1: `src/nav.js`
 
-Exports a `getNavForCountry(countryId)` function and a `DEFAULT_NAV` (US) fallback.
+Exports `getNavForCountry(countryId)`. Returns `COUNTRY_NAV[countryId] ?? COUNTRY_NAV.US` — unknown or null countryId falls back to US nav.
 
 ### Country config table
 
@@ -95,19 +97,19 @@ const COUNTRY_NAV = {
 };
 ```
 
-`getNavForCountry(countryId)` returns `COUNTRY_NAV[countryId] ?? COUNTRY_NAV.US`.
+> **Note:** CA/DE executive labels (`'Parliament Hill'`, `'Chancellery'`) are correct values — the site currently shows "10 Downing Street" for these countries (site bug).
 
-> **Note:** CA/DE executive labels (`'Parliament Hill'`, `'Chancellery'`) are correct values — the site currently shows a bug ("10 Downing Street") for these countries.
+> **Future:** When a new country is added to the server, add its entry to `COUNTRY_NAV`. `getNavForCountry` will return US nav for any unrecognised code, which is safe but imperfect — a console warning should be emitted when the fallback fires in production.
 
 ---
 
 ## Section 2: `fetchClientNav()` in `main.js`
 
-Replaces `fetchAuthMe()` and the `unreadPollTimer` interval.
+Replaces `fetchAuthMe()` and `unreadPollTimer`.
 
 ### What it fetches
 
-`GET /api/client-nav` with session cookies forwarded from `persist:ahd` partition.
+`GET /api/client-nav` with cookies forwarded from `persist:ahd` partition (same pattern as `fetchAuthMe`).
 
 ### Manifest shape (from server)
 
@@ -130,26 +132,30 @@ Replaces `fetchAuthMe()` and the `unreadPollTimer` interval.
 | Action | How |
 |--------|-----|
 | Auth state to renderer | `sendToRenderer('auth-state', { user, hasCharacter, missingDemographics })` |
-| Full manifest to renderer | `sendToRenderer('client-nav', manifest)` (new channel) |
+| Full manifest to renderer | `sendToRenderer('client-nav', manifest)` — new channel, whitelisted in `preload.js` |
 | Unread count | `sendToRenderer('unread-count', { count: manifest.unreadCount })` |
 | Admin menu toggle | `menuManager.setAdmin(manifest.user?.isAdmin ?? false)` |
-| Nav rebuild | `applyNavForCountry(manifest.characterCountryId)` |
+| Nav rebuild | `applyNavForCountry(manifest.characterCountryId, manifest)` |
 
 ### Polling
 
-Called once after `sseClient` emits `'connected'`, then on a 60s interval (same cadence as current `unreadPollTimer`). The interval ref replaces `unreadPollTimer`.
+`fetchClientNav()` is called in two places:
+1. Inside `sseClient.once('connected', ...)` — primary path when SSE connects
+2. Inside `did-finish-load` handler — fallback for when SSE has not yet connected (e.g. server slow, first load before SSE handshake). This mirrors the current `fetchAuthMe` call location.
 
-### `applyNavForCountry(countryId)`
+A 60s `setInterval` replaces `unreadPollTimer`, stored under the same variable name. The interval is cleared in `cleanup()` as before.
+
+### `applyNavForCountry(countryId, manifest)`
 
 ```js
 function applyNavForCountry(countryId, manifest) {
   const nav = getNavForCountry(countryId);  // from src/nav.js
-  if (menuManager)    menuManager.setNavConfig(nav, manifest);
-  if (windowManager)  windowManager.updatePresets(nav);
+  if (menuManager)   menuManager.setNavConfig(nav, manifest);
+  if (windowManager) windowManager.updatePresets(nav);
 }
 ```
 
-Called after every `fetchClientNav()` response. Guards against null `menuManager`/`windowManager` (called before init only if auth resolves before modules are ready — not possible given current flow, but defensive is correct).
+Both arguments are required. `manifest` is passed to `setNavConfig` so the Navigate menu can render conditional items (My Party, Presidential Election).
 
 ---
 
@@ -159,40 +165,37 @@ Called after every `fetchClientNav()` response. Guards against null `menuManager
 
 Stores `this.nav` and `this.manifest`, then calls `this.build()`.
 
-### Navigate submenu (generated from `this.nav`)
+Initial values: `this.nav = getNavForCountry(null)` (US), `this.manifest = null`. Navigate menu renders without conditional items until the first manifest arrives.
+
+### Navigate submenu (generated from `this.nav` and `this.manifest`)
 
 ```
 Navigate
-  {nav.legislature.label}                → nav.legislature.route
-  {nav.executive.label}                  → nav.executive.route
-  Elections                              → nav.elections.route
-  Map                                    → nav.map.route
-  ─────────────────────────────────────
-  Political Parties                      → nav.parties.route
-  National Metrics                       → nav.metrics.route
-  Policy                                 → nav.policy.route
-  ─────────────────────────────────────
-  World / Nations                        → /world
-  Politicians                            → nav.politicians.route
-  News                                   → nav.news.route
-  ─────────────────────────────────────
-  My Party  (only if manifest.currentParty)   → /parties/[currentParty.id]
-  Presidential Election  (only if nav.presidentElection
-                           && manifest.activePresidentElectionId)
-                                         → /elections/[activePresidentElectionId]
-  ─────────────────────────────────────
-  Pop Out Window ▶  (existing submenu)
+  {nav.legislature.label}                      → nav.legislature.route
+  {nav.executive.label}                        → nav.executive.route
+  Elections                                    → nav.elections.route
+  Map                                          → nav.map.route
+  ───────────────────────────────────────────
+  Political Parties                            → nav.parties.route
+  National Metrics                             → nav.metrics.route
+  Policy                                       → nav.policy.route
+  ───────────────────────────────────────────
+  World / Nations                              → /world
+  Politicians                                  → nav.politicians.route
+  News                                         → nav.news.route
+  ───────────────────────────────────────────
+  My Party  (only if manifest?.currentParty)   → /parties/[currentParty.id]
+  Presidential Election                        → /elections/[activePresidentElectionId]
+    (only if nav.presidentElection && manifest?.activePresidentElectionId)
+  ───────────────────────────────────────────
+  Pop Out Window ▶  (existing submenu, unchanged)
 ```
-
-### Default state (unauthenticated / no character)
-
-`setNavConfig` is called with `null` countryId → `getNavForCountry(null)` returns US nav. Conditional items (My Party, Presidential Election) are hidden because manifest fields will be null.
 
 ### Removed items
 
-- "Legislature" (was `/bills` — route doesn't exist)
-- Hardcoded "Congress" (was `/legislature` — wrong route)
-- Hardcoded "Country" (was `/country` — incomplete URL)
+- "Legislature" (was `/bills` — route doesn't exist on server)
+- Hardcoded "Congress" (was `/legislature` — wrong route, replaced by dynamic legislature item)
+- Hardcoded "Country" (was `/country` — incomplete URL, replaced by Map in pop-out submenu)
 
 ---
 
@@ -200,46 +203,78 @@ Navigate
 
 ### New method: `updatePresets(nav)`
 
-Updates three dynamic presets in `WINDOW_PRESETS`:
+Updates route **and title** for two dynamic presets in `WINDOW_PRESETS`:
 
-| Preset | Old route | New route |
-|--------|-----------|-----------|
-| `congress` | `/legislature` | `nav.legislature.route` |
-| `country` | `/country` | `nav.map.route` |
-| `campaign` | `/campaign` | `/campaign` (unchanged — server redirects to player's campaign) |
+| Preset key | Old route | New route | New title |
+|------------|-----------|-----------|-----------|
+| `congress` | `/legislature` | `nav.legislature.route` | `{nav.legislature.label} — A House Divided` |
+| `country`  | `/country`     | `nav.map.route`         | `Map — A House Divided` |
+| `campaign` | `/campaign`    | `/campaign` (unchanged) | unchanged |
 
-`updatePresets` mutates `WINDOW_PRESETS` in place so existing `openWindow()` calls pick up correct routes without further changes.
+Mutates `WINDOW_PRESETS` in place — existing `openWindow()` calls pick up correct values without further changes.
 
 ---
 
 ## Section 5: 404 Recovery Overlay
 
-### Trigger
+### IPC wiring
+
+A new `'go-home'` handler is registered in `src/ipc.js`:
+```js
+ipcMain.handle('go-home', () => {
+  mainWindow.loadURL(config.GAME_URL);
+});
+```
+
+`'go-home'` is added to `INVOKE_CHANNELS` in `src/preload.js` so the renderer can call `window.ahdClient.invoke('go-home')`.
+
+`'client-nav'` is added to `RECEIVE_CHANNELS` in `src/preload.js` so the renderer can listen via `window.ahdClient.on('client-nav', handler)`.
+
+### Trigger — 404
+
+Registered in `initModules()`, **after** the existing `onNavigate` listener binding (so ordering is: `onNavigate` fires first for route/title updates, then the 404 check fires):
 
 ```js
 mainWindow.webContents.on('did-navigate',
   (_, _url, httpResponseCode, _statusText, isMainFrame) => {
-    if (isMainFrame && httpResponseCode === 404) injectErrorOverlay();
+    if (isMainFrame && httpResponseCode === 404) injectErrorOverlay('not-found');
   }
 );
 ```
 
-### `injectErrorOverlay()`
+### Trigger — network failure
+
+```js
+mainWindow.webContents.on('did-fail-load',
+  (_, errorCode, _errorDescription, _url, isMainFrame) => {
+    // -3 = ABORTED (user navigated away), ignore
+    if (isMainFrame && errorCode !== -3) injectErrorOverlay('connection');
+  }
+);
+```
+
+### Dismissal
+
+- **404 overlay:** dismissed automatically when a new navigation completes — the page replacement clears the injected DOM.
+- **Network failure overlay:** the page does not replace on `did-fail-load`. The overlay is dismissed by listening to `did-start-loading` and calling `executeJavaScript` to remove the overlay element by its ID (`#ahd-error-overlay`).
+
+### `injectErrorOverlay(type)`
 
 Injects a fixed-position overlay via `executeJavaScript`. The overlay:
-- Covers the full viewport
-- Matches dark theme background (`#0f0f1a`) with light text (theme-neutral)
-- Shows message: "This page isn't available yet"
-- **Go Back** button → `window.history.back()`
-- **Go Home** button → IPC call → `mainWindow.loadURL(config.GAME_URL)`
+- ID: `ahd-error-overlay` (used for dismissal)
+- Covers the full viewport with `z-index: 999999`
+- Background: `#0f0f1a` (dark, theme-neutral)
+- Message: `"This page isn't available yet"` (type `'not-found'`) or `"Couldn't connect — check your internet connection"` (type `'connection'`)
+- **Go Back** button → calls `window.history.back()` inline (no IPC needed)
+- **Go Home** button → calls `window.ahdClient.invoke('go-home')` via the new IPC channel
 
-The overlay is dismissed automatically on the next `did-navigate` event (a new navigation replaces the page).
+No new HTML file — the overlay is a self-contained template string.
 
-No new HTML file is created — the overlay HTML is a template string in `main.js` (or extracted to a helper `injectErrorOverlay()` function).
+---
 
-### Also handles network failures
+## `getTitleForPath` update in `main.js`
 
-`did-fail-load` is fired for DNS/TCP errors (no internet, server down). Same overlay is shown with message "Couldn't connect — check your internet connection."
+The existing `getTitleForPath` maps `'legislature'` → `'Congress'` (line ~664). This must be updated to map `'legislature'` → the current nav's legislature label. Since `getTitleForPath` is a pure function called from `onNavigate`, it should accept an optional `nav` parameter and look up `nav.legislature.label ?? 'Congress'` for the `'legislature'` key. The module-level `currentNav` variable (set by `applyNavForCountry`) is used as the default.
 
 ---
 
@@ -249,16 +284,17 @@ No new HTML file is created — the overlay HTML is a template string in `main.j
 |----------|-----|-----|
 | `menu.js` Navigate | Congress → `/legislature` (wrong) | `nav.legislature.route` |
 | `menu.js` Navigate | Legislature → `/bills` (404) | Removed |
-| `windows.js` presets | `congress` → `/legislature` | `nav.legislature.route` |
-| `windows.js` presets | `country` → `/country` (incomplete) | `nav.map.route` |
+| `windows.js` presets | `congress` → `/legislature` | `nav.legislature.route` + correct title |
+| `windows.js` presets | `country` → `/country` (incomplete) | `nav.map.route` + correct title |
 | CA/DE nav | Executive label shows "10 Downing Street" | Correct label per country |
 | CA/DE nav | `?country=us` on all items | `?country=ca` / `?country=de` |
+| `main.js` | `getTitleForPath` maps `legislature` → `'Congress'` | Dynamic label from current nav |
 
 ---
 
 ## Out of Scope
 
-- State dropdown label localization (handled client-side in site's `StateDropdown` component; route `/state/[id]` is universal)
+- State dropdown label localization (route `/state/[id]` is universal; label derives from `homeState.name`)
 - UK `/uk/*` legacy route family (not linked from live navbar)
 - First-run / character creation flow
 - Connection loss status indicator
@@ -268,8 +304,19 @@ No new HTML file is created — the overlay HTML is a template string in `main.j
 
 ## Testing
 
-- Unit tests for `getNavForCountry()` — correct routes/labels per countryId, US fallback for null
-- Unit tests for `MenuManager.setNavConfig()` — Navigate submenu items, conditional items
-- Unit tests for `WindowManager.updatePresets()` — preset route mutation
-- Integration test: `fetchClientNav()` response → correct nav applied to menu and presets
-- Manual: focused mode 404 → overlay appears with working Back/Home buttons
+**New unit tests:**
+- `nav.test.js`: `getNavForCountry()` — correct routes/labels for all 4 countries; US fallback for `null`; US fallback for unknown string (e.g. `'AU'`); console warning emitted on unknown code
+- `menu.test.js`: `setNavConfig()` — Navigate submenu items match nav config; conditional items (My Party, Presidential Election) present/absent based on manifest fields; no conditional items when manifest is null
+- `windows.test.js`: `updatePresets()` — `congress` preset route and title updated; `country` preset route updated; `campaign` preset unchanged
+
+**Updates to existing tests:**
+- `windows.test.js` line 17: update `toHaveLength(6)` comment to reflect that `congress` and `country` preset routes now require `updatePresets()` before use
+- `windows.test.js`: update any assertions that hardcode `/legislature` or `/country` routes
+
+**Integration tests:**
+- Mock `fetchClientNav()` response with UK manifest → Navigate menu shows "Parliament", window preset for `congress` routes to `/legislature/uk`
+- Mock response with null `characterCountryId` → US nav applied, no conditional items
+
+**Manual:**
+- Focused mode → navigate to a 404 page → overlay appears with working Go Back and Go Home buttons
+- Network offline → navigate → connection overlay appears; comes back online → overlay dismisses on next load attempt
