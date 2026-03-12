@@ -32,6 +32,7 @@ function registerIpcHandlers(deps) {
     syncNativeTheme,
     handleGameStateEvent,
     pushThemeToSite,
+    config,
   } = deps;
 
   ipcMain.handle('get-game-state', () => {
@@ -140,6 +141,12 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('get-zoom', () => {
     return mainWindow ? mainWindow.webContents.getZoomFactor() : 1;
+  });
+
+  ipcMain.handle('go-home', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL(config.GAME_URL);
+    }
   });
 }
 
