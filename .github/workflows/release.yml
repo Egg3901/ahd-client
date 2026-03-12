@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
@@ -15,16 +18,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - run: npm ci
 
       - run: npm test
 
-      - run: npm run build:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Windows installer
+        # CSC_IDENTITY_AUTO_DISCOVERY=false skips code-signing (no cert configured yet)
+        # PUBLISH=never stops electron-builder auto-publishing — softprops handles release creation
+        run: cross-env CSC_IDENTITY_AUTO_DISCOVERY=false PUBLISH=never electron-builder --win
 
-      - uses: softprops/action-gh-release@v2
+      - name: Create GitHub Release and upload installer
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/*.exe
           generate_release_notes: true
+          draft: false
+          fail_on_unmatched_files: true
