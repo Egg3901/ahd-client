@@ -7,9 +7,11 @@ All notable changes to the A House Divided desktop client are documented here.
 ## [1.0.1] - 2026-03-12
 
 ### Fixed
+
 - Restore application menu bar (Game / Navigate / View / Help) on Windows — it was hidden by the `titleBarStyle: 'hidden'` setting introduced in 1.0.0
 
 ### Changed
+
 - Removed custom titlebar overlay colours (reverted `titleBarStyle: 'hidden'` and `titleBarOverlay`) to keep the native application menu visible
 - Theme background colours per theme still applied on window creation (eliminates load-flash)
 
@@ -18,6 +20,7 @@ All notable changes to the A House Divided desktop client are documented here.
 ## [1.0.0] - 2026-03-12
 
 ### Added
+
 - **Country-aware navigation** — menus and window presets update dynamically based on the player's character country (US, UK, CA, DE)
 - **`/api/client-nav` integration** — replaces `/api/auth/me`; single endpoint delivers user, nav config, unread count, party, and active election state
 - **404 recovery overlay** — detects HTTP 404 responses and injects a "Page not found" overlay with a Go Home button

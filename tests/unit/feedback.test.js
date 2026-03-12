@@ -66,7 +66,9 @@ describe('FeedbackManager', () => {
 
     it('returns null when capturePage throws', async () => {
       const mainWindow = makeMockWindow();
-      mainWindow.webContents.capturePage.mockRejectedValue(new Error('capture failed'));
+      mainWindow.webContents.capturePage.mockRejectedValue(
+        new Error('capture failed'),
+      );
       const fm = new FeedbackManager(mainWindow);
       const result = await fm.captureScreenshot();
       expect(result).toBeNull();

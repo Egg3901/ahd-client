@@ -37,7 +37,7 @@ describe('UpdateManager', () => {
     autoUpdater.emit('checking-for-update');
     expect(mainWindow.webContents.send).toHaveBeenCalledWith(
       'update-status',
-      'Checking for updates...'
+      'Checking for updates...',
     );
   });
 
@@ -47,7 +47,7 @@ describe('UpdateManager', () => {
     autoUpdater.emit('update-not-available');
     expect(mainWindow.webContents.send).toHaveBeenCalledWith(
       'update-status',
-      'Up to date.'
+      'Up to date.',
     );
   });
 
@@ -62,7 +62,7 @@ describe('UpdateManager', () => {
     autoUpdater.emit('download-progress', { percent: 50 });
     expect(mainWindow.webContents.send).toHaveBeenCalledWith(
       'update-status',
-      'Downloading update: 50%'
+      'Downloading update: 50%',
     );
   });
 
@@ -72,7 +72,7 @@ describe('UpdateManager', () => {
     autoUpdater.emit('error', new Error('network error'));
     expect(mainWindow.webContents.send).toHaveBeenCalledWith(
       'update-status',
-      'Update check failed.'
+      'Update check failed.',
     );
   });
 
@@ -111,7 +111,7 @@ describe('UpdateManager', () => {
 
     expect(newWindow.webContents.send).toHaveBeenCalledWith(
       'update-status',
-      'Up to date.'
+      'Up to date.',
     );
     expect(mainWindow.webContents.send).not.toHaveBeenCalled();
   });

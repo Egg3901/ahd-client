@@ -32,7 +32,10 @@
       body {
         background: var(--bg);
         color: var(--fg);
-        font-family: system-ui, -apple-system, sans-serif;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
         font-size: 13px;
         display: flex;
         flex-direction: column;
@@ -549,7 +552,12 @@
         <select id="sse-type-select" onchange="onSseFilter()">
           <option value="">All types</option>
         </select>
-        <button id="sse-autoscroll-btn" class="active" onclick="toggleAutoScroll()" title="Auto-scroll to latest">
+        <button
+          id="sse-autoscroll-btn"
+          class="active"
+          onclick="toggleAutoScroll()"
+          title="Auto-scroll to latest"
+        >
           ↓ Auto
         </button>
         <button onclick="clearSse()">Clear</button>
@@ -575,19 +583,22 @@
         </div>
         <div class="state-card">
           <div class="state-card-header" onclick="toggleCard('preferences')">
-            Preferences <span class="state-chevron" id="chev-preferences">▾</span>
+            Preferences
+            <span class="state-chevron" id="chev-preferences">▾</span>
           </div>
           <div class="state-card-body" id="body-preferences"></div>
         </div>
         <div class="state-card">
           <div class="state-card-header" onclick="toggleCard('action-queue')">
-            Action Queue <span class="state-chevron" id="chev-action-queue">▾</span>
+            Action Queue
+            <span class="state-chevron" id="chev-action-queue">▾</span>
           </div>
           <div class="state-card-body" id="body-action-queue"></div>
         </div>
         <div class="state-card">
           <div class="state-card-header" onclick="toggleCard('cached-turn')">
-            Cached Turn Data <span class="state-chevron" id="chev-cached-turn">▾</span>
+            Cached Turn Data
+            <span class="state-chevron" id="chev-cached-turn">▾</span>
           </div>
           <div class="state-card-body" id="body-cached-turn"></div>
         </div>
@@ -622,7 +633,9 @@
         <div class="config-section">
           <h3>SSE Connection</h3>
           <div class="sse-row">
-            <span id="sse-badge" class="badge badge-disconnected">Disconnected</span>
+            <span id="sse-badge" class="badge badge-disconnected"
+              >Disconnected</span
+            >
             <button onclick="reconnectSse()">Reconnect</button>
           </div>
         </div>
@@ -642,7 +655,9 @@
 
         <div class="config-section">
           <h3>Danger Zone</h3>
-          <button class="danger" onclick="clearCache()">Clear Electron Store</button>
+          <button class="danger" onclick="clearCache()">
+            Clear Electron Store
+          </button>
         </div>
       </div>
     </div>
@@ -956,7 +971,10 @@
       ───────────────────────────────────────────── */
       function onIpcCall(entry) {
         ipcEntries.push(entry);
-        if (!ipcFilterText || entry.channel.toLowerCase().includes(ipcFilterText.toLowerCase())) {
+        if (
+          !ipcFilterText ||
+          entry.channel.toLowerCase().includes(ipcFilterText.toLowerCase())
+        ) {
           appendIpcRow(entry);
         }
         updateStatusBar();
@@ -1075,7 +1093,8 @@
       function updateSseBadge(connected) {
         const badge = document.getElementById('sse-badge');
         badge.textContent = connected ? 'Connected' : 'Disconnected';
-        badge.className = 'badge ' + (connected ? 'badge-connected' : 'badge-disconnected');
+        badge.className =
+          'badge ' + (connected ? 'badge-connected' : 'badge-disconnected');
         document.getElementById('sb-sse').textContent =
           `SSE ${connected ? '●' : '○'}`;
       }

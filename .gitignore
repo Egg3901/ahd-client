@@ -1,7 +1,11 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 out/
 build/
+release/
 
 # Logs
 *.log
@@ -9,20 +13,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment
+# Environment / secrets
 .env
 .env.local
 .env.*.local
 
-# electron-builder artifacts
-release/
+# electron-builder runtime artifacts
 app-update.yml
 latest.yml
 latest-mac.yml
 latest-linux.yml
-
-# electron-store cache (user data, not source)
-# (these live in AppData/Library at runtime, not in the repo)
+builder-debug.yml
+builder-effective-config.yaml
 
 # OS
 .DS_Store
@@ -36,6 +38,12 @@ playwright-report/
 
 # Git worktrees
 .worktrees/
+
+# Claude Code local config (machine-specific)
+.claude/
+
+# AI-generated planning docs (not part of the shipped product)
+docs/superpowers/
 
 # Editor
 .vscode/settings.json

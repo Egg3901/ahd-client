@@ -16,7 +16,14 @@ describe('WindowManager', () => {
       const presets = wm.getPresets();
       expect(presets).toHaveLength(6);
       expect(presets).toEqual(
-        expect.arrayContaining(['elections', 'congress', 'campaign', 'state', 'country', 'notifications'])
+        expect.arrayContaining([
+          'elections',
+          'congress',
+          'campaign',
+          'state',
+          'country',
+          'notifications',
+        ]),
       );
     });
   });
@@ -49,7 +56,7 @@ describe('WindowManager', () => {
       const wm = new WindowManager();
       wm.openWindow('elections');
       expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
-        `${appConfig.GAME_URL}/elections`
+        `${appConfig.GAME_URL}/elections`,
       );
     });
 
@@ -98,7 +105,7 @@ describe('WindowManager', () => {
       const relativePath = '/some/path';
       wm.openCustom(relativePath);
       expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
-        `${appConfig.GAME_URL}${relativePath}`
+        `${appConfig.GAME_URL}${relativePath}`,
       );
     });
 
@@ -110,26 +117,29 @@ describe('WindowManager', () => {
   });
 
   describe('updatePresets()', () => {
-    let origCongressRoute, origCongressTitle, origCountryRoute, origCountryTitle;
+    let origCongressRoute,
+      origCongressTitle,
+      origCountryRoute,
+      origCountryTitle;
     let _snapWM;
 
     beforeEach(() => {
       _snapWM = new WindowManager();
       const congress = _snapWM.getPresetConfig('congress');
-      const country  = _snapWM.getPresetConfig('country');
+      const country = _snapWM.getPresetConfig('country');
       origCongressRoute = congress.route;
       origCongressTitle = congress.title;
-      origCountryRoute  = country.route;
-      origCountryTitle  = country.title;
+      origCountryRoute = country.route;
+      origCountryTitle = country.title;
     });
 
     afterEach(() => {
       const congress = _snapWM.getPresetConfig('congress');
-      const country  = _snapWM.getPresetConfig('country');
+      const country = _snapWM.getPresetConfig('country');
       congress.route = origCongressRoute;
       congress.title = origCongressTitle;
-      country.route  = origCountryRoute;
-      country.title  = origCountryTitle;
+      country.route = origCountryRoute;
+      country.title = origCountryTitle;
     });
 
     it('updates the congress preset route and title to match nav.legislature', () => {
@@ -172,7 +182,7 @@ describe('WindowManager', () => {
       });
       wm.openWindow('congress');
       expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
-        `${appConfig.GAME_URL}/legislature/uk`
+        `${appConfig.GAME_URL}/legislature/uk`,
       );
     });
   });

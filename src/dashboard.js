@@ -170,8 +170,7 @@ class DashboardPoller {
         donorBonus: fi.donorBaseBonus ?? null,
         officeSalary: fi.officeBonus ?? null,
         // Combine state + national party taxes into a single deduction
-        partyTax:
-          (fi.stateTax ?? 0) + (fi.nationalTax ?? 0) || null,
+        partyTax: (fi.stateTax ?? 0) + (fi.nationalTax ?? 0) || null,
       };
     }
 

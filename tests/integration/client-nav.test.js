@@ -2,15 +2,21 @@
 
 jest.mock('../../src/nav', () => ({
   getNavForCountry: jest.fn((id) => ({
-    legislature: { route: `/legislature/${(id || 'us').toLowerCase()}`, label: id === 'UK' ? 'Parliament' : 'Congress' },
-    executive:   { route: `/executive/${(id || 'us').toLowerCase()}`, label: 'Exec' },
-    map:         { route: '/map', label: 'Map' },
-    elections:   { route: '/elections?country=us' },
-    parties:     { route: '/parties?country=us' },
-    metrics:     { route: '/metrics?country=us' },
-    policy:      { route: '/policy?country=us' },
+    legislature: {
+      route: `/legislature/${(id || 'us').toLowerCase()}`,
+      label: id === 'UK' ? 'Parliament' : 'Congress',
+    },
+    executive: {
+      route: `/executive/${(id || 'us').toLowerCase()}`,
+      label: 'Exec',
+    },
+    map: { route: '/map', label: 'Map' },
+    elections: { route: '/elections?country=us' },
+    parties: { route: '/parties?country=us' },
+    metrics: { route: '/metrics?country=us' },
+    policy: { route: '/policy?country=us' },
     politicians: { route: '/politicians?country=us' },
-    news:        { route: '/news?country=us' },
+    news: { route: '/news?country=us' },
     presidentElection: id !== 'UK',
   })),
 }));
@@ -29,7 +35,11 @@ describe('applyNavForCountry integration', () => {
     };
   }
   function makeMockWM() {
-    return { getPresets: jest.fn().mockReturnValue([]), getPresetConfig: jest.fn(), openWindow: jest.fn() };
+    return {
+      getPresets: jest.fn().mockReturnValue([]),
+      getPresetConfig: jest.fn(),
+      openWindow: jest.fn(),
+    };
   }
 
   beforeEach(() => jest.clearAllMocks());
@@ -52,7 +62,10 @@ describe('applyNavForCountry integration', () => {
 
   test('US manifest with presidentElection: Presidential Election item present', () => {
     const nav = getNavForCountry('US');
-    const manifest = { currentParty: null, activePresidentElectionId: 'elec-999' };
+    const manifest = {
+      currentParty: null,
+      activePresidentElectionId: 'elec-999',
+    };
 
     const mm = new MenuManager(makeMockWindow(), makeMockWM(), {});
     mm.setNavConfig(nav, manifest);

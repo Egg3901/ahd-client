@@ -125,28 +125,50 @@ class MenuManager {
     const manifest = this.manifest;
 
     const items = [
-      { label: nav.legislature.label, click: () => this.navigate(nav.legislature.route) },
-      { label: nav.executive.label,   click: () => this.navigate(nav.executive.route) },
-      { label: 'Elections',           click: () => this.navigate(nav.elections.route) },
-      { label: nav.map.label,         click: () => this.navigate(nav.map.route) },
+      {
+        label: nav.legislature.label,
+        click: () => this.navigate(nav.legislature.route),
+      },
+      {
+        label: nav.executive.label,
+        click: () => this.navigate(nav.executive.route),
+      },
+      { label: 'Elections', click: () => this.navigate(nav.elections.route) },
+      { label: nav.map.label, click: () => this.navigate(nav.map.route) },
       { type: 'separator' },
-      { label: 'Political Parties',   click: () => this.navigate(nav.parties.route) },
-      { label: 'National Metrics',    click: () => this.navigate(nav.metrics.route) },
-      { label: 'Policy',              click: () => this.navigate(nav.policy.route) },
+      {
+        label: 'Political Parties',
+        click: () => this.navigate(nav.parties.route),
+      },
+      {
+        label: 'National Metrics',
+        click: () => this.navigate(nav.metrics.route),
+      },
+      { label: 'Policy', click: () => this.navigate(nav.policy.route) },
       { type: 'separator' },
-      { label: 'World / Nations',     click: () => this.navigate('/world') },
-      { label: 'Politicians',         click: () => this.navigate(nav.politicians.route) },
-      { label: 'News',                click: () => this.navigate(nav.news.route) },
+      { label: 'World / Nations', click: () => this.navigate('/world') },
+      {
+        label: 'Politicians',
+        click: () => this.navigate(nav.politicians.route),
+      },
+      { label: 'News', click: () => this.navigate(nav.news.route) },
     ];
 
     if (manifest?.currentParty) {
       items.push({ type: 'separator' });
-      items.push({ label: 'My Party', click: () => this.navigate(`/parties/${manifest.currentParty.id}`) });
+      items.push({
+        label: 'My Party',
+        click: () => this.navigate(`/parties/${manifest.currentParty.id}`),
+      });
     }
 
     if (nav.presidentElection && manifest?.activePresidentElectionId) {
       if (!manifest?.currentParty) items.push({ type: 'separator' });
-      items.push({ label: 'Presidential Election', click: () => this.navigate(`/elections/${manifest.activePresidentElectionId}`) });
+      items.push({
+        label: 'Presidential Election',
+        click: () =>
+          this.navigate(`/elections/${manifest.activePresidentElectionId}`),
+      });
     }
 
     items.push({ type: 'separator' });
@@ -154,7 +176,9 @@ class MenuManager {
       label: 'Pop Out Window',
       submenu: this.windowManager
         ? this.windowManager.getPresets().map((preset) => ({
-            label: this.windowManager.getPresetConfig(preset).title.split(' — ')[0],
+            label: this.windowManager
+              .getPresetConfig(preset)
+              .title.split(' — ')[0],
             click: () => this.windowManager.openWindow(preset, this.mainWindow),
           }))
         : [],

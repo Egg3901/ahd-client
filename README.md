@@ -170,13 +170,13 @@ npm run test:coverage
 
 ### CI checks (run on every push and PR)
 
-| Check | Tool | Workflow |
-| ----- | ---- | -------- |
-| Unit & integration tests | Jest | `ci.yml` |
-| Linting | ESLint 10 | `ci.yml` |
-| Formatting | Prettier | `ci.yml` |
-| Security scanning | CodeQL | `codeql.yml` |
-| Dependency updates | Dependabot | weekly PRs |
+| Check                    | Tool       | Workflow     |
+| ------------------------ | ---------- | ------------ |
+| Unit & integration tests | Jest       | `ci.yml`     |
+| Linting                  | ESLint 10  | `ci.yml`     |
+| Formatting               | Prettier   | `ci.yml`     |
+| Security scanning        | CodeQL     | `codeql.yml` |
+| Dependency updates       | Dependabot | weekly PRs   |
 
 ---
 

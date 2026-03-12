@@ -17,14 +17,20 @@ describe('preload', () => {
     require('../../src/preload');
 
     // Capture the api object passed to exposeInMainWorld
-    expect(contextBridge.exposeInMainWorld).toHaveBeenCalledWith('ahdClient', expect.any(Object));
+    expect(contextBridge.exposeInMainWorld).toHaveBeenCalledWith(
+      'ahdClient',
+      expect.any(Object),
+    );
     api = contextBridge.exposeInMainWorld.mock.calls[0][1];
   });
 
   // --- Bootstrapping ---
 
   test('exposeInMainWorld is called with "ahdClient"', () => {
-    expect(contextBridge.exposeInMainWorld).toHaveBeenCalledWith('ahdClient', expect.any(Object));
+    expect(contextBridge.exposeInMainWorld).toHaveBeenCalledWith(
+      'ahdClient',
+      expect.any(Object),
+    );
   });
 
   // --- Static properties ---
@@ -46,13 +52,18 @@ describe('preload', () => {
 
   test('api.invoke("theme-changed-on-site", "dark") calls ipcRenderer.invoke with correct args', () => {
     api.invoke('theme-changed-on-site', 'dark');
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith('theme-changed-on-site', 'dark');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'theme-changed-on-site',
+      'dark',
+    );
   });
 
   // --- invoke: blocked channels ---
 
   test('api.invoke("dangerous-channel") rejects with "Blocked channel" error', async () => {
-    await expect(api.invoke('dangerous-channel')).rejects.toThrow('Blocked channel');
+    await expect(api.invoke('dangerous-channel')).rejects.toThrow(
+      'Blocked channel',
+    );
   });
 
   // --- on: allowed channels ---
@@ -61,7 +72,10 @@ describe('preload', () => {
     const fn = jest.fn();
     const cleanup = api.on('sse-status', fn);
 
-    expect(ipcRenderer.on).toHaveBeenCalledWith('sse-status', expect.any(Function));
+    expect(ipcRenderer.on).toHaveBeenCalledWith(
+      'sse-status',
+      expect.any(Function),
+    );
     expect(typeof cleanup).toBe('function');
   });
 
@@ -72,7 +86,10 @@ describe('preload', () => {
     // Get the listener that was registered
     const registeredListener = ipcRenderer.on.mock.calls[0][1];
     cleanup();
-    expect(ipcRenderer.removeListener).toHaveBeenCalledWith('sse-status', registeredListener);
+    expect(ipcRenderer.removeListener).toHaveBeenCalledWith(
+      'sse-status',
+      registeredListener,
+    );
   });
 
   // --- New channels (client-nav, go-home) ---
@@ -80,7 +97,10 @@ describe('preload', () => {
   test('api.on("client-nav", fn) calls ipcRenderer.on and returns cleanup', () => {
     const fn = jest.fn();
     const cleanup = api.on('client-nav', fn);
-    expect(ipcRenderer.on).toHaveBeenCalledWith('client-nav', expect.any(Function));
+    expect(ipcRenderer.on).toHaveBeenCalledWith(
+      'client-nav',
+      expect.any(Function),
+    );
     expect(typeof cleanup).toBe('function');
   });
 

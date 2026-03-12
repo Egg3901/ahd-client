@@ -38,7 +38,8 @@ describe('SSE -> NotificationManager integration', () => {
   });
 
   test('election_resolved SSE event increments unread count to 1', () => {
-    sse.buffer = 'event: election_resolved\ndata: {"winner":"Smith","office":"President"}\n\n';
+    sse.buffer =
+      'event: election_resolved\ndata: {"winner":"Smith","office":"President"}\n\n';
     sse.processBuffer();
 
     expect(notifications.getUnreadCount()).toBe(1);

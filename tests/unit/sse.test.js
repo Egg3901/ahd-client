@@ -74,7 +74,10 @@ describe('SSEClient', () => {
     client.processBuffer();
 
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler).toHaveBeenCalledWith({ type: 'turn_complete', data: { turn: 1 } });
+    expect(handler).toHaveBeenCalledWith({
+      type: 'turn_complete',
+      data: { turn: 1 },
+    });
   });
 
   test('processBuffer emits the event type as a standalone event', () => {
@@ -108,7 +111,10 @@ describe('SSEClient', () => {
     client.buffer = 'event: raw_event\ndata: not valid json\n\n';
     client.processBuffer();
 
-    expect(handler).toHaveBeenCalledWith({ type: 'raw_event', data: 'not valid json' });
+    expect(handler).toHaveBeenCalledWith({
+      type: 'raw_event',
+      data: 'not valid json',
+    });
   });
 
   test('processBuffer keeps incomplete frame in buffer', () => {
@@ -138,7 +144,10 @@ describe('SSEClient', () => {
     client.buffer = 'data: {"msg":"hello"}\n\n';
     client.processBuffer();
 
-    expect(handler).toHaveBeenCalledWith({ type: 'message', data: { msg: 'hello' } });
+    expect(handler).toHaveBeenCalledWith({
+      type: 'message',
+      data: { msg: 'hello' },
+    });
   });
 
   test('processBuffer handles multiple frames in one buffer flush', () => {
@@ -146,13 +155,18 @@ describe('SSEClient', () => {
     client.on('event', handler);
 
     client.buffer =
-      'event: first\ndata: {"n":1}\n\n' +
-      'event: second\ndata: {"n":2}\n\n';
+      'event: first\ndata: {"n":1}\n\n' + 'event: second\ndata: {"n":2}\n\n';
     client.processBuffer();
 
     expect(handler).toHaveBeenCalledTimes(2);
-    expect(handler).toHaveBeenNthCalledWith(1, { type: 'first', data: { n: 1 } });
-    expect(handler).toHaveBeenNthCalledWith(2, { type: 'second', data: { n: 2 } });
+    expect(handler).toHaveBeenNthCalledWith(1, {
+      type: 'first',
+      data: { n: 1 },
+    });
+    expect(handler).toHaveBeenNthCalledWith(2, {
+      type: 'second',
+      data: { n: 2 },
+    });
   });
 
   // --- scheduleReconnect: exponential backoff ---
@@ -165,7 +179,9 @@ describe('SSEClient', () => {
   });
 
   test('scheduleReconnect uses exponential backoff: delay doubles each attempt', () => {
-    const connectSpy = jest.spyOn(client, 'connect').mockImplementation(() => {});
+    const connectSpy = jest
+      .spyOn(client, 'connect')
+      .mockImplementation(() => {});
 
     // First call: retryCount=0 → delay=2000
     client.scheduleReconnect();
@@ -185,7 +201,9 @@ describe('SSEClient', () => {
   });
 
   test('scheduleReconnect caps delay at maxRetryDelay (60000ms)', () => {
-    const connectSpy = jest.spyOn(client, 'connect').mockImplementation(() => {});
+    const connectSpy = jest
+      .spyOn(client, 'connect')
+      .mockImplementation(() => {});
 
     // Force retryCount high enough that 2000 * 2^retryCount > 60000
     // 2000 * 2^5 = 64000 > 60000, so retryCount=5 should produce delay=60000

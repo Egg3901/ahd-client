@@ -152,14 +152,26 @@ describe('registerIpcHandlers', () => {
   // --- set-preference ---
 
   test('set-preference with key=notificationsEnabled calls notificationManager.setEnabled', async () => {
-    await handlers['set-preference']({}, { key: 'notificationsEnabled', value: false });
-    expect(deps.cacheManager.setPreference).toHaveBeenCalledWith('notificationsEnabled', false);
+    await handlers['set-preference'](
+      {},
+      { key: 'notificationsEnabled', value: false },
+    );
+    expect(deps.cacheManager.setPreference).toHaveBeenCalledWith(
+      'notificationsEnabled',
+      false,
+    );
     expect(deps.notificationManager.setEnabled).toHaveBeenCalledWith(false);
   });
 
   test('set-preference with other key does not call notificationManager.setEnabled', async () => {
-    await handlers['set-preference']({}, { key: 'miniModeEnabled', value: true });
-    expect(deps.cacheManager.setPreference).toHaveBeenCalledWith('miniModeEnabled', true);
+    await handlers['set-preference'](
+      {},
+      { key: 'miniModeEnabled', value: true },
+    );
+    expect(deps.cacheManager.setPreference).toHaveBeenCalledWith(
+      'miniModeEnabled',
+      true,
+    );
     expect(deps.notificationManager.setEnabled).not.toHaveBeenCalled();
   });
 
@@ -175,7 +187,10 @@ describe('registerIpcHandlers', () => {
 
   test('open-window calls windowManager.openWindow with preset and mainWindow', async () => {
     await handlers['open-window']({}, 'pip');
-    expect(deps.windowManager.openWindow).toHaveBeenCalledWith('pip', deps.mainWindow);
+    expect(deps.windowManager.openWindow).toHaveBeenCalledWith(
+      'pip',
+      deps.mainWindow,
+    );
   });
 
   // --- toggle-pip ---

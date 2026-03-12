@@ -377,8 +377,12 @@
     <div class="header">
       <span class="title">A House Divided</span>
       <div class="header-btns">
-        <button class="icon-btn" onclick="openMain()" title="Open full app">⊞</button>
-        <button class="icon-btn close" onclick="window.close()" title="Close">×</button>
+        <button class="icon-btn" onclick="openMain()" title="Open full app">
+          ⊞
+        </button>
+        <button class="icon-btn close" onclick="window.close()" title="Close">
+          ×
+        </button>
       </div>
     </div>
 
@@ -652,10 +656,7 @@
             'inc-salary',
             ib.officeSalary != null ? '+$' + ib.officeSalary : '—',
           );
-          setText(
-            'inc-tax',
-            ib.partyTax != null ? '-$' + ib.partyTax : '—',
-          );
+          setText('inc-tax', ib.partyTax != null ? '-$' + ib.partyTax : '—');
         }
 
         const net = state.projectedIncome;

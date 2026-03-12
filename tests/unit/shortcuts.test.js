@@ -85,7 +85,7 @@ describe('ShortcutManager', () => {
       const win = makeMockWindow();
       const sm = new ShortcutManager(win);
       expect(() =>
-        sm.handleShortcut({ action: 'custom', handler: 'noSuchHandler' })
+        sm.handleShortcut({ action: 'custom', handler: 'noSuchHandler' }),
       ).not.toThrow();
     });
 
@@ -101,7 +101,7 @@ describe('ShortcutManager', () => {
     it('no-ops when mainWindow is null', () => {
       const sm = new ShortcutManager(null);
       expect(() =>
-        sm.handleShortcut({ action: 'navigate', route: '/campaign' })
+        sm.handleShortcut({ action: 'navigate', route: '/campaign' }),
       ).not.toThrow();
     });
   });

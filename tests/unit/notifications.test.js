@@ -58,13 +58,19 @@ describe('NotificationManager', () => {
 
   test('when window is focused and event is not turn_complete: increments unread', () => {
     win.isFocused.mockReturnValue(true);
-    manager.handleSSEEvent({ type: 'election_resolved', data: { winner: 'Alice', office: 'Senate' } });
+    manager.handleSSEEvent({
+      type: 'election_resolved',
+      data: { winner: 'Alice', office: 'Senate' },
+    });
     expect(manager.getUnreadCount()).toBe(1);
   });
 
   test('when window is focused and event is not turn_complete: no notification is shown', () => {
     win.isFocused.mockReturnValue(true);
-    manager.handleSSEEvent({ type: 'bill_enacted', data: { name: 'Test Bill' } });
+    manager.handleSSEEvent({
+      type: 'bill_enacted',
+      data: { name: 'Test Bill' },
+    });
     expect(Notification.prototype.show).not.toHaveBeenCalled();
   });
 
@@ -103,7 +109,10 @@ describe('NotificationManager', () => {
 
   test('unknown event type uses the "notification" fallback config and shows notification', () => {
     win.isFocused.mockReturnValue(false);
-    manager.handleSSEEvent({ type: 'totally_unknown_event', data: { message: 'hello' } });
+    manager.handleSSEEvent({
+      type: 'totally_unknown_event',
+      data: { message: 'hello' },
+    });
 
     expect(manager.getUnreadCount()).toBe(1);
     expect(Notification.prototype.show).toHaveBeenCalledTimes(1);

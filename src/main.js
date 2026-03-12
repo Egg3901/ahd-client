@@ -1,4 +1,12 @@
-const { app, BrowserWindow, shell, session, nativeTheme, net, Menu } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  shell,
+  session,
+  nativeTheme,
+  net,
+  Menu,
+} = require('electron');
 const path = require('path');
 
 // Allow Playwright E2E tests to connect on Windows (Electron 33).
@@ -68,12 +76,12 @@ let dashboardPoller = null;
 
 /** Web-content background per theme (eliminates load-flash). */
 const THEME_BACKGROUNDS = {
-  default:      '#0f0f1a',
-  oled:         '#000000',
-  'dark-pastel':'#1a1527',
-  light:        '#f5f5f5',
-  pastel:       '#fdf4f0',
-  usa:          '#f0f0f5',
+  default: '#0f0f1a',
+  oled: '#000000',
+  'dark-pastel': '#1a1527',
+  light: '#f5f5f5',
+  pastel: '#fdf4f0',
+  usa: '#f0f0f5',
 };
 
 /** @type {object} Current country nav (defaults to US until manifest arrives) */
@@ -216,9 +224,15 @@ function fetchClientNav() {
 
         let body = '';
         req.on('response', (res) => {
-          res.on('data', (chunk) => { body += chunk.toString(); });
+          res.on('data', (chunk) => {
+            body += chunk.toString();
+          });
           res.on('end', () => {
-            try { resolve(JSON.parse(body)); } catch { resolve(null); }
+            try {
+              resolve(JSON.parse(body));
+            } catch {
+              resolve(null);
+            }
           });
           res.on('error', () => resolve(null));
         });
@@ -236,7 +250,7 @@ function fetchClientNav() {
  */
 function applyNavForCountry(countryId, manifest) {
   currentNav = getNavForCountry(countryId);
-  if (menuManager)   menuManager.setNavConfig(currentNav, manifest);
+  if (menuManager) menuManager.setNavConfig(currentNav, manifest);
   if (windowManager) windowManager.updatePresets(currentNav);
 }
 
@@ -283,9 +297,7 @@ function initModules() {
   mainWindow.webContents.on('did-finish-load', () => {
     // Sync Electron theme from the site's data-theme attribute
     mainWindow.webContents
-      .executeJavaScript(
-        `document.documentElement.getAttribute('data-theme')`,
-      )
+      .executeJavaScript(`document.documentElement.getAttribute('data-theme')`)
       .then((siteTheme) => {
         if (siteTheme && siteTheme !== cacheManager.getTheme()) {
           cacheManager.setTheme(siteTheme);
@@ -365,9 +377,7 @@ function initModules() {
   dashboardPoller = new DashboardPoller();
   // Start polling once SSE is connected (session cookies are ready)
   sseClient.once('connected', () => {
-    dashboardPoller.start((mapped) =>
-      handleGameStateEvent({ data: mapped }),
-    );
+    dashboardPoller.start((mapped) => handleGameStateEvent({ data: mapped }));
   });
   // Re-poll immediately after any event that changes character state
   const REPOLL_EVENTS = [
@@ -397,7 +407,8 @@ function initModules() {
 
   // Menu (#5)
   menuManager = new MenuManager(mainWindow, windowManager, {
-    isFocusedMode: (cacheManager.getPreference('displayMode') || 'focused') === 'focused',
+    isFocusedMode:
+      (cacheManager.getPreference('displayMode') || 'focused') === 'focused',
     onThemeChange: (themeId) => {
       cacheManager.setTheme(themeId);
       syncNativeTheme(themeId);
@@ -408,15 +419,18 @@ function initModules() {
     onToggleFocusedMode: (enabled) => {
       const mode = enabled ? 'focused' : 'classic';
       cacheManager.setPreference('displayMode', mode);
-      session.fromPartition('persist:ahd').cookies.set({
-        url: config.GAME_URL,
-        name: 'ahd-display-mode',
-        value: mode,
-        path: '/',
-        sameSite: 'lax',
-      }).then(() => {
-        mainWindow.loadURL(config.GAME_URL);
-      });
+      session
+        .fromPartition('persist:ahd')
+        .cookies.set({
+          url: config.GAME_URL,
+          name: 'ahd-display-mode',
+          value: mode,
+          path: '/',
+          sameSite: 'lax',
+        })
+        .then(() => {
+          mainWindow.loadURL(config.GAME_URL);
+        });
       menuManager.setFocusedMode(enabled);
     },
   });
@@ -557,7 +571,10 @@ function initModules() {
   // Fetch client-nav once connected, then poll every 60s
   sseClient.once('connected', () => {
     fetchClientNav().then(handleClientNav);
-    unreadPollTimer = setInterval(() => fetchClientNav().then(handleClientNav), 60 * 1000);
+    unreadPollTimer = setInterval(
+      () => fetchClientNav().then(handleClientNav),
+      60 * 1000,
+    );
   });
 }
 

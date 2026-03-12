@@ -60,9 +60,7 @@ describe('DevToolsManager', () => {
   // --- logEvent: batches UI updates (panelWindow path) ---
 
   test('logEvent with no panelWindow does not throw', () => {
-    expect(() =>
-      manager.logEvent({ type: 'test', data: null })
-    ).not.toThrow();
+    expect(() => manager.logEvent({ type: 'test', data: null })).not.toThrow();
   });
 
   test('logEvent pushes to panelWindow when it is open', () => {
@@ -73,7 +71,7 @@ describe('DevToolsManager', () => {
 
     expect(manager.panelWindow.webContents.send).toHaveBeenCalledWith(
       'dev-sse-event',
-      expect.objectContaining({ type: 'sse_event' })
+      expect.objectContaining({ type: 'sse_event' }),
     );
   });
 
@@ -87,14 +85,14 @@ describe('DevToolsManager', () => {
   test("switchServer('staging') calls mainWindow.loadURL with staging URL", () => {
     manager.switchServer('staging');
     expect(mainWindow.loadURL).toHaveBeenCalledWith(
-      'https://staging.ahousedividedgame.com'
+      'https://staging.ahousedividedgame.com',
     );
   });
 
   test("switchServer('production') calls mainWindow.loadURL with production URL", () => {
     manager.switchServer('production');
     expect(mainWindow.loadURL).toHaveBeenCalledWith(
-      'https://ahousedividedgame.com'
+      'https://ahousedividedgame.com',
     );
   });
 

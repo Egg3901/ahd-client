@@ -163,8 +163,7 @@ class DevToolsManager {
         theme: cacheManager.getTheme(),
         notificationsEnabled:
           cacheManager.getPreference('notificationsEnabled') !== false,
-        miniModeEnabled:
-          cacheManager.getPreference('miniModeEnabled') === true,
+        miniModeEnabled: cacheManager.getPreference('miniModeEnabled') === true,
       },
       actionQueue: cacheManager.getQueuedActions(),
     }));

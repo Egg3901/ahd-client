@@ -90,7 +90,11 @@ describe('TrayManager', () => {
       tm.create();
       jest.clearAllMocks();
 
-      tm.updateGameState({ turnsUntilElection: 3, actionPoints: 10, currentDate: '1862-01-01' });
+      tm.updateGameState({
+        turnsUntilElection: 3,
+        actionPoints: 10,
+        currentDate: '1862-01-01',
+      });
       expect(tm.gameState.turnsUntilElection).toBe(3);
       expect(tm.gameState.actionPoints).toBe(10);
       expect(tm.gameState.currentDate).toBe('1862-01-01');

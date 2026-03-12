@@ -87,7 +87,11 @@ describe('PipManager', () => {
     it('merges state fields — only provided fields change', () => {
       const pip = new PipManager(makeMockWindow());
       // Set initial known state
-      pip.gameState = { currentDate: '1861-01-01', nextTurnIn: '2h', actionPoints: 5 };
+      pip.gameState = {
+        currentDate: '1861-01-01',
+        nextTurnIn: '2h',
+        actionPoints: 5,
+      };
 
       pip.updateGameState({ currentDate: '1862-06-01' });
 
@@ -99,7 +103,11 @@ describe('PipManager', () => {
 
     it('merges multiple fields at once', () => {
       const pip = new PipManager(makeMockWindow());
-      pip.updateGameState({ currentDate: '1863-03-01', nextTurnIn: '5h', actionPoints: 10 });
+      pip.updateGameState({
+        currentDate: '1863-03-01',
+        nextTurnIn: '5h',
+        actionPoints: 10,
+      });
       expect(pip.gameState.currentDate).toBe('1863-03-01');
       expect(pip.gameState.nextTurnIn).toBe('5h');
       expect(pip.gameState.actionPoints).toBe(10);

@@ -40,7 +40,12 @@ describe('SSE -> CacheManager + TrayManager + PipManager integration', () => {
     // (same flow as main.js handleGameStateEvent)
     sse.on('event', (event) => {
       const data = event.data || {};
-      const fields = ['turnsUntilElection', 'actionPoints', 'currentDate', 'nextTurnIn'];
+      const fields = [
+        'turnsUntilElection',
+        'actionPoints',
+        'currentDate',
+        'nextTurnIn',
+      ];
       const gameState = {};
       for (const field of fields) {
         if (data[field] !== undefined) gameState[field] = data[field];

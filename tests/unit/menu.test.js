@@ -218,7 +218,10 @@ describe('MenuManager', () => {
     it('My Party item is present when manifest.currentParty is set', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('US');
-      mm.setNavConfig(nav, { currentParty: { id: 'p1', name: 'Democrats' }, activePresidentElectionId: null });
+      mm.setNavConfig(nav, {
+        currentParty: { id: 'p1', name: 'Democrats' },
+        activePresidentElectionId: null,
+      });
       const submenu = getNavigateSubmenu(mm);
       expect(submenu.map((i) => i.label).filter(Boolean)).toContain('My Party');
     });
@@ -228,23 +231,35 @@ describe('MenuManager', () => {
       const nav = require('../../src/nav').getNavForCountry('US');
       mm.setNavConfig(nav, null);
       const submenu = getNavigateSubmenu(mm);
-      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain('My Party');
+      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain(
+        'My Party',
+      );
     });
 
     it('Presidential Election item present for US with activePresidentElectionId', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('US');
-      mm.setNavConfig(nav, { currentParty: null, activePresidentElectionId: 'elec-123' });
+      mm.setNavConfig(nav, {
+        currentParty: null,
+        activePresidentElectionId: 'elec-123',
+      });
       const submenu = getNavigateSubmenu(mm);
-      expect(submenu.map((i) => i.label).filter(Boolean)).toContain('Presidential Election');
+      expect(submenu.map((i) => i.label).filter(Boolean)).toContain(
+        'Presidential Election',
+      );
     });
 
     it('Presidential Election item absent for UK', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('UK');
-      mm.setNavConfig(nav, { currentParty: null, activePresidentElectionId: 'elec-123' });
+      mm.setNavConfig(nav, {
+        currentParty: null,
+        activePresidentElectionId: 'elec-123',
+      });
       const submenu = getNavigateSubmenu(mm);
-      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain('Presidential Election');
+      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain(
+        'Presidential Election',
+      );
     });
   });
 

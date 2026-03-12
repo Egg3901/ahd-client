@@ -37,33 +37,51 @@ class BrowserWindow {
 
 BrowserWindow.prototype.loadURL = jest.fn().mockResolvedValue(undefined);
 BrowserWindow.prototype.loadFile = jest.fn().mockResolvedValue(undefined);
-BrowserWindow.prototype.show = jest.fn(function() { this._visible = true; });
-BrowserWindow.prototype.hide = jest.fn(function() { this._visible = false; });
-BrowserWindow.prototype.focus = jest.fn(function() { this._focused = true; });
-BrowserWindow.prototype.close = jest.fn(function() {
+BrowserWindow.prototype.show = jest.fn(function () {
+  this._visible = true;
+});
+BrowserWindow.prototype.hide = jest.fn(function () {
+  this._visible = false;
+});
+BrowserWindow.prototype.focus = jest.fn(function () {
+  this._focused = true;
+});
+BrowserWindow.prototype.close = jest.fn(function () {
   this._destroyed = true;
   if (this._onClosed) this._onClosed();
 });
-BrowserWindow.prototype.destroy = jest.fn(function() { this._destroyed = true; });
-BrowserWindow.prototype.isDestroyed = jest.fn(function() { return this._destroyed; });
-BrowserWindow.prototype.isVisible = jest.fn(function() { return this._visible; });
-BrowserWindow.prototype.isFocused = jest.fn(function() { return this._focused; });
-BrowserWindow.prototype.setTitle = jest.fn(function(t) { this._title = t; });
+BrowserWindow.prototype.destroy = jest.fn(function () {
+  this._destroyed = true;
+});
+BrowserWindow.prototype.isDestroyed = jest.fn(function () {
+  return this._destroyed;
+});
+BrowserWindow.prototype.isVisible = jest.fn(function () {
+  return this._visible;
+});
+BrowserWindow.prototype.isFocused = jest.fn(function () {
+  return this._focused;
+});
+BrowserWindow.prototype.setTitle = jest.fn(function (t) {
+  this._title = t;
+});
 BrowserWindow.prototype.setProgressBar = jest.fn();
 BrowserWindow.prototype.setBounds = jest.fn();
 BrowserWindow.prototype.setMenuBarVisibility = jest.fn();
-BrowserWindow.prototype.on = jest.fn(function(event, handler) {
+BrowserWindow.prototype.on = jest.fn(function (event, handler) {
   if (event === 'closed') this._onClosed = handler;
   if (event === 'focus') this._onFocus = handler;
   return this;
 });
-BrowserWindow.prototype.once = jest.fn(function(event, handler) {
+BrowserWindow.prototype.once = jest.fn(function (event, handler) {
   if (event === 'ready-to-show') this._onReadyToShow = handler;
   return this;
 });
 
 BrowserWindow._instances = [];
-BrowserWindow._reset = () => { BrowserWindow._instances = []; };
+BrowserWindow._reset = () => {
+  BrowserWindow._instances = [];
+};
 
 // --- Tray ---
 class Tray {
@@ -74,7 +92,9 @@ class Tray {
 Tray.prototype.setContextMenu = jest.fn();
 Tray.prototype.setToolTip = jest.fn();
 Tray.prototype.setImage = jest.fn();
-Tray.prototype.destroy = jest.fn(function() { this._destroyed = true; });
+Tray.prototype.destroy = jest.fn(function () {
+  this._destroyed = true;
+});
 Tray.prototype.on = jest.fn();
 
 // --- Menu ---
@@ -110,7 +130,9 @@ const nativeTheme = {
 // --- dialog ---
 const dialog = {
   showMessageBox: jest.fn().mockResolvedValue({ response: 0 }),
-  showSaveDialog: jest.fn().mockResolvedValue({ canceled: false, filePath: '/tmp/test.png' }),
+  showSaveDialog: jest
+    .fn()
+    .mockResolvedValue({ canceled: false, filePath: '/tmp/test.png' }),
   showErrorBox: jest.fn(),
 };
 
