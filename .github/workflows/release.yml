@@ -25,9 +25,10 @@ jobs:
       - run: npm test
 
       - name: Build Windows installer
-        # CSC_IDENTITY_AUTO_DISCOVERY=false skips code-signing (no cert configured yet)
-        # PUBLISH=never stops electron-builder auto-publishing — softprops handles release creation
-        run: cross-env CSC_IDENTITY_AUTO_DISCOVERY=false PUBLISH=never electron-builder --win
+        run: npx electron-builder --win --publish never
+        env:
+          # Skip code-signing (no cert configured yet)
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Create GitHub Release and upload installer
         uses: softprops/action-gh-release@v2
