@@ -108,7 +108,7 @@ const Menu = {
 const app = {
   whenReady: jest.fn().mockResolvedValue(undefined),
   quit: jest.fn(),
-  getVersion: jest.fn().mockReturnValue('0.1.0'),
+  getVersion: jest.fn().mockReturnValue(require('../../package.json').version),
   getPath: jest.fn((name) => `/tmp/ahd-${name}`),
   setBadgeCount: jest.fn(),
   on: jest.fn(),
@@ -155,6 +155,7 @@ const session = {
 const ipcMain = {
   handle: jest.fn(),
   on: jest.fn(),
+  off: jest.fn(),
   removeHandler: jest.fn(),
 };
 

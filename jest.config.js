@@ -6,6 +6,10 @@ module.exports = {
         '<rootDir>/tests/unit/**/*.test.js',
         '<rootDir>/tests/integration/**/*.test.js',
       ],
+      // Restrict Jest's file scanner to src + tests only.
+      // Without this, jest-haste-map scans .worktrees/ and picks up duplicate
+      // __mocks__ files, causing the wrong (stale) mock to be loaded.
+      roots: ['<rootDir>/src', '<rootDir>/tests'],
       testEnvironment: 'node',
       moduleNameMapper: {
         '^electron$': '<rootDir>/tests/__mocks__/electron.js',
