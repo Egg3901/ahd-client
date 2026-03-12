@@ -1,13 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const INVOKE_CHANNELS = [
-  'dev-get-state',
-  'dev-get-config',
-  'dev-switch-server',
-  'dev-reconnect-sse',
-  'dev-clear-cache',
-];
-
 const RECEIVE_CHANNELS = ['dev-sse-event', 'dev-ipc-call'];
 
 contextBridge.exposeInMainWorld('devTools', {

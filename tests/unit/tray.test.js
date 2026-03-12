@@ -1,6 +1,6 @@
 'use strict';
 
-const { Tray, Menu, nativeImage, app } = require('electron');
+const { Tray } = require('electron');
 const TrayManager = require('../../src/tray');
 const config = require('../../src/config');
 

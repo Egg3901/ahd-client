@@ -10,6 +10,8 @@
     "build:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
@@ -54,11 +56,14 @@
   "author": "Egg3901",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "cross-env": "^10.1.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
     "electron-playwright-helpers": "^2.1.0",
+    "eslint": "^10.0.3",
+    "globals": "^17.4.0",
     "jest": "^30.3.0",
     "prettier": "^3.8.1"
   },

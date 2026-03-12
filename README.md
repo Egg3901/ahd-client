@@ -6,10 +6,13 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.0.1-blue" alt="version 1.0.1" />
-  <img src="https://img.shields.io/badge/last%20commit-recent-green" alt="last commit recent" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
-  <img src="https://img.shields.io/badge/code%20style-prettier-ff69b4" alt="code style prettier" />
   <img src="https://img.shields.io/badge/license-proprietary-red" alt="license proprietary" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/Egg3901/ahd-client/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  <img src="https://github.com/Egg3901/ahd-client/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
 </p>
 
 <p align="center">
@@ -43,6 +46,7 @@ This repository contains the **desktop client** — a thin Electron shell that w
 | Shell       | Electron 33                       |
 | Game Server | Next.js / React (hosted remotely) |
 | Packaging   | electron-builder                  |
+| Linter      | ESLint 10                         |
 | Code Style  | Prettier                          |
 | Node        | v20+                              |
 
@@ -52,14 +56,23 @@ This repository contains the **desktop client** — a thin Electron shell that w
 
 ```
 ahd-client/
-├── assets/              # App icons (icon.png, icon.ico, icon.icns)
+├── .github/
+│   ├── workflows/
+│   │   ├── ci.yml           # Lint, format check, tests on every push/PR
+│   │   ├── codeql.yml       # GitHub CodeQL security scanning
+│   │   └── release.yml      # Build & publish .exe on version tag
+│   └── dependabot.yml       # Weekly dependency update PRs
+├── assets/                  # App icons (icon.png, icon.ico, icon.icns)
 ├── src/
-│   ├── main.js          # Electron main process
-│   ├── preload.js       # Secure context bridge
-│   ├── config.js        # Game URL & window settings
-│   └── loading.html     # Splash screen
-├── .prettierrc          # Prettier configuration
-├── package.json         # Dependencies & build config
+│   ├── main.js              # Electron main process
+│   ├── preload.js           # Secure context bridge
+│   ├── config.js            # Game URL & window settings
+│   └── loading.html         # Splash screen
+├── tests/
+├── eslint.config.js         # ESLint flat config
+├── .prettierrc              # Prettier configuration
+├── CHANGELOG.md
+├── package.json
 └── .gitignore
 ```
 
@@ -139,17 +152,31 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ---
 
-## :link: Code Style
-
-This project uses [Prettier](https://prettier.io/) for consistent formatting.
+## :link: Code Quality
 
 ```bash
-# Format all files
-npm run format
+# Lint
+npm run lint
+npm run lint:fix
 
-# Check formatting without writing
+# Format
+npm run format
 npm run format:check
+
+# Tests
+npm test
+npm run test:coverage
 ```
+
+### CI checks (run on every push and PR)
+
+| Check | Tool | Workflow |
+| ----- | ---- | -------- |
+| Unit & integration tests | Jest | `ci.yml` |
+| Linting | ESLint 10 | `ci.yml` |
+| Formatting | Prettier | `ci.yml` |
+| Security scanning | CodeQL | `codeql.yml` |
+| Dependency updates | Dependabot | weekly PRs |
 
 ---
 

@@ -151,7 +151,7 @@ class WindowManager {
    * Close all managed pop-out windows.
    */
   closeAll() {
-    for (const [key, win] of this.windows) {
+    for (const [, win] of this.windows) {
       if (!win.isDestroyed()) {
         win.close();
       }

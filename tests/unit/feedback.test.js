@@ -41,10 +41,10 @@ describe('FeedbackManager', () => {
       });
     });
 
-    it('returns appVersion "0.1.0" (from package.json)', () => {
+    it('returns appVersion from package.json', () => {
       const fm = new FeedbackManager(makeMockWindow());
       const info = fm.getSystemInfo();
-      expect(info.appVersion).toBe('0.1.0');
+      expect(info.appVersion).toBe(require('../../package.json').version);
     });
   });
 
