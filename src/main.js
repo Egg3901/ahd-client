@@ -42,6 +42,8 @@ const PipManager = require('./pip');
 const FeedbackManager = require('./feedback');
 const DevToolsManager = require('./devtools');
 const DashboardPoller = require('./dashboard');
+const ErrorHandler = require('./error-handler');
+const ActionQueue = require('./action-queue');
 
 // --- Module singletons (initialized in createWindow) ---
 
@@ -71,6 +73,10 @@ let feedbackManager = null;
 let devToolsManager = null;
 /** @type {DashboardPoller|null} */
 let dashboardPoller = null;
+/** @type {ErrorHandler|null} */
+let errorHandler = null;
+/** @type {ActionQueue|null} */
+let actionQueue = null;
 
 // --- Theme colours ---
 
@@ -268,8 +274,22 @@ function handleClientNav(manifest) {
   });
   sendToRenderer('client-nav', manifest);
   sendToRenderer('unread-count', { count: manifest.unreadCount || 0 });
+  if (manifest.unreadMailCount != null) {
+    sendToRenderer('unread-mail-count', { count: manifest.unreadMailCount });
+  }
   if (menuManager) menuManager.setAdmin(manifest.user?.isAdmin ?? false);
   applyNavForCountry(manifest.characterCountryId, manifest);
+
+  // Sync financial and action-point fields from client-nav into game state.
+  // client-nav uses 'actions' for action points remaining; map to 'actionPoints'.
+  const navGameState = {};
+  if (manifest.actions != null) navGameState.actionPoints = manifest.actions;
+  if (manifest.funds != null) navGameState.funds = manifest.funds;
+  if (manifest.cashOnHand != null) navGameState.cashOnHand = manifest.cashOnHand;
+  if (manifest.projectedIncome != null) navGameState.projectedIncome = manifest.projectedIncome;
+  if (Object.keys(navGameState).length > 0) {
+    handleGameStateEvent({ data: navGameState });
+  }
 }
 
 // --- Module initialization ---
@@ -279,6 +299,12 @@ function handleClientNav(manifest) {
  * Called once after the main window is created.
  */
 function initModules() {
+  // Error handler — load catalog from /api/error-codes (no-ops if unreachable)
+  errorHandler = new ErrorHandler();
+
+  // Action queue — wraps CacheManager queue with retry logic
+  actionQueue = new ActionQueue(cacheManager, sendToRenderer);
+
   // SSE Client (#1)
   sseClient = new SSEClient();
   mainWindow.webContents.on('did-navigate', () => {
@@ -306,10 +332,14 @@ function initModules() {
       })
       .catch(() => {});
 
-    // Watch for theme changes made on the site via MutationObserver
+    // Watch for theme changes made on the site via MutationObserver.
+    // Always disconnect any previous observer before creating a new one so
+    // the observer is fresh after every full-page navigation.
     mainWindow.webContents.executeJavaScript(`
       (() => {
-        if (window.__ahdThemeObserver) return;
+        if (window.__ahdThemeObserver) {
+          window.__ahdThemeObserver.disconnect();
+        }
         window.__ahdThemeObserver = new MutationObserver((mutations) => {
           for (const m of mutations) {
             if (m.attributeName === 'data-theme') {
@@ -451,11 +481,10 @@ function initModules() {
   sseClient.on('connected', () => {
     console.log('SSE connected');
     sendToRenderer('sse-status', { connected: true });
-    const queued = cacheManager.getQueuedActions();
-    if (queued.length > 0) {
-      sendToRenderer('flush-queue', queued);
-      cacheManager.clearQueue();
-    }
+    // Re-fetch client-nav on every (re)connect to catch state missed while disconnected
+    fetchClientNav().then(handleClientNav);
+    // Flush any actions queued while offline
+    if (actionQueue) actionQueue.flush();
   });
   sseClient.on('disconnected', () => {
     console.log('SSE disconnected');
@@ -464,6 +493,19 @@ function initModules() {
   sseClient.on('reconnecting', ({ delay, attempt }) => {
     console.log(`SSE reconnecting in ${delay}ms (attempt ${attempt})`);
     sendToRenderer('sse-status', { connected: false, reconnecting: true });
+  });
+
+  // SSE theme_changed -> sync Electron native theme + cache.
+  // SSE delivery is unreliable across Vercel instances, so this supplements
+  // (not replaces) the MutationObserver and client-nav polling fallback.
+  sseClient.on('event', (event) => {
+    if (event.type === 'theme_changed' && event.data?.theme) {
+      const theme = event.data.theme;
+      if (cacheManager && theme !== cacheManager.getTheme()) {
+        cacheManager.setTheme(theme);
+        syncNativeTheme(theme);
+      }
+    }
   });
 
   // IPC handlers (extracted to src/ipc.js for modularity)
@@ -480,6 +522,8 @@ function initModules() {
     syncNativeTheme,
     handleGameStateEvent,
     pushThemeToSite,
+    actionQueue,
+    errorHandler,
     config,
   });
 
@@ -518,12 +562,19 @@ function initModules() {
     sendToRenderer('loading-state', { loading: false });
   });
 
-  // 404 recovery overlay
+  // Contextual error overlays for HTTP error responses
   mainWindow.webContents.on(
     'did-navigate',
     (_event, _url, httpResponseCode, _statusText, isMainFrame) => {
-      if (isMainFrame && httpResponseCode === 404) {
-        injectErrorOverlay('not-found');
+      if (!isMainFrame) return;
+      if (httpResponseCode === 404) {
+        injectErrorOverlay('not-found', 'NOT_FOUND');
+      } else if (httpResponseCode === 401) {
+        injectErrorOverlay('auth', 'UNAUTHORIZED');
+      } else if (httpResponseCode === 403) {
+        injectErrorOverlay('auth', 'FORBIDDEN');
+      } else if (httpResponseCode >= 500) {
+        injectErrorOverlay('server-error', 'INTERNAL_ERROR');
       }
     },
   );
@@ -568,9 +619,12 @@ function initModules() {
     Menu.buildFromTemplate(items).popup({ window: mainWindow });
   });
 
-  // Fetch client-nav once connected, then poll every 60s
+  // Start the 60s client-nav poll timer on first SSE connection.
+  // The immediate fetch on (re)connect is handled by the sseClient.on('connected')
+  // handler above; this once() only sets up the recurring interval.
   sseClient.once('connected', () => {
-    fetchClientNav().then(handleClientNav);
+    // Load error codes catalog now that we're online
+    errorHandler.loadErrorCodes();
     unreadPollTimer = setInterval(
       () => fetchClientNav().then(handleClientNav),
       60 * 1000,
@@ -680,14 +734,28 @@ function sendNavState() {
 
 /**
  * Inject a recovery overlay into the main window.
- * @param {'not-found'|'connection'} type
+ * @param {'not-found'|'connection'|'auth'|'server-error'} type
+ * @param {string|null} [errorCode] - Machine-readable API error code for contextual message
  */
-function injectErrorOverlay(type) {
+function injectErrorOverlay(type, errorCode = null) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  const message =
-    type === 'connection'
-      ? "Couldn't connect — check your internet connection"
-      : "This page isn't available yet";
+
+  let title, message;
+  if (errorCode && errorHandler) {
+    const mapping = errorHandler.getMapping(errorCode);
+    title = mapping.title;
+    message = mapping.message;
+  } else if (type === 'connection') {
+    title = 'Connection Error';
+    message = "Couldn't connect — check your internet connection";
+  } else {
+    title = 'Page Not Found';
+    message = "This page isn't available yet";
+  }
+
+  const safeTitle = title.replace(/`/g, "'");
+  const safeMessage = message.replace(/`/g, "'");
+
   mainWindow.webContents
     .executeJavaScript(
       `(function() {
@@ -701,7 +769,8 @@ function injectErrorOverlay(type) {
           zIndex: '999999', fontFamily: 'system-ui, sans-serif', gap: '16px',
         });
         el.innerHTML = \`
-          <p style="font-size:1.1rem;margin:0">${message}</p>
+          <p style="font-size:1.3rem;font-weight:600;margin:0">${safeTitle}</p>
+          <p style="font-size:1rem;margin:0;opacity:0.8">${safeMessage}</p>
           <div style="display:flex;gap:12px">
             <button onclick="window.history.back()"
               style="padding:8px 20px;cursor:pointer;border-radius:6px;border:1px solid #444;background:#1a1a2e;color:#e0e0e0">
@@ -738,6 +807,7 @@ function cleanup() {
   }
   if (sseClient) sseClient.disconnect();
   if (dashboardPoller) dashboardPoller.stop();
+  if (actionQueue) actionQueue.destroy();
   if (shortcutManager) shortcutManager.unregisterAll();
   if (trayManager) trayManager.destroy();
   if (pipManager) pipManager.destroy();

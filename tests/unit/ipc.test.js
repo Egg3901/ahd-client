@@ -17,13 +17,23 @@ describe('registerIpcHandlers', () => {
       cacheManager: {
         getGameState: jest.fn().mockReturnValue({ turn: 1 }),
         getCachedTurnData: jest.fn().mockReturnValue({ cached: true }),
-        queueAction: jest.fn().mockReturnValue(1),
         getQueuedActions: jest.fn().mockReturnValue([{ id: 'a' }]),
         getTheme: jest.fn().mockReturnValue('default'),
         setTheme: jest.fn(),
         getPreference: jest.fn().mockReturnValue(true),
         setPreference: jest.fn(),
         updateGameState: jest.fn(),
+      },
+      actionQueue: {
+        enqueue: jest.fn().mockReturnValue(1),
+        complete: jest.fn(),
+        fail: jest.fn(),
+        clear: jest.fn(),
+      },
+      errorHandler: {
+        getMappings: jest
+          .fn()
+          .mockReturnValue({ NOT_FOUND: { title: 'Page Not Found' } }),
       },
       notificationManager: {
         setEnabled: jest.fn(),
@@ -68,9 +78,13 @@ describe('registerIpcHandlers', () => {
     registerIpcHandlers(deps);
   });
 
-  test('registers 17 or more handlers including theme-changed-on-site', () => {
+  test('registers handlers including theme-changed-on-site and new queue/error channels', () => {
     expect(ipcMain.handle).toHaveBeenCalled();
     expect(handlers['theme-changed-on-site']).toBeDefined();
+    expect(handlers['complete-action']).toBeDefined();
+    expect(handlers['fail-action']).toBeDefined();
+    expect(handlers['clear-queue']).toBeDefined();
+    expect(handlers['get-error-codes']).toBeDefined();
   });
 
   // --- get-game-state ---
@@ -91,11 +105,32 @@ describe('registerIpcHandlers', () => {
 
   // --- queue-action ---
 
-  test('queue-action calls queueAction and returns length', async () => {
+  test('queue-action calls actionQueue.enqueue and returns length', async () => {
     const action = { type: 'vote' };
     const result = await handlers['queue-action']({}, action);
-    expect(deps.cacheManager.queueAction).toHaveBeenCalledWith(action);
+    expect(deps.actionQueue.enqueue).toHaveBeenCalledWith(action);
     expect(result).toBe(1);
+  });
+
+  // --- complete-action ---
+
+  test('complete-action calls actionQueue.complete with actionId', async () => {
+    await handlers['complete-action']({}, 'action-123');
+    expect(deps.actionQueue.complete).toHaveBeenCalledWith('action-123');
+  });
+
+  // --- fail-action ---
+
+  test('fail-action calls actionQueue.fail with actionId and error', async () => {
+    await handlers['fail-action']({}, { actionId: 'action-123', error: 'network error' });
+    expect(deps.actionQueue.fail).toHaveBeenCalledWith('action-123', 'network error');
+  });
+
+  // --- clear-queue ---
+
+  test('clear-queue calls actionQueue.clear()', async () => {
+    await handlers['clear-queue']();
+    expect(deps.actionQueue.clear).toHaveBeenCalled();
   });
 
   // --- get-queue ---
@@ -104,6 +139,14 @@ describe('registerIpcHandlers', () => {
     const result = await handlers['get-queue']();
     expect(deps.cacheManager.getQueuedActions).toHaveBeenCalled();
     expect(result).toEqual([{ id: 'a' }]);
+  });
+
+  // --- get-error-codes ---
+
+  test('get-error-codes returns errorHandler.getMappings()', async () => {
+    const result = await handlers['get-error-codes']();
+    expect(deps.errorHandler.getMappings).toHaveBeenCalled();
+    expect(result).toEqual({ NOT_FOUND: { title: 'Page Not Found' } });
   });
 
   // --- get-theme ---
@@ -126,7 +169,6 @@ describe('registerIpcHandlers', () => {
   // --- theme-changed-on-site ---
 
   test('theme-changed-on-site calls setTheme and syncNativeTheme when theme differs', async () => {
-    // getTheme returns 'default', so 'dark' is different
     deps.cacheManager.getTheme.mockReturnValue('default');
     await handlers['theme-changed-on-site']({}, 'dark');
     expect(deps.cacheManager.setTheme).toHaveBeenCalledWith('dark');

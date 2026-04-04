@@ -16,6 +16,8 @@ const { ipcMain } = require('electron');
  *   mainWindow: Electron.BrowserWindow,
  *   syncNativeTheme: (themeId: string) => void,
  *   handleGameStateEvent: (event: {data: object}) => void,
+ *   actionQueue: import('./action-queue'),
+ *   errorHandler: import('./error-handler'),
  * }} deps - Module references injected from main.js
  */
 function registerIpcHandlers(deps) {
@@ -32,6 +34,8 @@ function registerIpcHandlers(deps) {
     syncNativeTheme,
     handleGameStateEvent,
     pushThemeToSite,
+    actionQueue,
+    errorHandler,
     config,
   } = deps;
 
@@ -44,8 +48,20 @@ function registerIpcHandlers(deps) {
   });
 
   ipcMain.handle('queue-action', (_event, action) => {
-    if (!cacheManager) return 0;
-    return cacheManager.queueAction(action);
+    if (!actionQueue) return 0;
+    return actionQueue.enqueue(action);
+  });
+
+  ipcMain.handle('complete-action', (_event, actionId) => {
+    if (actionQueue) actionQueue.complete(actionId);
+  });
+
+  ipcMain.handle('fail-action', (_event, { actionId, error }) => {
+    if (actionQueue) actionQueue.fail(actionId, error);
+  });
+
+  ipcMain.handle('clear-queue', () => {
+    if (actionQueue) actionQueue.clear();
   });
 
   ipcMain.handle('get-queue', () => {
@@ -147,6 +163,10 @@ function registerIpcHandlers(deps) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadURL(config.GAME_URL);
     }
+  });
+
+  ipcMain.handle('get-error-codes', () => {
+    return errorHandler ? errorHandler.getMappings() : {};
   });
 }
 

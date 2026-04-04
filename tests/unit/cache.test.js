@@ -132,6 +132,33 @@ describe('CacheManager', () => {
     expect(typeof state).toBe('object');
   });
 
+  test('updateGameState persists cashOnHand field', () => {
+    cache.updateGameState({ cashOnHand: 250000 });
+    expect(cache.getGameState().cashOnHand).toBe(250000);
+  });
+
+  // --- updateActionInQueue ---
+
+  test('updateActionInQueue merges updates into the matching action', () => {
+    cache.queueAction({ type: 'vote' });
+    const id = cache.getQueuedActions()[0].id;
+
+    cache.updateActionInQueue(id, { attempts: 2, lastError: 'timeout' });
+
+    const updated = cache.getQueuedActions()[0];
+    expect(updated.attempts).toBe(2);
+    expect(updated.lastError).toBe('timeout');
+    expect(updated.type).toBe('vote'); // original fields preserved
+  });
+
+  test('updateActionInQueue is a no-op for unknown action ID', () => {
+    cache.queueAction({ type: 'vote' });
+    expect(() =>
+      cache.updateActionInQueue('nonexistent', { attempts: 1 }),
+    ).not.toThrow();
+    expect(cache.getQueuedActions()[0].attempts).toBeUndefined();
+  });
+
   // --- General ---
 
   test('clear wipes all cached data', () => {
