@@ -105,13 +105,32 @@ describe('NotificationManager', () => {
     expect(win.setProgressBar).toHaveBeenCalledWith(-1);
   });
 
-  // --- Unknown event type falls back to "notification" config ---
+  // --- Unknown / generic SSE types are ignored (no notification spam) ---
 
-  test('unknown event type uses the "notification" fallback config and shows notification', () => {
+  test('unknown event type does not show a notification', () => {
     win.isFocused.mockReturnValue(false);
     manager.handleSSEEvent({
       type: 'totally_unknown_event',
       data: { message: 'hello' },
+    });
+
+    expect(manager.getUnreadCount()).toBe(0);
+    expect(Notification.prototype.show).not.toHaveBeenCalled();
+  });
+
+  test('SSE default event type "message" does not show a notification', () => {
+    win.isFocused.mockReturnValue(false);
+    manager.handleSSEEvent({ type: 'message', data: { foo: 1 } });
+
+    expect(manager.getUnreadCount()).toBe(0);
+    expect(Notification.prototype.show).not.toHaveBeenCalled();
+  });
+
+  test('explicit "notification" event type still notifies', () => {
+    win.isFocused.mockReturnValue(false);
+    manager.handleSSEEvent({
+      type: 'notification',
+      data: { message: 'Server-sent notice' },
     });
 
     expect(manager.getUnreadCount()).toBe(1);

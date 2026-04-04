@@ -17,6 +17,8 @@ class TrayManager {
     this.mainWindow = mainWindow;
     /** @type {import('./notifications')} */
     this.notificationManager = notificationManager;
+    /** @type {(() => void) | null} */
+    this._onToggleFocusedView = null;
     /** @type {Electron.Tray|null} */
     this.tray = null;
     /** @type {{turnsUntilElection: string|number, actionPoints: string|number, currentDate: string}} */
@@ -120,6 +122,15 @@ class TrayManager {
         click: () => this.navigateTo('/poll'),
       },
       { type: 'separator' },
+      ...(this._onToggleFocusedView
+        ? [
+            {
+              label: 'Toggle Focused View',
+              click: () => this._onToggleFocusedView(),
+            },
+            { type: 'separator' },
+          ]
+        : []),
       {
         label: 'Quit',
         click: () => app.quit(),
@@ -188,6 +199,15 @@ class TrayManager {
    */
   setWindow(win) {
     this.mainWindow = win;
+  }
+
+  /**
+   * Wire tray "Toggle Focused View" after MenuManager exists (same behavior as View menu).
+   * @param {() => void} handler
+   */
+  setFocusedViewToggleHandler(handler) {
+    this._onToggleFocusedView = handler;
+    this.rebuildMenu();
   }
 
   /**

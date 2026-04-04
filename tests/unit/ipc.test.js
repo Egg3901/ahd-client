@@ -1,6 +1,11 @@
 'use strict';
 
-const { ipcMain } = require('electron');
+jest.mock('../../src/site-api', () => ({
+  postJsonAuthed: jest.fn().mockResolvedValue({ ok: true, statusCode: 200 }),
+}));
+
+const { ipcMain, shell } = require('electron');
+const siteApi = require('../../src/site-api');
 const { registerIpcHandlers } = require('../../src/ipc');
 
 describe('registerIpcHandlers', () => {
@@ -9,6 +14,7 @@ describe('registerIpcHandlers', () => {
 
   beforeEach(() => {
     handlers = {};
+    siteApi.postJsonAuthed.mockClear();
     ipcMain.handle.mockImplementation((channel, handler) => {
       handlers[channel] = handler;
     });
@@ -66,14 +72,22 @@ describe('registerIpcHandlers', () => {
       syncNativeTheme: jest.fn(),
       handleGameStateEvent: jest.fn(),
       pushThemeToSite: jest.fn(),
+      fetchClientNav: jest.fn().mockResolvedValue(null),
+      enrichClientNavManifest: jest.fn(async (m) => m),
+      isGameUrl: jest.fn().mockReturnValue(true),
     };
 
     registerIpcHandlers(deps);
   });
 
-  test('registers 17 or more handlers including theme-changed-on-site', () => {
+  test('registers handlers including theme-changed-on-site and focused-view nav IPC', () => {
     expect(ipcMain.handle).toHaveBeenCalled();
     expect(handlers['theme-changed-on-site']).toBeDefined();
+    expect(handlers['fetch-nav-data']).toBeDefined();
+    expect(handlers['navigate-to']).toBeDefined();
+    expect(handlers['open-external']).toBeDefined();
+    expect(handlers['switch-character']).toBeDefined();
+    expect(handlers['sign-out']).toBeDefined();
   });
 
   // --- get-game-state ---
@@ -204,6 +218,26 @@ describe('registerIpcHandlers', () => {
     expect(deps.notificationManager.setEnabled).not.toHaveBeenCalled();
   });
 
+  test('set-preference ignores keys outside the whitelist', async () => {
+    await handlers['set-preference']({}, { key: 'malicious', value: 1 });
+    expect(deps.cacheManager.setPreference).not.toHaveBeenCalled();
+  });
+
+  // --- set-zoom ---
+
+  test('set-zoom clamps factor to [0.25, 3]', async () => {
+    await handlers['set-zoom']({}, 100);
+    expect(deps.mainWindow.webContents.setZoomFactor).toHaveBeenLastCalledWith(3);
+    await handlers['set-zoom']({}, 0.01);
+    expect(deps.mainWindow.webContents.setZoomFactor).toHaveBeenLastCalledWith(0.25);
+  });
+
+  test('set-zoom ignores non-finite factor', async () => {
+    deps.mainWindow.webContents.setZoomFactor.mockClear();
+    await handlers['set-zoom']({}, Number.NaN);
+    expect(deps.mainWindow.webContents.setZoomFactor).not.toHaveBeenCalled();
+  });
+
   // --- update-game-state ---
 
   test('update-game-state calls handleGameStateEvent with wrapped state', async () => {
@@ -284,6 +318,105 @@ describe('registerIpcHandlers', () => {
 
   test('go-home calls mainWindow.loadURL with GAME_URL', async () => {
     await handlers['go-home']();
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(deps.config.GAME_URL);
+  });
+
+  // --- fetch-nav-data ---
+
+  test('fetch-nav-data returns null when fetchClientNav returns null', async () => {
+    deps.fetchClientNav.mockResolvedValue(null);
+    const result = await handlers['fetch-nav-data']();
+    expect(result).toBeNull();
+  });
+
+  test('fetch-nav-data normalizes country id and returns enriched manifest', async () => {
+    deps.fetchClientNav.mockResolvedValue({
+      character_countryId: 'DE',
+      hasCharacter: false,
+    });
+    deps.enrichClientNavManifest.mockImplementation(async (m) => ({
+      ...m,
+      enriched: true,
+    }));
+    const result = await handlers['fetch-nav-data']();
+    expect(result.characterCountryId).toBe('DE');
+    expect(result.enriched).toBe(true);
+  });
+
+  // --- navigate-to ---
+
+  test('navigate-to loads GAME_URL + path for absolute-style path', async () => {
+    deps.mainWindow.loadURL.mockClear();
+    await handlers['navigate-to']({}, '/campaign');
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(
+      `${deps.config.GAME_URL}/campaign`,
+    );
+  });
+
+  test('navigate-to loads /profile as-is (focused nav spec)', async () => {
+    deps.mainWindow.loadURL.mockClear();
+    await handlers['navigate-to']({}, '/profile');
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(
+      `${deps.config.GAME_URL}/profile`,
+    );
+  });
+
+  test('navigate-to prepends slash for path without leading slash', async () => {
+    deps.mainWindow.loadURL.mockClear();
+    await handlers['navigate-to']({}, 'wiki');
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(
+      `${deps.config.GAME_URL}/wiki`,
+    );
+  });
+
+  test('navigate-to loads https URL when isGameUrl returns true', async () => {
+    deps.isGameUrl.mockReturnValue(true);
+    const gamePage = 'https://ahousedividedgame.com/actions';
+    await handlers['navigate-to']({}, gamePage);
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(gamePage);
+  });
+
+  test('navigate-to does not load https URL when isGameUrl returns false', async () => {
+    deps.isGameUrl.mockReturnValue(false);
+    deps.mainWindow.loadURL.mockClear();
+    await handlers['navigate-to']({}, 'https://evil.example/phish');
+    expect(deps.mainWindow.loadURL).not.toHaveBeenCalled();
+  });
+
+  // --- open-external ---
+
+  test('open-external calls shell.openExternal with url', async () => {
+    await handlers['open-external']({}, 'https://discord.gg/test');
+    expect(shell.openExternal).toHaveBeenCalledWith('https://discord.gg/test');
+  });
+
+  test('open-external ignores empty url', async () => {
+    shell.openExternal.mockClear();
+    await handlers['open-external']({}, '');
+    expect(shell.openExternal).not.toHaveBeenCalled();
+  });
+
+  // --- switch-character / sign-out ---
+
+  test('switch-character posts active-character and reloads home', async () => {
+    deps.mainWindow.loadURL.mockClear();
+    await handlers['switch-character']({}, 'char-uuid');
+    expect(siteApi.postJsonAuthed).toHaveBeenCalledWith(
+      deps.config.GAME_URL,
+      '/api/auth/active-character',
+      { characterId: 'char-uuid' },
+    );
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(deps.config.GAME_URL);
+  });
+
+  test('sign-out posts logout and reloads home', async () => {
+    deps.mainWindow.loadURL.mockClear();
+    await handlers['sign-out']();
+    expect(siteApi.postJsonAuthed).toHaveBeenCalledWith(
+      deps.config.GAME_URL,
+      '/api/auth/logout',
+      null,
+    );
     expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(deps.config.GAME_URL);
   });
 });

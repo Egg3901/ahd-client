@@ -1,6 +1,6 @@
 'use strict';
 
-const { Tray } = require('electron');
+const { Tray, Menu } = require('electron');
 const TrayManager = require('../../src/tray');
 const config = require('../../src/config');
 
@@ -241,6 +241,24 @@ describe('TrayManager', () => {
       expect(tm.mainWindow).toBe(win1);
       tm.setWindow(win2);
       expect(tm.mainWindow).toBe(win2);
+    });
+  });
+
+  describe('setFocusedViewToggleHandler()', () => {
+    it('rebuilds menu with Toggle Focused View and invokes handler on click', () => {
+      const win = makeMockWindow();
+      const nm = makeMockNotificationManager();
+      const tm = new TrayManager(win, nm);
+      tm.create();
+      jest.clearAllMocks();
+      const handler = jest.fn();
+      tm.setFocusedViewToggleHandler(handler);
+      expect(Menu.buildFromTemplate).toHaveBeenCalled();
+      const template = Menu.buildFromTemplate.mock.calls[0][0];
+      const toggleItem = template.find((i) => i.label === 'Toggle Focused View');
+      expect(toggleItem).toBeDefined();
+      toggleItem.click();
+      expect(handler).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -145,22 +145,22 @@ describe('WindowManager', () => {
     it('updates the congress preset route and title to match nav.legislature', () => {
       const wm = new WindowManager();
       wm.updatePresets({
-        legislature: { route: '/legislature/uk', label: 'Parliament' },
-        map: { route: '/uk/map', label: 'Map' },
+        legislature: { route: '/parliament', label: 'Parliament' },
+        map: { route: '/map', label: 'Map' },
       });
       const cfg = wm.getPresetConfig('congress');
-      expect(cfg.route).toBe('/legislature/uk');
+      expect(cfg.route).toBe('/parliament');
       expect(cfg.title).toBe('Parliament — A House Divided');
     });
 
     it('updates the country preset route to match nav.map', () => {
       const wm = new WindowManager();
       wm.updatePresets({
-        legislature: { route: '/legislature/ca', label: 'Parliament' },
-        map: { route: '/country/ca/map', label: 'Map' },
+        legislature: { route: '/parliament', label: 'Parliament' },
+        map: { route: '/map', label: 'Map' },
       });
       const cfg = wm.getPresetConfig('country');
-      expect(cfg.route).toBe('/country/ca/map');
+      expect(cfg.route).toBe('/map');
       expect(cfg.title).toBe('Map — A House Divided');
     });
 
@@ -168,8 +168,8 @@ describe('WindowManager', () => {
       const wm = new WindowManager();
       const originalCampaign = wm.getPresetConfig('campaign').route;
       wm.updatePresets({
-        legislature: { route: '/legislature/de', label: 'Bundestag' },
-        map: { route: '/country/de/map', label: 'Map' },
+        legislature: { route: '/bundestag', label: 'Bundestag' },
+        map: { route: '/map', label: 'Map' },
       });
       expect(wm.getPresetConfig('campaign').route).toBe(originalCampaign);
     });
@@ -177,12 +177,12 @@ describe('WindowManager', () => {
     it('openWindow uses updated route after updatePresets', () => {
       const wm = new WindowManager();
       wm.updatePresets({
-        legislature: { route: '/legislature/uk', label: 'Parliament' },
-        map: { route: '/uk/map', label: 'Map' },
+        legislature: { route: '/parliament', label: 'Parliament' },
+        map: { route: '/map', label: 'Map' },
       });
       wm.openWindow('congress');
       expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
-        `${appConfig.GAME_URL}/legislature/uk`,
+        `${appConfig.GAME_URL}/parliament`,
       );
     });
   });

@@ -148,6 +148,36 @@ describe('preload', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('go-home');
   });
 
+  test('api.invoke allows focused-view nav channels', () => {
+    api.invoke('fetch-nav-data');
+    api.invoke('navigate-to', '/profile');
+    api.invoke('open-external', 'https://example.com');
+    api.invoke('switch-character', 'id1');
+    api.invoke('sign-out');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('fetch-nav-data');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('navigate-to', '/profile');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+      'open-external',
+      'https://example.com',
+    );
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('switch-character', 'id1');
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('sign-out');
+  });
+
+  test('api.on allows nav-data-updated and toggle-focused-view', () => {
+    const fn = jest.fn();
+    api.on('nav-data-updated', fn);
+    api.on('toggle-focused-view', fn);
+    expect(ipcRenderer.on).toHaveBeenCalledWith(
+      'nav-data-updated',
+      expect.any(Function),
+    );
+    expect(ipcRenderer.on).toHaveBeenCalledWith(
+      'toggle-focused-view',
+      expect.any(Function),
+    );
+  });
+
   test('api.goHome() calls ipcRenderer.invoke("go-home")', () => {
     api.goHome();
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('go-home');

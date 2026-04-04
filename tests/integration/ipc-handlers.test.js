@@ -53,6 +53,10 @@ describe('IPC Handlers Integration', () => {
       syncNativeTheme: jest.fn(),
       handleGameStateEvent: jest.fn(),
       pushThemeToSite: jest.fn(),
+      config: { GAME_URL: 'https://ahousedividedgame.com' },
+      fetchClientNav: jest.fn().mockResolvedValue(null),
+      enrichClientNavManifest: jest.fn(async (m) => m),
+      isGameUrl: jest.fn().mockReturnValue(true),
     });
   });
 

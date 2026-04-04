@@ -123,6 +123,7 @@ class DevToolsManager {
         preload: path.join(__dirname, 'devtools-preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,
         devTools: true,
       },
     });

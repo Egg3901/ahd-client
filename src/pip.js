@@ -119,6 +119,7 @@ class PipManager {
         preload: path.join(__dirname, 'pip-preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,
       },
     });
 

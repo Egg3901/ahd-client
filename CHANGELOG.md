@@ -4,6 +4,41 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
+## [1.0.2] - 2026-04-04
+
+### Added
+
+- **Focused view & website navbar parity (main process)** — country config and URL helpers (`src/countries.js`, `src/urls.js`) align executive, legislature, budget, metrics, and related paths with the web app (e.g. `/white-house`, `/congress`, `/national-metrics?country=`).
+- **`src/site-api.js`** — shared authenticated GET/POST against the game origin (`fetchClientNav`, `fetchCharacterMe`, `postJsonAuthed`) using the `persist:ahd` session.
+- **`src/nav-manifest.js`** — normalizes `character_countryId` vs `characterCountryId` from `/api/client-nav` for a single internal shape.
+- **Client-nav enrichment** — after each manifest, optionally merges `myCorporationId` from `/api/character/me` when `corporation.sequentialId` is present (World → My Corporation in the site UI).
+- **IPC for in-page / Electron navbar** — `fetch-nav-data`, `navigate-to`, `open-external`, `switch-character`, `sign-out`; preload whitelist extended with `nav-data-updated`, `toggle-focused-view`, and `navigate` (receive).
+- **`nav-data-updated` event** — same payload as `client-nav`, for renderers that follow the newer channel name.
+- **Tray** — `setFocusedViewToggleHandler` adds a **Toggle Focused View** item; mirrors View → Focused Mode.
+- **Global shortcut** — `CmdOrCtrl+Shift+F` toggles focused vs classic display mode (cookie `ahd-display-mode` + reload); fundraise moved to `CmdOrCtrl+Alt+F`.
+- **Tests** — `nav-manifest`, extended IPC (nav handlers, `isGameUrl` gate for absolute URLs), preload allowlist, tray toggle handler, `urls` helpers.
+
+### Fixed
+
+- **`navigate-to` /profile** — IPC navigation maps `/profile` to `/politician`, matching the live “My Politician” route (spec text used `/profile`).
+- **Native notification spam** — SSE frames with no configured desktop notification type (including the default SSE type `message` and server events such as `theme_changed`) no longer trigger a generic “A House Divided” notification. Only types listed in the client notification map and explicit `notification` events alert the user.
+
+### Changed
+
+- **Pop-out windows** use session partition `persist:ahd` so login state matches the main window.
+- **PiP dashboard** and **DevTools panel** windows enable `sandbox: true` to align with the main window’s renderer hardening.
+- **`/api/client-nav`** — overlapping fetches share a single in-flight request; responses larger than 512 KiB are dropped to bound main-process memory use.
+- **Client-nav polling** — interval is **30 seconds** while the main window is focused and **60 seconds** when unfocused (SSE connect/disconnect still restarts the timer).
+- **Navigate menu & window presets** — follow the new country paths; presidential election prefers `activePresidentElectionSeatId` when present; **Navigate** includes national budget, campaign HQ, central bank, stock market, and expanded ordering toward parity with the site’s Nation dropdown.
+- **IPC `set-preference`** — only `notificationsEnabled`, `miniModeEnabled`, and `displayMode` are accepted.
+- **IPC `set-zoom`** — zoom factor is clamped between 0.25 and 3 and non-finite values are ignored.
+
+### Security
+
+- **`navigate-to`** — absolute `http(s)` URLs are loaded only when they pass the same host check as the main game window (`isGameUrl`); other origins are ignored.
+
+---
+
 ## [1.0.1] - 2026-03-12
 
 ### Fixed

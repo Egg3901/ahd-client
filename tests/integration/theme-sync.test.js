@@ -54,4 +54,10 @@ describe('syncNativeTheme integration', () => {
     syncNativeTheme(cache.getTheme());
     expect(nativeTheme.themeSource).toBe('dark');
   });
+
+  test("'solarized' sets themeSource to 'dark'", () => {
+    cache.setTheme('solarized');
+    syncNativeTheme(cache.getTheme());
+    expect(nativeTheme.themeSource).toBe('dark');
+  });
 });

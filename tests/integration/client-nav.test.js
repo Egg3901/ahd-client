@@ -17,6 +17,9 @@ jest.mock('../../src/nav', () => ({
     policy: { route: '/policy?country=us' },
     politicians: { route: '/politicians?country=us' },
     news: { route: '/news?country=us' },
+    budget: { route: '/budget?country=us' },
+    centralBank: { route: '/central-bank?country=us', label: 'Central Bank' },
+    campaign: { route: '/campaign', label: 'Campaign Manager' },
     presidentElection: id !== 'UK',
   })),
 }));
@@ -44,9 +47,14 @@ describe('applyNavForCountry integration', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  test('UK manifest: menu shows Parliament, congress preset routes to /legislature/uk', () => {
+  test('UK manifest: The Nation submenu matches legislature preset, congress preset matches legislature route', () => {
     const nav = getNavForCountry('UK');
-    const manifest = { currentParty: null, activePresidentElectionId: null };
+    const manifest = {
+      hasCharacter: true,
+      characterCountryId: 'UK',
+      currentParty: null,
+      activePresidentElectionId: null,
+    };
 
     const mm = new MenuManager(makeMockWindow(), makeMockWM(), {});
     const wm = new WindowManager();
@@ -56,13 +64,17 @@ describe('applyNavForCountry integration', () => {
 
     const template = Menu.buildFromTemplate.mock.calls[0][0];
     const navigateMenu = template.find((m) => m.label === 'Navigate');
-    expect(navigateMenu.submenu[0].label).toBe('Parliament');
+    const nation = navigateMenu.submenu.find((m) => m.label === 'The Nation');
+    expect(nation.submenu[0].label).toBe('Exec');
+    expect(nation.submenu[1].label).toBe('Parliament');
     expect(wm.getPresetConfig('congress').route).toBe('/legislature/uk');
   });
 
-  test('US manifest with presidentElection: Presidential Election item present', () => {
+  test('US manifest with presidentElection: Presidential Election item present in The Nation', () => {
     const nav = getNavForCountry('US');
     const manifest = {
+      hasCharacter: true,
+      characterCountryId: 'US',
       currentParty: null,
       activePresidentElectionId: 'elec-999',
     };
@@ -72,7 +84,8 @@ describe('applyNavForCountry integration', () => {
 
     const template = Menu.buildFromTemplate.mock.calls[0][0];
     const navigateMenu = template.find((m) => m.label === 'Navigate');
-    const labels = navigateMenu.submenu.map((i) => i.label).filter(Boolean);
+    const nation = navigateMenu.submenu.find((m) => m.label === 'The Nation');
+    const labels = nation.submenu.map((i) => i.label).filter(Boolean);
     expect(labels).toContain('Presidential Election');
   });
 });

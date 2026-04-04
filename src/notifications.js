@@ -130,7 +130,10 @@ class NotificationManager {
     if (!this.enabled) return;
     if (!Notification.isSupported()) return;
 
-    const eventConfig = EVENT_CONFIG[event.type] || EVENT_CONFIG.notification;
+    // Only notify for explicit types. Unknown types (including the SSE default
+    // `message` when no `event:` field) previously fell back to EVENT_CONFIG.notification
+    // and spammed the user for every server frame (e.g. theme_changed, heartbeats).
+    const eventConfig = EVENT_CONFIG[event.type];
     if (!eventConfig) return;
 
     // Only notify when window is not focused

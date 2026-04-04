@@ -1,11 +1,17 @@
-const { Menu, session } = require('electron');
+const { Menu, session, shell } = require('electron');
 const config = require('./config');
+const siteApi = require('./site-api');
+const urls = require('./urls');
+const {
+  getStateLegislatureLabel,
+  getStatePartyLinkAdjective,
+} = require('./uk-state-labels');
 const { getNavForCountry } = require('./nav');
 
 /**
  * Custom application menu replacing the default Electron menu.
- * Game-aware menus: Game, Navigate, Admin (conditional), View (with themes), Help.
- * The Admin menu only appears when setAdmin(true) is called from the renderer.
+ * Game-aware menus: Game, Navigate, Account (when signed in), Admin (conditional), View, Help.
+ * Navigate link groups match the focused-view navbar spec (Profile → World).
  */
 
 /** @type {{id: string, label: string}[]} The site's available themes */
@@ -16,6 +22,7 @@ const THEMES = [
   { id: 'usa', label: 'USA' },
   { id: 'pastel', label: 'Pastel' },
   { id: 'dark-pastel', label: 'Dark Pastel' },
+  { id: 'solarized', label: 'Solarized' },
 ];
 
 class MenuManager {
@@ -57,6 +64,7 @@ class MenuManager {
     const template = [
       this.gameMenu(),
       this.navigateMenu(),
+      ...(this.manifest?.user ? [this.accountMenu()] : []),
       ...(this.isAdmin ? [this.adminMenu()] : []),
       this.viewMenu(),
       this.helpMenu(),
@@ -75,9 +83,9 @@ class MenuManager {
       label: 'Game',
       submenu: [
         {
-          label: 'My Politician',
+          label: 'Profile',
           accelerator: 'CmdOrCtrl+P',
-          click: () => this.navigate('/politician'),
+          click: () => this.navigate('/profile'),
         },
         {
           label: 'Campaign HQ',
@@ -90,8 +98,8 @@ class MenuManager {
           click: () => this.navigate('/notifications'),
         },
         {
-          label: 'Achievements',
-          click: () => this.navigate('/achievements'),
+          label: 'Portfolio',
+          click: () => this.navigate('/portfolio'),
         },
         { type: 'separator' },
         {
@@ -108,7 +116,6 @@ class MenuManager {
         {
           label: 'Clear Cache & Reload',
           click: async () => {
-            // Clear the persist:ahd partition cache, not defaultSession
             const ses = session.fromPartition('persist:ahd');
             await ses.clearCache();
             this.mainWindow.loadURL(config.GAME_URL);
@@ -120,55 +127,227 @@ class MenuManager {
     };
   }
 
+  /**
+   * Account: Profile Settings, Admin Panel, Sign Out, changelog footer (spec §F).
+   */
+  accountMenu() {
+    const user = this.manifest?.user;
+    if (!user) return { label: 'Account', submenu: [] };
+    const pkg = require('../package.json');
+    const items = [
+      { label: 'Profile Settings', click: () => this.navigate('/settings') },
+    ];
+    if (user.isAdmin) {
+      items.push({
+        label: 'Admin Panel',
+        click: () => this.navigate('/admin'),
+      });
+    }
+    items.push(
+      { type: 'separator' },
+      {
+        label: 'Sign Out',
+        click: async () => {
+          await siteApi.postJsonAuthed(
+            config.GAME_URL,
+            '/api/auth/logout',
+            null,
+          );
+          if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+            this.mainWindow.loadURL(`${config.GAME_URL}/`);
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: `v${pkg.version} · changelog`,
+        click: () => this.navigate('/changelog'),
+      },
+    );
+    return { label: 'Account', submenu: items };
+  }
+
   navigateMenu() {
     const nav = this.nav;
     const manifest = this.manifest;
+    const items = [];
 
-    const items = [
-      {
-        label: nav.legislature.label,
-        click: () => this.navigate(nav.legislature.route),
-      },
-      {
-        label: nav.executive.label,
-        click: () => this.navigate(nav.executive.route),
-      },
-      { label: 'Elections', click: () => this.navigate(nav.elections.route) },
-      { label: nav.map.label, click: () => this.navigate(nav.map.route) },
-      { type: 'separator' },
-      {
-        label: 'Political Parties',
-        click: () => this.navigate(nav.parties.route),
-      },
-      {
-        label: 'National Metrics',
-        click: () => this.navigate(nav.metrics.route),
-      },
-      { label: 'Policy', click: () => this.navigate(nav.policy.route) },
-      { type: 'separator' },
-      { label: 'World / Nations', click: () => this.navigate('/world') },
-      {
-        label: 'Politicians',
-        click: () => this.navigate(nav.politicians.route),
-      },
-      { label: 'News', click: () => this.navigate(nav.news.route) },
-    ];
+    if (manifest?.hasCharacter) {
+      const chars = manifest.adminCharacters;
+      if (chars && chars.length > 1) {
+        const profileSub = [];
+        const active = chars.find((c) => c.isActive);
+        if (active) {
+          profileSub.push({
+            label: active.name,
+            click: () => this.navigate('/profile'),
+          });
+        }
+        for (const ch of chars) {
+          if (!ch.isActive) {
+            profileSub.push({
+              label: ch.name,
+              click: async () => {
+                await siteApi.postJsonAuthed(
+                  config.GAME_URL,
+                  '/api/auth/active-character',
+                  { characterId: ch.id },
+                );
+                if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                  this.mainWindow.loadURL(config.GAME_URL);
+                }
+              },
+            });
+          }
+        }
+        items.push({ label: 'Profile', submenu: profileSub });
+      } else {
+        items.push({
+          label: 'Profile',
+          click: () => this.navigate('/profile'),
+        });
+      }
 
-    if (manifest?.currentParty) {
-      items.push({ type: 'separator' });
       items.push({
-        label: 'My Party',
-        click: () => this.navigate(`/parties/${manifest.currentParty.id}`),
+        label: 'Actions',
+        click: () => this.navigate('/actions'),
       });
-    }
 
-    if (nav.presidentElection && manifest?.activePresidentElectionId) {
-      if (!manifest?.currentParty) items.push({ type: 'separator' });
-      items.push({
-        label: 'Presidential Election',
+      const hs = manifest.homeState;
+      if (hs) {
+        const base = urls.regionUrlFromStateId(hs.id);
+        const legLabel = getStateLegislatureLabel(hs.id);
+        const stateSub = [
+          { label: 'State Overview', click: () => this.navigate(base) },
+        ];
+        if (manifest.currentParty) {
+          const adj = getStatePartyLinkAdjective(hs);
+          stateSub.push({
+            label: `${adj} ${manifest.currentParty.name}`,
+            click: () =>
+              this.navigate(
+                urls.regionPartyUrlFromStateId(
+                  hs.id,
+                  manifest.currentParty.id,
+                ),
+              ),
+          });
+        }
+        stateSub.push(
+          {
+            label: 'State Economy',
+            click: () => this.navigate(`${base}?tab=economy`),
+          },
+          {
+            label: legLabel,
+            click: () =>
+              this.navigate(urls.regionLegislatureUrlFromStateId(hs.id)),
+          },
+        );
+        const ae = manifest.activeElection;
+        if (ae) {
+          const seatOrId = ae.seatId ?? ae.id;
+          stateSub.push({
+            label: 'My Election',
+            click: () => this.navigate(`/elections/${seatOrId}`),
+          });
+        } else {
+          stateSub.push({ label: 'My Election (None)', enabled: false });
+        }
+        items.push({ label: hs.name, submenu: stateSub });
+      }
+
+      const cid =
+        manifest.characterCountryId ??
+        manifest.character_countryId ??
+        'US';
+      const campaignPath =
+        manifest.campaignId != null
+          ? `/campaign/${manifest.campaignId}`
+          : '/campaign';
+
+      const nationSub = [
+        {
+          label: nav.executive.label,
+          click: () => this.navigate(nav.executive.route),
+        },
+        {
+          label: nav.legislature.label,
+          click: () => this.navigate(nav.legislature.route),
+        },
+        {
+          label: 'National Budget',
+          click: () => this.navigate(nav.budget.route),
+        },
+        {
+          label: nav.campaign.label,
+          click: () => this.navigate(campaignPath),
+        },
+      ];
+      const presSeatId = manifest.activePresidentElectionSeatId;
+      const presId = manifest.activePresidentElectionId;
+      if (nav.presidentElection && (presSeatId || presId)) {
+        nationSub.push({
+          label: 'Presidential Election',
+          click: () =>
+            this.navigate(`/elections/${presSeatId || presId}`),
+        });
+      }
+      nationSub.push(
+        { label: nav.map.label, click: () => this.navigate(nav.map.route) },
+        {
+          label: 'Political Parties',
+          click: () => this.navigate(nav.parties.route),
+        },
+        {
+          label: 'Elections',
+          click: () => this.navigate(nav.elections.route),
+        },
+      );
+      if (manifest.currentParty) {
+        nationSub.push({
+          label: `My Party · ${manifest.currentParty.name}`,
+          click: () =>
+            this.navigate(urls.partyUrl(cid, manifest.currentParty.id)),
+        });
+      }
+      nationSub.push(
+        {
+          label: nav.centralBank.label,
+          click: () => this.navigate(nav.centralBank.route),
+        },
+        {
+          label: 'National Metrics',
+          click: () => this.navigate(nav.metrics.route),
+        },
+        { label: 'Policy', click: () => this.navigate(nav.policy.route) },
+        {
+          label: 'Politicians',
+          click: () => this.navigate(nav.politicians.route),
+        },
+      );
+      items.push({ label: 'The Nation', submenu: nationSub });
+
+      const worldSub = [
+        { label: 'Nations', click: () => this.navigate('/world') },
+        {
+          label: 'Stock Market',
+          click: () => this.navigate('/stockmarket/global'),
+        },
+      ];
+      if (manifest.myCorporationId != null) {
+        worldSub.push({
+          label: 'My Corporation',
+          click: () =>
+            this.navigate(`/corporation/${manifest.myCorporationId}`),
+        });
+      }
+      worldSub.push({
+        label: 'News',
         click: () =>
-          this.navigate(`/elections/${manifest.activePresidentElectionId}`),
+          this.navigate(`/news?country=${String(cid).toLowerCase()}`),
       });
+      items.push({ label: 'World', submenu: worldSub });
     }
 
     items.push({ type: 'separator' });
@@ -235,7 +414,6 @@ class MenuManager {
               if (this.onThemeChange) {
                 this.onThemeChange(theme.id);
               }
-              // Set data-theme attribute and dispatch event for the site's ThemeContext
               this.mainWindow.webContents.executeJavaScript(
                 `document.documentElement.setAttribute('data-theme', '${theme.id}');
                  document.dispatchEvent(new CustomEvent('ahd-theme-change', { detail: '${theme.id}' }))`,
@@ -276,21 +454,9 @@ class MenuManager {
     return {
       label: 'Help',
       submenu: [
+        { label: 'Wiki', click: () => this.navigate('/wiki') },
         {
-          label: 'Game Wiki',
-          click: () => this.navigate('/wiki'),
-        },
-        {
-          label: 'Roadmap',
-          click: () => this.navigate('/roadmap'),
-        },
-        {
-          label: 'Changelog',
-          click: () => this.navigate('/changelog'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Submit Feedback',
+          label: 'Report bug / Suggest',
           accelerator: 'CmdOrCtrl+Shift+B',
           click: () => {
             if (this.onOpenFeedback) {
@@ -300,10 +466,10 @@ class MenuManager {
             }
           },
         },
-        { type: 'separator' },
         {
-          label: `Version ${require('../package.json').version}`,
-          enabled: false,
+          label: 'Discord',
+          click: () =>
+            shell.openExternal('https://discord.gg/DmF8zJJuqN'),
         },
       ],
     };

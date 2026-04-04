@@ -13,6 +13,11 @@ const DEFAULT_SHORTCUTS = {
     label: 'Campaign',
   },
   'CmdOrCtrl+Shift+F': {
+    action: 'custom',
+    handler: 'toggleFocusedView',
+    label: 'Toggle Focused View',
+  },
+  'CmdOrCtrl+Alt+F': {
     action: 'navigate',
     route: '/campaign/fundraise',
     label: 'Fundraise',

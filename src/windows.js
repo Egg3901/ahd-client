@@ -18,7 +18,7 @@ const WINDOW_PRESETS = {
   },
   congress: {
     title: 'Congress — A House Divided',
-    route: '/legislature',
+    route: '/country/us/legislature',
     width: 1000,
     height: 700,
   },
@@ -35,8 +35,8 @@ const WINDOW_PRESETS = {
     height: 600,
   },
   country: {
-    title: 'Country Overview — A House Divided',
-    route: '/country',
+    title: 'Map — A House Divided',
+    route: '/country/us/map',
     width: 1000,
     height: 700,
   },
@@ -87,6 +87,7 @@ class WindowManager {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        partition: 'persist:ahd',
       },
     });
 
@@ -120,6 +121,7 @@ class WindowManager {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        partition: 'persist:ahd',
       },
     });
 

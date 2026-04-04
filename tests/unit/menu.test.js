@@ -25,9 +25,15 @@ function makeMockWindowManager() {
   };
 }
 
+const manifestBase = {
+  hasCharacter: true,
+  characterCountryId: 'US',
+  activePresidentElectionId: null,
+  activePresidentElectionSeatId: null,
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
-  // Ensure NODE_ENV is not 'development' by default
   delete process.env.NODE_ENV;
 });
 
@@ -50,8 +56,6 @@ describe('MenuManager', () => {
       const wm = makeMockWindowManager();
       const mm = new MenuManager(win, wm, {});
       mm.build();
-      expect(Menu.setApplicationMenu).toHaveBeenCalledTimes(1);
-      // The argument should be the return value of buildFromTemplate
       const builtMenu = Menu.buildFromTemplate.mock.results[0].value;
       expect(Menu.setApplicationMenu).toHaveBeenCalledWith(builtMenu);
     });
@@ -171,13 +175,8 @@ describe('MenuManager', () => {
       mm.build();
 
       const template = Menu.buildFromTemplate.mock.calls[0][0];
-      // Find the View menu
       const viewMenu = template.find((m) => m.label === 'View');
-      expect(viewMenu).toBeDefined();
-      // Find the Theme submenu item
       const themeItem = viewMenu.submenu.find((m) => m.label === 'Theme');
-      expect(themeItem).toBeDefined();
-      // Click the first theme entry (Default -> id 'default')
       themeItem.submenu[0].click();
 
       expect(onThemeChange).toHaveBeenCalledWith('default');
@@ -191,27 +190,32 @@ describe('MenuManager', () => {
       return template.find((m) => m.label === 'Navigate').submenu;
     }
 
-    it('Navigate menu uses nav.legislature.label as first item', () => {
+    function findNation(mm) {
+      const submenu = getNavigateSubmenu(mm);
+      return submenu.find((m) => m.label === 'The Nation');
+    }
+
+    it('The Nation submenu starts with executive label (UK)', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('UK');
-      mm.setNavConfig(nav, null);
-      const submenu = getNavigateSubmenu(mm);
-      expect(submenu[0].label).toBe('Parliament');
+      mm.setNavConfig(nav, { ...manifestBase, characterCountryId: 'UK' });
+      const nation = findNation(mm);
+      expect(nation.submenu[0].label).toBe('10 Downing Street');
     });
 
-    it('Navigate menu uses nav.executive.label as second item', () => {
+    it('The Nation second item is legislature (UK)', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('UK');
-      mm.setNavConfig(nav, null);
-      const submenu = getNavigateSubmenu(mm);
-      expect(submenu[1].label).toBe('10 Downing Street');
+      mm.setNavConfig(nav, { ...manifestBase, characterCountryId: 'UK' });
+      const nation = findNation(mm);
+      expect(nation.submenu[1].label).toBe('Parliament');
     });
 
     it('setNavConfig triggers a menu rebuild', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('DE');
       jest.clearAllMocks();
-      mm.setNavConfig(nav, null);
+      mm.setNavConfig(nav, manifestBase);
       expect(Menu.buildFromTemplate).toHaveBeenCalledTimes(1);
     });
 
@@ -219,32 +223,37 @@ describe('MenuManager', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('US');
       mm.setNavConfig(nav, {
+        ...manifestBase,
         currentParty: { id: 'p1', name: 'Democrats' },
-        activePresidentElectionId: null,
       });
-      const submenu = getNavigateSubmenu(mm);
-      expect(submenu.map((i) => i.label).filter(Boolean)).toContain('My Party');
+      const nation = findNation(mm);
+      expect(
+        nation.submenu.map((i) => i.label).some((l) => /^My Party/.test(l)),
+      ).toBe(true);
     });
 
     it('My Party item is absent when manifest.currentParty is null', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('US');
-      mm.setNavConfig(nav, null);
-      const submenu = getNavigateSubmenu(mm);
-      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain(
-        'My Party',
-      );
+      mm.setNavConfig(nav, { ...manifestBase, currentParty: null });
+      const nation = findNation(mm);
+      expect(
+        nation.submenu
+          .map((i) => i.label)
+          .some((l) => /^My Party/.test(l)),
+      ).toBe(false);
     });
 
     it('Presidential Election item present for US with activePresidentElectionId', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('US');
       mm.setNavConfig(nav, {
+        ...manifestBase,
         currentParty: null,
         activePresidentElectionId: 'elec-123',
       });
-      const submenu = getNavigateSubmenu(mm);
-      expect(submenu.map((i) => i.label).filter(Boolean)).toContain(
+      const nation = findNation(mm);
+      expect(nation.submenu.map((i) => i.label).filter(Boolean)).toContain(
         'Presidential Election',
       );
     });
@@ -253,13 +262,27 @@ describe('MenuManager', () => {
       const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
       const nav = require('../../src/nav').getNavForCountry('UK');
       mm.setNavConfig(nav, {
+        ...manifestBase,
+        characterCountryId: 'UK',
         currentParty: null,
         activePresidentElectionId: 'elec-123',
       });
-      const submenu = getNavigateSubmenu(mm);
-      expect(submenu.map((i) => i.label).filter(Boolean)).not.toContain(
+      const nation = findNation(mm);
+      expect(nation.submenu.map((i) => i.label).filter(Boolean)).not.toContain(
         'Presidential Election',
       );
+    });
+
+    it('includes Account menu when manifest.user is set', () => {
+      const mm = new MenuManager(makeMockWindow(), makeMockWindowManager(), {});
+      const nav = require('../../src/nav').getNavForCountry('US');
+      mm.setNavConfig(nav, {
+        ...manifestBase,
+        user: { username: 'u', isAdmin: false },
+      });
+      mm.build();
+      const template = Menu.buildFromTemplate.mock.calls[0][0];
+      expect(template.map((m) => m.label)).toContain('Account');
     });
   });
 

@@ -1,63 +1,45 @@
 'use strict';
 
-const COUNTRY_NAV = {
-  US: {
-    executive: { route: '/executive/us', label: 'White House' },
-    legislature: { route: '/legislature/us', label: 'Congress' },
-    map: { route: '/map', label: 'Map' },
-    elections: { route: '/elections?country=us' },
-    parties: { route: '/parties?country=us' },
-    metrics: { route: '/metrics?country=us' },
-    policy: { route: '/policy?country=us' },
-    politicians: { route: '/politicians?country=us' },
-    news: { route: '/news?country=us' },
-    presidentElection: true,
-  },
-  UK: {
-    executive: { route: '/executive/uk', label: '10 Downing Street' },
-    legislature: { route: '/legislature/uk', label: 'Parliament' },
-    map: { route: '/uk/map', label: 'Map' },
-    elections: { route: '/elections?country=uk' },
-    parties: { route: '/parties?country=uk' },
-    metrics: { route: '/metrics?country=uk' },
-    policy: { route: '/policy?country=uk' },
-    politicians: { route: '/politicians?country=uk' },
-    news: { route: '/news?country=uk' },
-    presidentElection: false,
-  },
-  CA: {
-    executive: { route: '/executive/ca', label: 'Parliament Hill' },
-    legislature: { route: '/legislature/ca', label: 'Parliament' },
-    map: { route: '/country/ca/map', label: 'Map' },
-    elections: { route: '/elections?country=ca' },
-    parties: { route: '/parties?country=ca' },
-    metrics: { route: '/metrics?country=ca' },
-    policy: { route: '/policy?country=ca' },
-    politicians: { route: '/politicians?country=ca' },
-    news: { route: '/news?country=ca' },
-    presidentElection: false,
-  },
-  DE: {
-    executive: { route: '/executive/de', label: 'Chancellery' },
-    legislature: { route: '/legislature/de', label: 'Bundestag' },
-    map: { route: '/country/de/map', label: 'Map' },
-    elections: { route: '/elections?country=de' },
-    parties: { route: '/parties?country=de' },
-    metrics: { route: '/metrics?country=de' },
-    policy: { route: '/policy?country=de' },
-    politicians: { route: '/politicians?country=de' },
-    news: { route: '/news?country=de' },
-    presidentElection: false,
-  },
-};
+const { getCountryConfig } = require('./countries');
+const urls = require('./urls');
 
+/**
+ * Build country-aware navigation routes for the app menu and window presets.
+ * Paths align with `/country/{cc}/…` and region URLs from `urls`.
+ *
+ * @param {string|null|undefined} countryId
+ */
 function getNavForCountry(countryId) {
-  if (countryId && !COUNTRY_NAV[countryId]) {
-    console.warn(
-      `[nav] Unknown countryId "${countryId}" — falling back to US nav`,
-    );
-  }
-  return COUNTRY_NAV[countryId] ?? COUNTRY_NAV.US;
+  const c = getCountryConfig(countryId);
+  const id = c.id;
+
+  return {
+    executive: { route: c.executivePath, label: c.executiveLabel },
+    legislature: { route: c.legislaturePath, label: c.legislatureLabel },
+    map: { route: c.mapPath, label: 'Map' },
+    elections: { route: urls.countryElectionsUrl(id) },
+    parties: { route: urls.partiesUrl(id) },
+    metrics: { route: urls.metricsUrl(id) },
+    policy: { route: urls.policyUrl(id) },
+    politicians: { route: urls.politiciansUrl(id) },
+    news: { route: `/news?country=${id.toLowerCase()}` },
+    budget: { route: urls.budgetUrl(id) },
+    centralBank: {
+      route: urls.centralBankUrl(id),
+      label: c.centralBankName,
+    },
+    campaign: { route: '/campaign', label: 'Campaign Manager' },
+    executiveFormation: c.executiveFormation,
+    presidentElection: c.executiveFormation === 'direct_election',
+  };
 }
+
+/** @deprecated Use getCountryConfig / urls — kept for tests that import shape */
+const COUNTRY_NAV = {
+  US: getNavForCountry('US'),
+  UK: getNavForCountry('UK'),
+  CA: getNavForCountry('CA'),
+  DE: getNavForCountry('DE'),
+};
 
 module.exports = { getNavForCountry, COUNTRY_NAV };

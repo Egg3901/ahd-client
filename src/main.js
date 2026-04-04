@@ -44,6 +44,8 @@ const DevToolsManager = require('./devtools');
 const DashboardPoller = require('./dashboard');
 const ErrorHandler = require('./error-handler');
 const ActionQueue = require('./action-queue');
+const siteApi = require('./site-api');
+const { normalizeClientNavManifest } = require('./nav-manifest');
 
 // --- Module singletons (initialized in createWindow) ---
 
@@ -88,6 +90,7 @@ const THEME_BACKGROUNDS = {
   light: '#f5f5f5',
   pastel: '#fdf4f0',
   usa: '#f0f0f5',
+  solarized: '#002b36',
 };
 
 /** @type {object} Current country nav (defaults to US until manifest arrives) */
@@ -213,42 +216,29 @@ function pushThemeToSite(themeId) {
 let unreadPollTimer = null;
 
 /**
+ * Merge /api/character/me (corporation id) for World → My Corporation.
+ * @param {object} manifest
+ * @returns {Promise<object>}
+ */
+async function enrichClientNavManifest(manifest) {
+  if (!manifest.hasCharacter) return manifest;
+  try {
+    const me = await siteApi.fetchCharacterMe(config.GAME_URL);
+    if (me?.corporation?.sequentialId != null) {
+      return { ...manifest, myCorporationId: me.corporation.sequentialId };
+    }
+  } catch {
+    /* ignore */
+  }
+  return manifest;
+}
+
+/**
  * Fetch the consolidated client-nav manifest from /api/client-nav.
  * @returns {Promise<object|null>}
  */
 function fetchClientNav() {
-  return new Promise((resolve) => {
-    session
-      .fromPartition('persist:ahd')
-      .cookies.get({ url: config.GAME_URL })
-      .then((cookies) => {
-        const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-        const req = net.request({
-          url: `${config.GAME_URL}/api/client-nav`,
-          method: 'GET',
-        });
-        req.setHeader('Cookie', cookieStr);
-        req.setHeader('Accept', 'application/json');
-
-        let body = '';
-        req.on('response', (res) => {
-          res.on('data', (chunk) => {
-            body += chunk.toString();
-          });
-          res.on('end', () => {
-            try {
-              resolve(JSON.parse(body));
-            } catch {
-              resolve(null);
-            }
-          });
-          res.on('error', () => resolve(null));
-        });
-        req.on('error', () => resolve(null));
-        req.end();
-      })
-      .catch(() => resolve(null));
-  });
+  return siteApi.fetchClientNav(config.GAME_URL);
 }
 
 /**
@@ -263,18 +253,17 @@ function applyNavForCountry(countryId, manifest) {
 }
 
 /**
- * Handle a fresh client-nav manifest: update auth state, unread count,
- * admin menu, and country-aware nav.
- * @param {object|null} manifest
+ * Apply client-nav side effects (IPC to renderer, menus, game-state hydration).
+ * @param {object} manifest
  */
-function handleClientNav(manifest) {
-  if (!manifest) return;
+function applyClientNavEffects(manifest) {
   sendToRenderer('auth-state', {
     user: manifest.user,
     hasCharacter: manifest.hasCharacter,
     missingDemographics: manifest.missingDemographics,
   });
   sendToRenderer('client-nav', manifest);
+  sendToRenderer('nav-data-updated', manifest);
   sendToRenderer('unread-count', { count: manifest.unreadCount || 0 });
   sendToRenderer('unread-mail-count', { count: manifest.unreadMailCount || 0 });
   if (menuManager) menuManager.setAdmin(manifest.user?.isAdmin ?? false);
@@ -293,6 +282,18 @@ function handleClientNav(manifest) {
   if (Object.keys(navState).length > 0) {
     handleGameStateEvent({ data: navState });
   }
+}
+
+/**
+ * Handle a fresh client-nav manifest: enrich, then apply.
+ * @param {object|null} manifest
+ */
+function handleClientNav(manifest) {
+  if (!manifest) return;
+  const normalized = normalizeClientNavManifest(manifest);
+  enrichClientNavManifest(normalized)
+    .then((data) => applyClientNavEffects(data))
+    .catch(() => applyClientNavEffects(normalized));
 }
 
 // --- Theme observer ---
@@ -346,6 +347,13 @@ function startClientNavPolling(intervalMs) {
   );
 }
 
+/** 30s while focused, 60s when unfocused (reduces background churn). */
+function scheduleClientNavPollInterval() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const ms = mainWindow.isFocused() ? 30 * 1000 : 60 * 1000;
+  startClientNavPolling(ms);
+}
+
 // --- Module initialization ---
 
 /**
@@ -353,6 +361,34 @@ function startClientNavPolling(intervalMs) {
  * Called once after the main window is created.
  */
 function initModules() {
+  /**
+   * Sync focused vs classic display mode (cookie + reload) for NavbarWrapper.
+   * @param {boolean} enabled - true = focused (site navbar hidden)
+   */
+  function toggleFocusedMode(enabled) {
+    const mode = enabled ? 'focused' : 'classic';
+    cacheManager.setPreference('displayMode', mode);
+    session
+      .fromPartition('persist:ahd')
+      .cookies.set({
+        url: config.GAME_URL,
+        name: 'ahd-display-mode',
+        value: mode,
+        path: '/',
+        sameSite: 'lax',
+      })
+      .then(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(config.GAME_URL);
+        }
+      });
+    if (menuManager) menuManager.setFocusedMode(enabled);
+    sendToRenderer('toggle-focused-view', enabled);
+  }
+
+  mainWindow.on('focus', () => scheduleClientNavPollInterval());
+  mainWindow.on('blur', () => scheduleClientNavPollInterval());
+
   // SSE Client (#1)
   sseClient = new SSEClient();
   mainWindow.webContents.on('did-navigate', () => {
@@ -427,6 +463,11 @@ function initModules() {
   shortcutManager.onCustom('toggleMiniMode', () => {
     if (pipManager) pipManager.toggle();
   });
+  shortcutManager.onCustom('toggleFocusedView', () => {
+    const focused =
+      (cacheManager.getPreference('displayMode') || 'focused') === 'focused';
+    toggleFocusedMode(!focused);
+  });
   shortcutManager.registerAll();
 
   // PiP (#8)
@@ -477,28 +518,20 @@ function initModules() {
     },
     onTogglePip: () => pipManager.toggle(),
     onOpenFeedback: () => feedbackManager.openFeedbackDialog(),
-    onToggleFocusedMode: (enabled) => {
-      const mode = enabled ? 'focused' : 'classic';
-      cacheManager.setPreference('displayMode', mode);
-      session
-        .fromPartition('persist:ahd')
-        .cookies.set({
-          url: config.GAME_URL,
-          name: 'ahd-display-mode',
-          value: mode,
-          path: '/',
-          sameSite: 'lax',
-        })
-        .then(() => {
-          mainWindow.loadURL(config.GAME_URL);
-        });
-      menuManager.setFocusedMode(enabled);
-    },
+    onToggleFocusedMode: (enabled) => toggleFocusedMode(enabled),
   });
   if (process.env.NODE_ENV === 'development') {
     menuManager.onOpenEventLog = () => devToolsManager.openPanel();
   }
   menuManager.build();
+
+  if (trayManager) {
+    trayManager.setFocusedViewToggleHandler(() => {
+      const focused =
+        (cacheManager.getPreference('displayMode') || 'focused') === 'focused';
+      toggleFocusedMode(!focused);
+    });
+  }
 
   // Auto-updater (#7)
   updateManager = new UpdateManager(mainWindow);
@@ -525,8 +558,7 @@ function initModules() {
     sendToRenderer('sse-status', { connected: true });
     // Flush queued actions to renderer for replay (with retry tracking)
     actionQueue.flush(sendToRenderer);
-    // Back to normal 60 s polling when connected
-    startClientNavPolling(60 * 1000);
+    scheduleClientNavPollInterval();
   });
 
   // Re-flush after a retry delay when the renderer reported a failure and
@@ -548,8 +580,7 @@ function initModules() {
   sseClient.on('disconnected', () => {
     console.log('SSE disconnected');
     sendToRenderer('sse-status', { connected: false });
-    // Poll more frequently (30 s) when SSE is down to keep state fresh
-    startClientNavPolling(30 * 1000);
+    scheduleClientNavPollInterval();
   });
   sseClient.on('reconnecting', ({ delay, attempt }) => {
     console.log(`SSE reconnecting in ${delay}ms (attempt ${attempt})`);
@@ -572,6 +603,9 @@ function initModules() {
     handleGameStateEvent,
     pushThemeToSite,
     config,
+    fetchClientNav,
+    enrichClientNavManifest,
+    isGameUrl,
   });
 
   if (process.env.NODE_ENV === 'development') {

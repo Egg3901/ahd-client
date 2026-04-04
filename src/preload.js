@@ -13,6 +13,9 @@ const RECEIVE_CHANNELS = [
   'unread-count',
   'unread-mail-count',
   'client-nav',
+  'nav-data-updated',
+  'toggle-focused-view',
+  'navigate',
   'action-failed',
 ];
 
@@ -41,6 +44,11 @@ const INVOKE_CHANNELS = [
   'set-zoom',
   'get-zoom',
   'go-home',
+  'fetch-nav-data',
+  'navigate-to',
+  'open-external',
+  'switch-character',
+  'sign-out',
 ];
 
 contextBridge.exposeInMainWorld('ahdClient', {

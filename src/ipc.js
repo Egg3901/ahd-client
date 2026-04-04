@@ -1,4 +1,17 @@
-const { ipcMain } = require('electron');
+const { ipcMain, shell } = require('electron');
+const siteApi = require('./site-api');
+const { normalizeClientNavManifest } = require('./nav-manifest');
+const { resolveGamePath } = require('./game-paths');
+
+/** Preferences the renderer may change via set-preference (theme uses set-theme). */
+const ALLOWED_PREFERENCE_KEYS /** @type {ReadonlySet<string>} */ = new Set([
+  'notificationsEnabled',
+  'miniModeEnabled',
+  'displayMode',
+]);
+
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 3;
 
 /**
  * Register all IPC handlers for renderer <-> main communication.
@@ -34,6 +47,9 @@ function registerIpcHandlers(deps) {
     handleGameStateEvent,
     pushThemeToSite,
     config,
+    fetchClientNav,
+    enrichClientNavManifest,
+    isGameUrl,
   } = deps;
 
   ipcMain.handle('get-game-state', () => {
@@ -86,7 +102,8 @@ function registerIpcHandlers(deps) {
   });
 
   ipcMain.handle('set-preference', (_event, { key, value }) => {
-    if (cacheManager) cacheManager.setPreference(key, value);
+    if (!cacheManager || !ALLOWED_PREFERENCE_KEYS.has(key)) return;
+    cacheManager.setPreference(key, value);
     if (key === 'notificationsEnabled' && notificationManager) {
       notificationManager.setEnabled(value);
     }
@@ -141,7 +158,11 @@ function registerIpcHandlers(deps) {
   });
 
   ipcMain.handle('set-zoom', (_event, factor) => {
-    if (mainWindow) mainWindow.webContents.setZoomFactor(factor);
+    if (!mainWindow) return;
+    const n = Number(factor);
+    if (!Number.isFinite(n)) return;
+    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, n));
+    mainWindow.webContents.setZoomFactor(clamped);
   });
 
   ipcMain.handle('get-zoom', () => {
@@ -149,6 +170,49 @@ function registerIpcHandlers(deps) {
   });
 
   ipcMain.handle('go-home', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL(config.GAME_URL);
+    }
+  });
+
+  ipcMain.handle('fetch-nav-data', async () => {
+    const raw = await fetchClientNav();
+    if (!raw) return null;
+    const normalized = normalizeClientNavManifest(raw);
+    return enrichClientNavManifest(normalized);
+  });
+
+  ipcMain.handle('navigate-to', (_event, url) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const u = String(url || '');
+    if (u.startsWith('http')) {
+      try {
+        if (isGameUrl(u)) mainWindow.loadURL(u);
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    const path = resolveGamePath(u);
+    mainWindow.loadURL(`${config.GAME_URL}${path}`);
+  });
+
+  ipcMain.handle('open-external', (_event, url) => {
+    const u = String(url || '');
+    if (u) shell.openExternal(u);
+  });
+
+  ipcMain.handle('switch-character', async (_event, characterId) => {
+    await siteApi.postJsonAuthed(config.GAME_URL, '/api/auth/active-character', {
+      characterId,
+    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL(config.GAME_URL);
+    }
+  });
+
+  ipcMain.handle('sign-out', async () => {
+    await siteApi.postJsonAuthed(config.GAME_URL, '/api/auth/logout', null);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadURL(config.GAME_URL);
     }
