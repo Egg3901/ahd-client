@@ -42,6 +42,8 @@ const PipManager = require('./pip');
 const FeedbackManager = require('./feedback');
 const DevToolsManager = require('./devtools');
 const DashboardPoller = require('./dashboard');
+const ErrorHandler = require('./error-handler');
+const ActionQueue = require('./action-queue');
 
 // --- Module singletons (initialized in createWindow) ---
 
@@ -71,6 +73,10 @@ let feedbackManager = null;
 let devToolsManager = null;
 /** @type {DashboardPoller|null} */
 let dashboardPoller = null;
+/** @type {ErrorHandler|null} */
+let errorHandler = null;
+/** @type {ActionQueue|null} */
+let actionQueue = null;
 
 // --- Theme colours ---
 
@@ -94,6 +100,8 @@ let currentNav = getNavForCountry(null);
  */
 function createWindow() {
   cacheManager = new CacheManager();
+  errorHandler = new ErrorHandler();
+  actionQueue = new ActionQueue(cacheManager);
 
   const savedTheme = cacheManager.getTheme();
   mainWindow = new BrowserWindow({
@@ -268,8 +276,74 @@ function handleClientNav(manifest) {
   });
   sendToRenderer('client-nav', manifest);
   sendToRenderer('unread-count', { count: manifest.unreadCount || 0 });
+  sendToRenderer('unread-mail-count', { count: manifest.unreadMailCount || 0 });
   if (menuManager) menuManager.setAdmin(manifest.user?.isAdmin ?? false);
   applyNavForCountry(manifest.characterCountryId, manifest);
+
+  // Hydrate game state from client-nav financial fields so PiP, tray,
+  // and cache stay current even before the dashboard poller runs.
+  const navState = {};
+  if (manifest.funds != null) navState.funds = manifest.funds;
+  if (manifest.actions != null) navState.actionPoints = manifest.actions;
+  if (manifest.cashOnHand != null) navState.cashOnHand = manifest.cashOnHand;
+  if (manifest.projectedIncome != null)
+    navState.projectedIncome = manifest.projectedIncome;
+  if (manifest.unreadMailCount != null)
+    navState.unreadMailCount = manifest.unreadMailCount;
+  if (Object.keys(navState).length > 0) {
+    handleGameStateEvent({ data: navState });
+  }
+}
+
+// --- Theme observer ---
+
+/**
+ * (Re-)inject the MutationObserver that watches for site-side theme changes.
+ * Disconnects any existing observer before creating a new one, so it is safe
+ * to call on every navigation (both full and in-page).
+ */
+function reinitializeThemeObserver() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents
+    .executeJavaScript(
+      `
+      (() => {
+        if (window.__ahdThemeObserver) {
+          window.__ahdThemeObserver.disconnect();
+        }
+        window.__ahdThemeObserver = new MutationObserver((mutations) => {
+          for (const m of mutations) {
+            if (m.attributeName === 'data-theme') {
+              const theme = document.documentElement.getAttribute('data-theme');
+              if (theme && window.ahdClient) {
+                window.ahdClient.invoke('theme-changed-on-site', theme);
+              }
+            }
+          }
+        });
+        window.__ahdThemeObserver.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+      })();
+    `,
+    )
+    .catch(() => {});
+}
+
+// --- Client-nav polling ---
+
+/**
+ * (Re-)start the client-nav poll timer at the given interval.
+ * Clears any existing timer first.
+ * @param {number} intervalMs
+ */
+function startClientNavPolling(intervalMs) {
+  if (unreadPollTimer) clearInterval(unreadPollTimer);
+  unreadPollTimer = setInterval(
+    () => fetchClientNav().then(handleClientNav),
+    intervalMs,
+  );
 }
 
 // --- Module initialization ---
@@ -293,7 +367,12 @@ function initModules() {
       .catch(() => {});
   });
 
-  // Read site theme and inject MutationObserver after page loads
+  // Reinitialize the theme MutationObserver on every navigation so it
+  // always tracks the live document, even after full-page navigations.
+  mainWindow.webContents.on('did-navigate', reinitializeThemeObserver);
+
+  // Read site theme, reinitialize observer, and refresh client-nav after
+  // each page finishes loading.
   mainWindow.webContents.on('did-finish-load', () => {
     // Sync Electron theme from the site's data-theme attribute
     mainWindow.webContents
@@ -306,26 +385,8 @@ function initModules() {
       })
       .catch(() => {});
 
-    // Watch for theme changes made on the site via MutationObserver
-    mainWindow.webContents.executeJavaScript(`
-      (() => {
-        if (window.__ahdThemeObserver) return;
-        window.__ahdThemeObserver = new MutationObserver((mutations) => {
-          for (const m of mutations) {
-            if (m.attributeName === 'data-theme') {
-              const theme = document.documentElement.getAttribute('data-theme');
-              if (theme && window.ahdClient) {
-                window.ahdClient.invoke('theme-changed-on-site', theme);
-              }
-            }
-          }
-        });
-        window.__ahdThemeObserver.observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ['data-theme'],
-        });
-      })();
-    `);
+    // Ensure the observer is active in the freshly loaded page context
+    reinitializeThemeObserver();
 
     // Fetch client-nav manifest and apply
     fetchClientNav().then(handleClientNav);
@@ -447,19 +508,48 @@ function initModules() {
   sseClient.on('event', (event) => handleGameStateEvent(event));
   sseClient.on('turn_complete', (data) => cacheManager.cacheTurnData(data));
 
+  // SSE theme_changed — sync native theme when the site theme is changed
+  // from another session or device (SSE is unreliable cross-instance, so
+  // the MutationObserver remains the primary mechanism; this is a supplement).
+  sseClient.on('theme_changed', (data) => {
+    const theme = data?.payload?.theme ?? data?.theme;
+    if (theme && cacheManager && theme !== cacheManager.getTheme()) {
+      cacheManager.setTheme(theme);
+      syncNativeTheme(theme);
+    }
+  });
+
   // SSE connection status -> renderer
   sseClient.on('connected', () => {
     console.log('SSE connected');
     sendToRenderer('sse-status', { connected: true });
-    const queued = cacheManager.getQueuedActions();
-    if (queued.length > 0) {
-      sendToRenderer('flush-queue', queued);
-      cacheManager.clearQueue();
+    // Flush queued actions to renderer for replay (with retry tracking)
+    actionQueue.flush(sendToRenderer);
+    // Back to normal 60 s polling when connected
+    startClientNavPolling(60 * 1000);
+  });
+
+  // Re-flush after a retry delay when the renderer reported a failure and
+  // the action still has attempts remaining.
+  actionQueue.on('retry-ready', () => {
+    if (sseClient && sseClient.isConnected()) {
+      actionQueue.flush(sendToRenderer);
     }
+  });
+
+  // Notify renderer when an action has exhausted all retries
+  actionQueue.on('action-failed', (action) => {
+    sendToRenderer('action-failed', {
+      id: action.id,
+      type: action.type,
+      error: action.lastError,
+    });
   });
   sseClient.on('disconnected', () => {
     console.log('SSE disconnected');
     sendToRenderer('sse-status', { connected: false });
+    // Poll more frequently (30 s) when SSE is down to keep state fresh
+    startClientNavPolling(30 * 1000);
   });
   sseClient.on('reconnecting', ({ delay, attempt }) => {
     console.log(`SSE reconnecting in ${delay}ms (attempt ${attempt})`);
@@ -469,6 +559,7 @@ function initModules() {
   // IPC handlers (extracted to src/ipc.js for modularity)
   registerIpcHandlers({
     cacheManager,
+    actionQueue,
     notificationManager,
     menuManager,
     windowManager,
@@ -568,13 +659,12 @@ function initModules() {
     Menu.buildFromTemplate(items).popup({ window: mainWindow });
   });
 
-  // Fetch client-nav once connected, then poll every 60s
+  // On first SSE connection: do an immediate client-nav fetch and load
+  // the error code catalog. Ongoing polling is managed by startClientNavPolling
+  // via the connected/disconnected handlers above.
   sseClient.once('connected', () => {
     fetchClientNav().then(handleClientNav);
-    unreadPollTimer = setInterval(
-      () => fetchClientNav().then(handleClientNav),
-      60 * 1000,
-    );
+    if (errorHandler) errorHandler.loadErrorCodes();
   });
 }
 
@@ -596,8 +686,11 @@ function handleGameStateEvent(event) {
     'nextTurnIn',
     // Funds & income
     'funds',
+    'cashOnHand',
     'projectedIncome',
     'incomeBreakdown',
+    // Unread mail (from client-nav hydration)
+    'unreadMailCount',
     // Decay stats
     'politicalInfluence',
     'politicalInfluenceDecayWarning',
@@ -684,8 +777,9 @@ function sendNavState() {
  */
 function injectErrorOverlay(type) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  const message =
-    type === 'connection'
+  const message = errorHandler
+    ? errorHandler.getOverlayMessage(type)
+    : type === 'connection'
       ? "Couldn't connect — check your internet connection"
       : "This page isn't available yet";
   mainWindow.webContents
@@ -737,6 +831,7 @@ function cleanup() {
     unreadPollTimer = null;
   }
   if (sseClient) sseClient.disconnect();
+  if (actionQueue) actionQueue.destroy();
   if (dashboardPoller) dashboardPoller.stop();
   if (shortcutManager) shortcutManager.unregisterAll();
   if (trayManager) trayManager.destroy();

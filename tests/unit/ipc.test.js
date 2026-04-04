@@ -17,13 +17,16 @@ describe('registerIpcHandlers', () => {
       cacheManager: {
         getGameState: jest.fn().mockReturnValue({ turn: 1 }),
         getCachedTurnData: jest.fn().mockReturnValue({ cached: true }),
-        queueAction: jest.fn().mockReturnValue(1),
-        getQueuedActions: jest.fn().mockReturnValue([{ id: 'a' }]),
         getTheme: jest.fn().mockReturnValue('default'),
         setTheme: jest.fn(),
         getPreference: jest.fn().mockReturnValue(true),
         setPreference: jest.fn(),
         updateGameState: jest.fn(),
+      },
+      actionQueue: {
+        add: jest.fn().mockReturnValue(1),
+        getPending: jest.fn().mockReturnValue([{ id: 'a' }]),
+        reportResult: jest.fn(),
       },
       notificationManager: {
         setEnabled: jest.fn(),
@@ -91,19 +94,45 @@ describe('registerIpcHandlers', () => {
 
   // --- queue-action ---
 
-  test('queue-action calls queueAction and returns length', async () => {
+  test('queue-action delegates to actionQueue.add and returns length', async () => {
     const action = { type: 'vote' };
     const result = await handlers['queue-action']({}, action);
-    expect(deps.cacheManager.queueAction).toHaveBeenCalledWith(action);
+    expect(deps.actionQueue.add).toHaveBeenCalledWith(action);
     expect(result).toBe(1);
   });
 
   // --- get-queue ---
 
-  test('get-queue returns getQueuedActions()', async () => {
+  test('get-queue returns actionQueue.getPending()', async () => {
     const result = await handlers['get-queue']();
-    expect(deps.cacheManager.getQueuedActions).toHaveBeenCalled();
+    expect(deps.actionQueue.getPending).toHaveBeenCalled();
     expect(result).toEqual([{ id: 'a' }]);
+  });
+
+  // --- action-result ---
+
+  test('action-result delegates to actionQueue.reportResult', async () => {
+    await handlers['action-result'](
+      {},
+      { id: 'abc', success: true, error: undefined },
+    );
+    expect(deps.actionQueue.reportResult).toHaveBeenCalledWith(
+      'abc',
+      true,
+      undefined,
+    );
+  });
+
+  test('action-result passes error string on failure', async () => {
+    await handlers['action-result'](
+      {},
+      { id: 'xyz', success: false, error: 'timeout' },
+    );
+    expect(deps.actionQueue.reportResult).toHaveBeenCalledWith(
+      'xyz',
+      false,
+      'timeout',
+    );
   });
 
   // --- get-theme ---

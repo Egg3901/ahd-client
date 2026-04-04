@@ -92,7 +92,46 @@ describe('preload', () => {
     );
   });
 
-  // --- New channels (client-nav, go-home) ---
+  // --- Action queue channels ---
+
+  test('api.on("action-failed", fn) registers on ipcRenderer', () => {
+    const fn = jest.fn();
+    const cleanup = api.on('action-failed', fn);
+    expect(ipcRenderer.on).toHaveBeenCalledWith(
+      'action-failed',
+      expect.any(Function),
+    );
+    expect(typeof cleanup).toBe('function');
+  });
+
+  test('api.invoke("action-result", payload) calls ipcRenderer.invoke', () => {
+    api.invoke('action-result', { id: 'abc', success: true });
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('action-result', {
+      id: 'abc',
+      success: true,
+    });
+  });
+
+  test('api.reportActionResult(id, true) calls ipcRenderer.invoke("action-result")', () => {
+    api.reportActionResult('xyz', true);
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith('action-result', {
+      id: 'xyz',
+      success: true,
+      error: undefined,
+    });
+  });
+
+  // --- New channels (unread-mail-count, client-nav, go-home) ---
+
+  test('api.on("unread-mail-count", fn) calls ipcRenderer.on and returns cleanup', () => {
+    const fn = jest.fn();
+    const cleanup = api.on('unread-mail-count', fn);
+    expect(ipcRenderer.on).toHaveBeenCalledWith(
+      'unread-mail-count',
+      expect.any(Function),
+    );
+    expect(typeof cleanup).toBe('function');
+  });
 
   test('api.on("client-nav", fn) calls ipcRenderer.on and returns cleanup', () => {
     const fn = jest.fn();

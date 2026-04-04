@@ -42,6 +42,8 @@ const schema = {
       funds: null,
       projectedIncome: null,
       incomeBreakdown: null,
+      // Funds (extended)
+      cashOnHand: null,
       // Decay stats
       politicalInfluence: null,
       politicalInfluenceDecayWarning: false,
@@ -54,6 +56,8 @@ const schema = {
       electionName: null,
       // Per-action AP costs
       actionCosts: null,
+      // Unread mail count (from client-nav)
+      unreadMailCount: null,
     },
   },
 };
@@ -99,6 +103,8 @@ class CacheManager {
       ...action,
       queuedAt: Date.now(),
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      attempts: 0,
+      status: 'queued',
     });
     this.store.set('actionQueue', queue);
     return queue.length;
@@ -112,6 +118,25 @@ class CacheManager {
   /** Clear the entire action queue (called after successful flush). */
   clearQueue() {
     this.store.set('actionQueue', []);
+  }
+
+  /**
+   * Update the status and attempt count of a queued action.
+   * @param {string} actionId
+   * @param {'queued'|'retrying'|'completed'|'failed'} status
+   * @param {string} [error] - Error message if status is 'failed'
+   */
+  updateActionStatus(actionId, status, error) {
+    const queue = this.store.get('actionQueue', []);
+    const action = queue.find((a) => a.id === actionId);
+    if (!action) return;
+    action.status = status;
+    if (status === 'retrying' || status === 'failed') {
+      action.attempts = (action.attempts || 0) + 1;
+    }
+    if (error) action.lastError = error;
+    if (status === 'completed') action.completedAt = Date.now();
+    this.store.set('actionQueue', queue);
   }
 
   /** @param {string} actionId - ID of the action to remove */

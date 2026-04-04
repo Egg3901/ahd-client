@@ -11,7 +11,9 @@ const RECEIVE_CHANNELS = [
   'loading-state',
   'auth-state',
   'unread-count',
+  'unread-mail-count',
   'client-nav',
+  'action-failed',
 ];
 
 // Channels the renderer is allowed to invoke (request/response)
@@ -33,6 +35,7 @@ const INVOKE_CHANNELS = [
   'get-sse-status',
   'set-admin',
   'theme-changed-on-site',
+  'action-result',
   'go-back',
   'go-forward',
   'set-zoom',
@@ -87,6 +90,8 @@ contextBridge.exposeInMainWorld('ahdClient', {
   // Action queue (offline support)
   queueAction: (action) => ipcRenderer.invoke('queue-action', action),
   getQueue: () => ipcRenderer.invoke('get-queue'),
+  reportActionResult: (id, success, error) =>
+    ipcRenderer.invoke('action-result', { id, success, error }),
 
   // Multi-window
   openWindow: (preset) => ipcRenderer.invoke('open-window', preset),

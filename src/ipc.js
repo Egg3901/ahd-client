@@ -21,6 +21,7 @@ const { ipcMain } = require('electron');
 function registerIpcHandlers(deps) {
   const {
     cacheManager,
+    actionQueue,
     notificationManager,
     menuManager,
     windowManager,
@@ -44,12 +45,16 @@ function registerIpcHandlers(deps) {
   });
 
   ipcMain.handle('queue-action', (_event, action) => {
-    if (!cacheManager) return 0;
-    return cacheManager.queueAction(action);
+    if (!actionQueue) return 0;
+    return actionQueue.add(action);
   });
 
   ipcMain.handle('get-queue', () => {
-    return cacheManager ? cacheManager.getQueuedActions() : [];
+    return actionQueue ? actionQueue.getPending() : [];
+  });
+
+  ipcMain.handle('action-result', (_event, { id, success, error }) => {
+    if (actionQueue) actionQueue.reportResult(id, success, error);
   });
 
   ipcMain.handle('get-theme', () => {
