@@ -18,6 +18,7 @@ const { ipcMain } = require('electron');
  *   handleGameStateEvent: (event: {data: object}) => void,
  *   actionQueue: import('./action-queue'),
  *   errorHandler: import('./error-handler'),
+ *   compatibilityChecker: import('./compatibility-checker'),
  * }} deps - Module references injected from main.js
  */
 function registerIpcHandlers(deps) {
@@ -36,6 +37,7 @@ function registerIpcHandlers(deps) {
     pushThemeToSite,
     actionQueue,
     errorHandler,
+    compatibilityChecker,
     config,
   } = deps;
 
@@ -167,6 +169,12 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('get-error-codes', () => {
     return errorHandler ? errorHandler.getMappings() : {};
+  });
+
+  ipcMain.handle('get-compatibility-status', () => {
+    return compatibilityChecker
+      ? compatibilityChecker.getStatus()
+      : { compatible: true, issueCount: 0, issues: [] };
   });
 }
 

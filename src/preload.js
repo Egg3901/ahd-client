@@ -45,6 +45,7 @@ const INVOKE_CHANNELS = [
   'fail-action',
   'clear-queue',
   'get-error-codes',
+  'get-compatibility-status',
 ];
 
 contextBridge.exposeInMainWorld('ahdClient', {
@@ -100,6 +101,9 @@ contextBridge.exposeInMainWorld('ahdClient', {
 
   // Error codes
   getErrorCodes: () => ipcRenderer.invoke('get-error-codes'),
+
+  // API compatibility
+  getCompatibilityStatus: () => ipcRenderer.invoke('get-compatibility-status'),
 
   // Multi-window
   openWindow: (preset) => ipcRenderer.invoke('open-window', preset),

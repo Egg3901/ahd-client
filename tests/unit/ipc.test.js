@@ -35,6 +35,11 @@ describe('registerIpcHandlers', () => {
           .fn()
           .mockReturnValue({ NOT_FOUND: { title: 'Page Not Found' } }),
       },
+      compatibilityChecker: {
+        getStatus: jest
+          .fn()
+          .mockReturnValue({ compatible: true, issueCount: 0, issues: [] }),
+      },
       notificationManager: {
         setEnabled: jest.fn(),
       },
@@ -147,6 +152,14 @@ describe('registerIpcHandlers', () => {
     const result = await handlers['get-error-codes']();
     expect(deps.errorHandler.getMappings).toHaveBeenCalled();
     expect(result).toEqual({ NOT_FOUND: { title: 'Page Not Found' } });
+  });
+
+  // --- get-compatibility-status ---
+
+  test('get-compatibility-status returns compatibilityChecker.getStatus()', async () => {
+    const result = await handlers['get-compatibility-status']();
+    expect(deps.compatibilityChecker.getStatus).toHaveBeenCalled();
+    expect(result).toEqual({ compatible: true, issueCount: 0, issues: [] });
   });
 
   // --- get-theme ---

@@ -44,6 +44,7 @@ const DevToolsManager = require('./devtools');
 const DashboardPoller = require('./dashboard');
 const ErrorHandler = require('./error-handler');
 const ActionQueue = require('./action-queue');
+const CompatibilityChecker = require('./compatibility-checker');
 
 // --- Module singletons (initialized in createWindow) ---
 
@@ -77,6 +78,8 @@ let dashboardPoller = null;
 let errorHandler = null;
 /** @type {ActionQueue|null} */
 let actionQueue = null;
+/** @type {CompatibilityChecker|null} */
+let compatibilityChecker = null;
 
 // --- Theme colours ---
 
@@ -267,6 +270,7 @@ function applyNavForCountry(countryId, manifest) {
  */
 function handleClientNav(manifest) {
   if (!manifest) return;
+  if (compatibilityChecker) compatibilityChecker.checkClientNav(manifest);
   sendToRenderer('auth-state', {
     user: manifest.user,
     hasCharacter: manifest.hasCharacter,
@@ -304,6 +308,9 @@ function initModules() {
 
   // Action queue — wraps CacheManager queue with retry logic
   actionQueue = new ActionQueue(cacheManager, sendToRenderer);
+
+  // Compatibility checker — validates API response shapes at runtime
+  compatibilityChecker = new CompatibilityChecker();
 
   // SSE Client (#1)
   sseClient = new SSEClient();
@@ -495,6 +502,11 @@ function initModules() {
     sendToRenderer('sse-status', { connected: false, reconnecting: true });
   });
 
+  // Validate SSE event shapes against the API spec at runtime.
+  sseClient.on('event', (event) => {
+    if (compatibilityChecker) compatibilityChecker.checkSSEEvent(event);
+  });
+
   // SSE theme_changed -> sync Electron native theme + cache.
   // SSE delivery is unreliable across Vercel instances, so this supplements
   // (not replaces) the MutationObserver and client-nav polling fallback.
@@ -524,6 +536,7 @@ function initModules() {
     pushThemeToSite,
     actionQueue,
     errorHandler,
+    compatibilityChecker,
     config,
   });
 

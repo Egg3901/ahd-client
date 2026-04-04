@@ -36,6 +36,7 @@ describe('IPC Handlers Integration', () => {
       cacheManager: cache,
       actionQueue,
       errorHandler: { getMappings: jest.fn().mockReturnValue({}) },
+      compatibilityChecker: { getStatus: jest.fn().mockReturnValue({ compatible: true, issueCount: 0, issues: [] }) },
       notificationManager: notifications,
       menuManager: { setAdmin: jest.fn() },
       windowManager: { openWindow: jest.fn() },
