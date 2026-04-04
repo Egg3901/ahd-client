@@ -203,9 +203,13 @@ function registerIpcHandlers(deps) {
   });
 
   ipcMain.handle('switch-character', async (_event, characterId) => {
-    await siteApi.postJsonAuthed(config.GAME_URL, '/api/auth/active-character', {
-      characterId,
-    });
+    await siteApi.postJsonAuthed(
+      config.GAME_URL,
+      '/api/auth/active-character',
+      {
+        characterId,
+      },
+    );
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadURL(config.GAME_URL);
     }

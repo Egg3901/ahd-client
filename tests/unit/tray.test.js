@@ -255,7 +255,9 @@ describe('TrayManager', () => {
       tm.setFocusedViewToggleHandler(handler);
       expect(Menu.buildFromTemplate).toHaveBeenCalled();
       const template = Menu.buildFromTemplate.mock.calls[0][0];
-      const toggleItem = template.find((i) => i.label === 'Toggle Focused View');
+      const toggleItem = template.find(
+        (i) => i.label === 'Toggle Focused View',
+      );
       expect(toggleItem).toBeDefined();
       toggleItem.click();
       expect(handler).toHaveBeenCalledTimes(1);

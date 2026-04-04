@@ -227,9 +227,13 @@ describe('registerIpcHandlers', () => {
 
   test('set-zoom clamps factor to [0.25, 3]', async () => {
     await handlers['set-zoom']({}, 100);
-    expect(deps.mainWindow.webContents.setZoomFactor).toHaveBeenLastCalledWith(3);
+    expect(deps.mainWindow.webContents.setZoomFactor).toHaveBeenLastCalledWith(
+      3,
+    );
     await handlers['set-zoom']({}, 0.01);
-    expect(deps.mainWindow.webContents.setZoomFactor).toHaveBeenLastCalledWith(0.25);
+    expect(deps.mainWindow.webContents.setZoomFactor).toHaveBeenLastCalledWith(
+      0.25,
+    );
   });
 
   test('set-zoom ignores non-finite factor', async () => {

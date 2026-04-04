@@ -226,10 +226,7 @@ class MenuManager {
             label: `${adj} ${manifest.currentParty.name}`,
             click: () =>
               this.navigate(
-                urls.regionPartyUrlFromStateId(
-                  hs.id,
-                  manifest.currentParty.id,
-                ),
+                urls.regionPartyUrlFromStateId(hs.id, manifest.currentParty.id),
               ),
           });
         }
@@ -258,9 +255,7 @@ class MenuManager {
       }
 
       const cid =
-        manifest.characterCountryId ??
-        manifest.character_countryId ??
-        'US';
+        manifest.characterCountryId ?? manifest.character_countryId ?? 'US';
       const campaignPath =
         manifest.campaignId != null
           ? `/campaign/${manifest.campaignId}`
@@ -289,8 +284,7 @@ class MenuManager {
       if (nav.presidentElection && (presSeatId || presId)) {
         nationSub.push({
           label: 'Presidential Election',
-          click: () =>
-            this.navigate(`/elections/${presSeatId || presId}`),
+          click: () => this.navigate(`/elections/${presSeatId || presId}`),
         });
       }
       nationSub.push(
@@ -468,8 +462,7 @@ class MenuManager {
         },
         {
           label: 'Discord',
-          click: () =>
-            shell.openExternal('https://discord.gg/DmF8zJJuqN'),
+          click: () => shell.openExternal('https://discord.gg/DmF8zJJuqN'),
         },
       ],
     };

@@ -9,7 +9,10 @@
 const UK_NATION = {
   SCO: { legislature: 'Scottish Parliament', adjective: 'Scottish' },
   WAL: { legislature: 'Senedd Cymru', adjective: 'Welsh' },
-  NIR: { legislature: 'Northern Ireland Assembly', adjective: 'Northern Irish' },
+  NIR: {
+    legislature: 'Northern Ireland Assembly',
+    adjective: 'Northern Irish',
+  },
   ENG: { legislature: 'State Legislature', adjective: 'English' },
 };
 

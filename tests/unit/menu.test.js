@@ -238,9 +238,7 @@ describe('MenuManager', () => {
       mm.setNavConfig(nav, { ...manifestBase, currentParty: null });
       const nation = findNation(mm);
       expect(
-        nation.submenu
-          .map((i) => i.label)
-          .some((l) => /^My Party/.test(l)),
+        nation.submenu.map((i) => i.label).some((l) => /^My Party/.test(l)),
       ).toBe(false);
     });
 

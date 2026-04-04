@@ -112,7 +112,10 @@ function postJsonAuthed(gameUrl, path, body) {
           res.on('end', () => {
             resolve({
               statusCode: res.statusCode || 0,
-              ok: res.statusCode != null && res.statusCode >= 200 && res.statusCode < 300,
+              ok:
+                res.statusCode != null &&
+                res.statusCode >= 200 &&
+                res.statusCode < 300,
             });
           });
           res.on('error', () => resolve({ statusCode: 0, ok: false }));
