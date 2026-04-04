@@ -132,6 +132,114 @@ describe('CacheManager', () => {
     expect(typeof state).toBe('object');
   });
 
+  // --- Action queue: status tracking (new fields) ---
+
+  test('queueAction stamps new actions with attempts: 0 and status: "queued"', () => {
+    cache.queueAction({ type: 'vote', billId: 1 });
+    const [action] = cache.getQueuedActions();
+    expect(action.attempts).toBe(0);
+    expect(action.status).toBe('queued');
+  });
+
+  test('updateActionStatus sets status on the matching action', () => {
+    cache.queueAction({ type: 'campaign' });
+    const [action] = cache.getQueuedActions();
+
+    cache.updateActionStatus(action.id, 'retrying');
+    const [updated] = cache.getQueuedActions();
+    expect(updated.status).toBe('retrying');
+  });
+
+  test('updateActionStatus increments attempts on "retrying"', () => {
+    cache.queueAction({ type: 'fundraise' });
+    const [action] = cache.getQueuedActions();
+
+    cache.updateActionStatus(action.id, 'retrying');
+    cache.updateActionStatus(action.id, 'retrying');
+    const [updated] = cache.getQueuedActions();
+    expect(updated.attempts).toBe(2);
+  });
+
+  test('updateActionStatus increments attempts on "failed"', () => {
+    cache.queueAction({ type: 'advertise' });
+    const [action] = cache.getQueuedActions();
+
+    cache.updateActionStatus(action.id, 'failed', 'timeout');
+    const [updated] = cache.getQueuedActions();
+    expect(updated.attempts).toBe(1);
+  });
+
+  test('updateActionStatus does not increment attempts on "completed"', () => {
+    cache.queueAction({ type: 'poll' });
+    const [action] = cache.getQueuedActions();
+
+    cache.updateActionStatus(action.id, 'completed');
+    const [updated] = cache.getQueuedActions();
+    expect(updated.attempts).toBe(0);
+  });
+
+  test('updateActionStatus sets completedAt timestamp on "completed"', () => {
+    const before = Date.now();
+    cache.queueAction({ type: 'build' });
+    const [action] = cache.getQueuedActions();
+
+    cache.updateActionStatus(action.id, 'completed');
+    const after = Date.now();
+
+    const [updated] = cache.getQueuedActions();
+    expect(typeof updated.completedAt).toBe('number');
+    expect(updated.completedAt).toBeGreaterThanOrEqual(before);
+    expect(updated.completedAt).toBeLessThanOrEqual(after);
+  });
+
+  test('updateActionStatus records lastError when provided', () => {
+    cache.queueAction({ type: 'donate' });
+    const [action] = cache.getQueuedActions();
+
+    cache.updateActionStatus(action.id, 'failed', 'Server returned 500');
+    const [updated] = cache.getQueuedActions();
+    expect(updated.lastError).toBe('Server returned 500');
+  });
+
+  test('updateActionStatus is a no-op for an unknown action ID', () => {
+    cache.queueAction({ type: 'noop' });
+    // Should not throw
+    expect(() =>
+      cache.updateActionStatus('nonexistent-id', 'completed'),
+    ).not.toThrow();
+    // Original action is untouched
+    const [action] = cache.getQueuedActions();
+    expect(action.status).toBe('queued');
+  });
+
+  // --- Game state schema: new fields ---
+
+  test('gameState default includes cashOnHand as null', () => {
+    const state = cache.getGameState();
+    expect(Object.prototype.hasOwnProperty.call(state, 'cashOnHand')).toBe(
+      true,
+    );
+    expect(state.cashOnHand).toBeNull();
+  });
+
+  test('gameState default includes unreadMailCount as null', () => {
+    const state = cache.getGameState();
+    expect(Object.prototype.hasOwnProperty.call(state, 'unreadMailCount')).toBe(
+      true,
+    );
+    expect(state.unreadMailCount).toBeNull();
+  });
+
+  test('updateGameState can set and persist cashOnHand', () => {
+    cache.updateGameState({ cashOnHand: 250000 });
+    expect(cache.getGameState().cashOnHand).toBe(250000);
+  });
+
+  test('updateGameState can set and persist unreadMailCount', () => {
+    cache.updateGameState({ unreadMailCount: 3 });
+    expect(cache.getGameState().unreadMailCount).toBe(3);
+  });
+
   // --- General ---
 
   test('clear wipes all cached data', () => {
