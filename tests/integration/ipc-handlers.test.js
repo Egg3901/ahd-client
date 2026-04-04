@@ -4,12 +4,15 @@ const { ipcMain, BrowserWindow } = require('electron');
 const { registerIpcHandlers } = require('../../src/ipc');
 const CacheManager = require('../../src/cache');
 const NotificationManager = require('../../src/notifications');
+const ActionQueue = require('../../src/action-queue');
 
 describe('IPC Handlers Integration', () => {
   /** @type {Record<string, Function>} */
   let handlers;
   /** @type {CacheManager} */
   let cache;
+  /** @type {ActionQueue} */
+  let actionQueue;
   /** @type {NotificationManager} */
   let notifications;
   /** @type {Electron.BrowserWindow} */
@@ -26,10 +29,14 @@ describe('IPC Handlers Integration', () => {
     mockWindow = new BrowserWindow();
 
     cache = new CacheManager();
+    actionQueue = new ActionQueue(cache, jest.fn());
     notifications = new NotificationManager(mockWindow);
 
     registerIpcHandlers({
       cacheManager: cache,
+      actionQueue,
+      errorHandler: { getMappings: jest.fn().mockReturnValue({}) },
+      compatibilityChecker: { getStatus: jest.fn().mockReturnValue({ compatible: true, issueCount: 0, issues: [] }) },
       notificationManager: notifications,
       menuManager: { setAdmin: jest.fn() },
       windowManager: { openWindow: jest.fn() },

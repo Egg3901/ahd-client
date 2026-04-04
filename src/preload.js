@@ -11,7 +11,10 @@ const RECEIVE_CHANNELS = [
   'loading-state',
   'auth-state',
   'unread-count',
+  'unread-mail-count',
   'client-nav',
+  'queue-status',
+  'queue-action-failed',
 ];
 
 // Channels the renderer is allowed to invoke (request/response)
@@ -38,6 +41,11 @@ const INVOKE_CHANNELS = [
   'set-zoom',
   'get-zoom',
   'go-home',
+  'complete-action',
+  'fail-action',
+  'clear-queue',
+  'get-error-codes',
+  'get-compatibility-status',
 ];
 
 contextBridge.exposeInMainWorld('ahdClient', {
@@ -87,6 +95,15 @@ contextBridge.exposeInMainWorld('ahdClient', {
   // Action queue (offline support)
   queueAction: (action) => ipcRenderer.invoke('queue-action', action),
   getQueue: () => ipcRenderer.invoke('get-queue'),
+  completeAction: (actionId) => ipcRenderer.invoke('complete-action', actionId),
+  failAction: (actionId, error) => ipcRenderer.invoke('fail-action', { actionId, error }),
+  clearQueue: () => ipcRenderer.invoke('clear-queue'),
+
+  // Error codes
+  getErrorCodes: () => ipcRenderer.invoke('get-error-codes'),
+
+  // API compatibility
+  getCompatibilityStatus: () => ipcRenderer.invoke('get-compatibility-status'),
 
   // Multi-window
   openWindow: (preset) => ipcRenderer.invoke('open-window', preset),

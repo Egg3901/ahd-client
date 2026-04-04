@@ -40,6 +40,7 @@ const schema = {
       lastTurnTimestamp: null,
       // Funds & income
       funds: null,
+      cashOnHand: null,
       projectedIncome: null,
       incomeBreakdown: null,
       // Decay stats
@@ -126,6 +127,20 @@ class CacheManager {
   /** @returns {number} */
   getQueueLength() {
     return this.store.get('actionQueue', []).length;
+  }
+
+  /**
+   * Merge updates into a specific queued action (e.g. attempt count, status).
+   * No-ops silently if the action ID is not found.
+   * @param {string} actionId
+   * @param {object} updates - Fields to merge into the matching action
+   */
+  updateActionInQueue(actionId, updates) {
+    const queue = this.store.get('actionQueue', []);
+    const idx = queue.findIndex((a) => a.id === actionId);
+    if (idx === -1) return;
+    queue[idx] = { ...queue[idx], ...updates };
+    this.store.set('actionQueue', queue);
   }
 
   // --- User preferences ---
