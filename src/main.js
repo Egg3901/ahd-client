@@ -164,11 +164,16 @@ function createWindow() {
       path: '/',
       sameSite: 'lax',
     });
-    // Session recovery: restore last page after crash (cleared on graceful quit)
-    const lastURL = cacheManager.getPreference('lastURL');
-    mainWindow.loadURL(
-      lastURL && isGameUrl(lastURL) ? lastURL : activeGameUrl.get(),
-    );
+    // Deep link takes priority, then session recovery, then default
+    if (pendingDeepLinkUrl) {
+      mainWindow.loadURL(pendingDeepLinkUrl);
+      pendingDeepLinkUrl = null;
+    } else {
+      const lastURL = cacheManager.getPreference('lastURL');
+      mainWindow.loadURL(
+        lastURL && isGameUrl(lastURL) ? lastURL : activeGameUrl.get(),
+      );
+    }
   });
 
   // Mirror page title into window title bar
@@ -1236,7 +1241,67 @@ function cleanup() {
 
 // --- App lifecycle ---
 
-app.whenReady().then(createWindow);
+// Set up protocol handler for ahd:// links
+app.setAsDefaultProtocolClient('ahd');
+
+// Single instance lock (Windows/Linux)
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+  process.exit(0);
+}
+
+// Handle CLI args and deep links
+let pendingDeepLinkUrl = null;
+
+/**
+ * Navigate to a deep link URL (CLI arg or protocol handler).
+ * @param {string} rawUrl
+ */
+function navigateToArg(rawUrl) {
+  let resolved = rawUrl;
+
+  // Strip ahd:// protocol and convert to game URL
+  if (rawUrl.startsWith('ahd://')) {
+    resolved = rawUrl.replace('ahd://', activeGameUrl.get() + '/');
+  }
+
+  // Validate the URL
+  if (!isGameUrl(resolved)) {
+    console.warn('Invalid deep link URL:', rawUrl);
+    return;
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.loadURL(resolved);
+  } else {
+    pendingDeepLinkUrl = resolved;
+  }
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  // Handle CLI args after window is created
+  const urlArg = process.argv.slice(2).find((a) => isGameUrl(a) || a.startsWith('ahd://'));
+  if (urlArg) navigateToArg(urlArg);
+});
+
+// Handle macOS deep links
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  navigateToArg(url);
+});
+
+// Handle Windows second-instance (when user clicks link while app is already running)
+app.on('second-instance', (_event, argv) => {
+  const urlArg = argv.slice(2).find((a) => isGameUrl(a) || a.startsWith('ahd://'));
+  if (urlArg) navigateToArg(urlArg);
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
 
 app.on('window-all-closed', () => app.quit());
 
