@@ -357,7 +357,9 @@ class MenuManager {
         worldSub.push({
           label: 'My Corporation',
           click: () =>
-            this.navigate(`/corporation/${manifest.myCorporationId}`),
+            this.navigate(
+              `/corporation/${encodeURIComponent(String(manifest.myCorporationId))}`,
+            ),
         });
       }
       worldSub.push({

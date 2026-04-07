@@ -1,17 +1,18 @@
-# :link: A House Divided — Desktop Client
+# A House Divided — Desktop Client
 
-> Thin Electron wrapper for the A House Divided web application — play natively on Windows, macOS, and Linux.
+Thin Electron wrapper for the [A House Divided](https://github.com/Egg3901/a-house-divided) web app: native window, menus, tray, shortcuts, and optional PiP on **Windows, macOS, and Linux**.
 
 ---
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="version 1.1.0" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
-  <img src="https://img.shields.io/badge/license-proprietary-red" alt="license proprietary" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="license MIT" />
 </p>
 
 <p align="center">
   <img src="https://github.com/Egg3901/ahd-client/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  <img src="https://github.com/Egg3901/ahd-client/actions/workflows/release.yml/badge.svg" alt="Release" />
   <img src="https://github.com/Egg3901/ahd-client/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
 </p>
 
@@ -23,173 +24,174 @@
 
 ---
 
-## :link: Overview
+## Overview
 
-**A House Divided** is a browser-based political simulation where players create politicians, compete in elections, form coalitions, pass legislation, and climb from state office to national leadership. The game runs on a turn-based economy (1 turn = 1 real hour) with persistent world state across multiple countries.
+The game runs as a hosted Next.js app. This client loads that site in a `BrowserWindow`, adds OS integration, and keeps one login session via the `persist:ahd` cookie jar.
 
-This repository contains the **desktop client** — a thin Electron shell that wraps the hosted Next.js web application, providing a native desktop experience without duplicating game logic.
+More detail for contributors: **[docs/architecture.md](docs/architecture.md)** and **[docs/README.md](docs/README.md)**.
 
-### Why a desktop client?
+### Why use the desktop client?
 
-- Native window management and system tray integration
-- Persistent sessions across restarts
-- Keyboard shortcuts and custom menus
-- Cross-platform packaging (Windows, macOS, Linux)
-- Future: push notifications, offline detection, auto-updates
-
----
-
-## :link: Tech Stack
-
-| Layer       | Technology                        |
-| ----------- | --------------------------------- |
-| Shell       | Electron 33                       |
-| Game Server | Next.js / React (hosted remotely) |
-| Packaging   | electron-builder                  |
-| Linter      | ESLint 10                         |
-| Code Style  | Prettier                          |
-| Node        | v20+                              |
+- Application menu (**Game**, **Navigate**, **View**, **Help**) aligned with focused mode
+- System tray, optional **mini mode (PiP)** dashboard, and desktop notifications
+- **Pop-out** auxiliary windows (elections, legislature, etc.) sharing the same session
+- Global keyboard shortcuts (customizable)
+- **Auto-update** checks via `electron-updater` (when publishing update metadata)
 
 ---
 
-## :link: Project Structure
+## Features (players)
+
+| Feature                                           | Where                                                                      |
+| ------------------------------------------------- | -------------------------------------------------------------------------- |
+| Quick links (Profile, Campaign, Notifications, …) | **Game** menu; **Customize Game Panel…** to change presets and custom URLs |
+| PiP status bar (AP, funds, turn, …)               | Same config window → **PiP status bar** tab                                |
+| Global shortcuts                                  | Same window → **Keyboard Shortcuts** tab (stored per machine)              |
+| Country-aware **Navigate** menu                   | **Navigate** → Profile, state, nation, world; **Pop Out Window** presets   |
+| Focused vs classic site chrome                    | **View** → **Focused Mode** (or `CmdOrCtrl+Shift+F` by default)            |
+| Sandbox / dev game URL                            | **View** → **Game server** (when not using `AHD_GAME_URL`)                 |
+
+**macOS unsigned builds:** the distributed DMG is not notarized. The first launch may require **right-click the app → Open** (or Security & Privacy) to bypass Gatekeeper.
+
+---
+
+## Tech stack
+
+| Layer     | Technology               |
+| --------- | ------------------------ |
+| Shell     | Electron 33              |
+| Game UI   | Next.js / React (remote) |
+| Packaging | electron-builder         |
+| Lint      | ESLint 10                |
+| Format    | Prettier                 |
+| Tests     | Jest                     |
+| Node      | v20+                     |
+
+---
+
+## Project structure
 
 ```
 ahd-client/
-├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml           # Lint, format check, tests on every push/PR
-│   │   ├── codeql.yml       # GitHub CodeQL security scanning
-│   │   └── release.yml      # Build & publish Win / Mac / Linux on version tag
-│   └── dependabot.yml       # Weekly dependency update PRs
-├── assets/                  # App icons (icon.png, icon.ico, icon.icns)
+├── .github/workflows/
+│   ├── ci.yml           # Lint, format, tests (push / PR to master)
+│   ├── release.yml    # Tag v* → test + Win / Mac / Linux artifacts → GitHub Release
+│   └── codeql.yml
+├── assets/              # icon.ico, icon.icns, icon.png
+├── docs/
+│   ├── README.md        # Doc index
+│   └── architecture.md  # Main process, client-nav, IPC (contributors)
 ├── src/
-│   ├── main.js              # Electron main process
-│   ├── preload.js           # Secure context bridge
-│   ├── config.js            # Game URL & window settings
-│   └── loading.html         # Splash screen
+│   ├── main.js          # App entry, lifecycle, client-nav orchestration
+│   ├── preload.js       # window.ahdClient bridge for the game page
+│   ├── ipc.js           # IPC handler registration
+│   ├── menu.js          # Application menu
+│   ├── config.js        # URLs, trusted hosts
+│   ├── active-game-url.js
+│   ├── pip.js / pip.html / pip-view-poller.js
+│   ├── dashboard.js
+│   ├── shortcuts.js
+│   ├── game-panel-config.html / game-panel-config-*.js
+│   └── …                # tray, sse, cache, windows, nav, site-api, etc.
 ├── tests/
-├── eslint.config.js         # ESLint flat config
-├── .prettierrc              # Prettier configuration
 ├── CHANGELOG.md
 ├── package.json
-└── .gitignore
+└── README.md
 ```
 
 ---
 
-## :link: Getting Started
+## Getting started
 
-### Prerequisites
-
-- **Node.js** v20 or later
-- **npm** v10 or later
-
-### Installation
+**Prerequisites:** Node.js v20+, npm v10+.
 
 ```bash
-# Clone the repository
 git clone https://github.com/Egg3901/ahd-client.git
 cd ahd-client
-
-# Install dependencies
 npm install
 ```
 
-### Development
+**Run:**
 
 ```bash
-# Run in development mode (with DevTools menu)
-npm run dev
-
-# Run in production mode
-npm start
+npm run dev    # DevTools menu, optional localhost server toggle in View
+npm start      # Production-style (no DevTools menu)
 ```
 
-### Configuration
-
-**Override the loaded origin** (disables View menu server toggles):
+**Override game origin** (disables View menu server toggles):
 
 ```bash
 AHD_GAME_URL=https://your-server.com npm start
 ```
 
-**Defaults:** main game `https://www.ahousedividedgame.com` (`AHD_MAIN_GAME_URL`), test/sandbox `https://test.ahousedividedgame.com` (`AHD_SANDBOX_GAME_URL`). **Localhost** (`AHD_DEV_GAME_URL`, default `http://localhost:3000`) is available from the View menu when you run a **development build** (`npm run dev`, `NODE_ENV=development`) **or** when signed in as a **game admin**.
+**Defaults:** production `https://www.ahousedividedgame.com` (`AHD_MAIN_GAME_URL`), sandbox `https://test.ahousedividedgame.com` (`AHD_SANDBOX_GAME_URL`), local dev `http://localhost:3000` (`AHD_DEV_GAME_URL`). The localhost option appears in **View** when running `npm run dev` or when signed in as a **game admin**.
 
 ---
 
-## :link: Building
+## npm scripts
 
-Package the app for distribution:
+| Script                                                    | Purpose                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------ |
+| `npm start`                                               | Run Electron (production menu)                                     |
+| `npm run dev`                                             | `NODE_ENV=development`                                             |
+| `npm run build`                                           | electron-builder for **current** OS                                |
+| `npm run build:win` / `build:mac` / `npm run build:linux` | Target one platform (unsigned; see `package.json` env for Win/Mac) |
+| `npm test`                                                | Jest                                                               |
+| `npm run test:unit` / `test:integration` / `test:e2e`     | Subsets                                                            |
+| `npm run lint` / `lint:fix`                               | ESLint                                                             |
+| `npm run format` / `format:check`                         | Prettier                                                           |
 
-```bash
-# Build for current platform
-npm run build
-
-# Build for specific platforms
-npm run build:win
-npm run build:mac
-npm run build:linux
-```
-
-Output goes to the `dist/` directory.
+Artifacts land in **`dist/`**.
 
 ---
 
-## :link: Releases
+## Releases
 
-Releases are automated via GitHub Actions. To publish a new version:
-
-1. Bump the version in `package.json` and update [CHANGELOG.md](CHANGELOG.md)
-2. Tag and push:
+1. Bump **`package.json`** version and add an entry to **[CHANGELOG.md](CHANGELOG.md)**.
+2. Push a **version tag**:
 
 ```bash
 git tag v1.1.0
 git push origin v1.1.0
 ```
 
-The workflow in [`.github/workflows/release.yml`](.github/workflows/release.yml) runs tests, then builds **Windows** (NSIS installer), **macOS** (DMG), and **Linux** (AppImage) and uploads them to one GitHub Release.
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs tests on Ubuntu, then builds **Windows** (NSIS), **macOS** (DMG), and **Linux** (AppImage) on native runners and attaches them to one GitHub Release.
 
-**Code signing:** Installers are **unsigned** (no Windows Authenticode or Apple Developer ID). On macOS, users may need to **right-click the app → Open** the first time. Set `CSC_IDENTITY_AUTO_DISCOVERY=false` is already applied in CI and in `npm run build:mac` / `build:win`.
-
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+**Signing:** CI uses **`CSC_IDENTITY_AUTO_DISCOVERY=false`** so builds succeed without Windows or Apple signing certificates. Local `npm run build:win` / `build:mac` do the same.
 
 ---
 
-## :link: Code Quality
+## Code quality
 
 ```bash
-# Lint
 npm run lint
-npm run lint:fix
-
-# Format
-npm run format
 npm run format:check
-
-# Tests
 npm test
 npm run test:coverage
 ```
 
-### CI checks (run on every push and PR)
-
-| Check                    | Tool       | Workflow     |
-| ------------------------ | ---------- | ------------ |
-| Unit & integration tests | Jest       | `ci.yml`     |
-| Linting                  | ESLint 10  | `ci.yml`     |
-| Formatting               | Prettier   | `ci.yml`     |
-| Security scanning        | CodeQL     | `codeql.yml` |
-| Dependency updates       | Dependabot | weekly PRs   |
+| Check               | Workflow            |
+| ------------------- | ------------------- |
+| Lint, format, tests | `ci.yml`            |
+| Security            | `codeql.yml`        |
+| Dependencies        | Dependabot (weekly) |
 
 ---
 
-## :link: Related
+## Contributing
 
-- **[A House Divided](https://github.com/Egg3901/a-house-divided)** — Main game (Next.js / React / MongoDB)
+1. Branch from `master`, run **lint**, **format:check**, and **tests** before opening a PR.
+2. Describe user-visible changes in **CHANGELOG.md** when behavior changes.
+3. Read **[docs/architecture.md](docs/architecture.md)** before large main-process changes.
 
 ---
 
-## :link: License
+## Related
 
-Proprietary — All rights reserved.
+- **[A House Divided](https://github.com/Egg3901/a-house-divided)** — Game (Next.js / MongoDB)
+
+---
+
+## License
+
+[MIT](package.json) (see `package.json`).

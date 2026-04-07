@@ -853,9 +853,10 @@
               : pc.sector != null
                 ? corpTypeLabel(String(pc.sector))
                 : '';
+          const pcPathId = pc.pathId != null ? pc.pathId : pc.id;
           const route =
-            pc.id != null
-              ? '/corporation/' + encodeURIComponent(String(pc.id))
+            pcPathId != null
+              ? '/corporation/' + encodeURIComponent(String(pcPathId))
               : '';
           const head =
             '<strong>' +
@@ -895,9 +896,10 @@
         });
         let tops = '';
         (d.topCorps || []).forEach((t) => {
+          const tPathId = t.pathId != null ? t.pathId : t.id;
           const path =
-            t.id != null
-              ? '/corporation/' + encodeURIComponent(String(t.id))
+            tPathId != null
+              ? '/corporation/' + encodeURIComponent(String(tPathId))
               : '';
           const rowClick =
             path !== ''

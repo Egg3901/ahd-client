@@ -10,6 +10,7 @@ All notable changes to the A House Divided desktop client are documented here.
 
 - **GitHub Actions — multi-platform releases** — Pushing a `v*` tag runs tests once on Ubuntu, then builds **Windows** (NSIS `.exe`), **macOS** (`.dmg`), and **Linux** (`.AppImage`) on native runners; all artifacts attach to a single GitHub Release (`.github/workflows/release.yml`).
 - **Keyboard shortcuts UI** — **Game menu → Customize Game Panel…** includes a **Keyboard Shortcuts** tab to override global accelerators; stored in `userPreferences.customShortcuts` (`save-shortcuts` / `get-custom-shortcuts` IPC, `shortcuts.js`).
+- **Documentation** — Rewrote `README.md` (player features table, npm scripts, project tree, contributing, release badge, MIT license aligned with `package.json`); added `docs/README.md` (index) and `docs/architecture.md` (main modules, client-nav pipeline, preload and game-panel IPC).
 
 ### Fixed
 

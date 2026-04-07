@@ -2,6 +2,11 @@
 
 const { resolveGamePath } = require('./game-paths');
 
+/** @param {string|number} id */
+function corporationPathSegment(id) {
+  return encodeURIComponent(String(id));
+}
+
 /** Site path to start a new corporation (App Router uses `new`, not `create`). */
 const CREATE_CORPORATION_PATH = '/corporation/new';
 
@@ -36,10 +41,11 @@ const PRESET_ROUTES = {
     if (m.myCorporationId == null) {
       return CREATE_CORPORATION_PATH;
     }
+    const seg = corporationPathSegment(m.myCorporationId);
     if (m.isCeo) {
-      return `/corporation/${m.myCorporationId}/ceo`;
+      return `/corporation/${seg}/ceo`;
     }
-    return `/corporation/${m.myCorporationId}`;
+    return `/corporation/${seg}`;
   },
 };
 
