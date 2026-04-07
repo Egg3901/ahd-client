@@ -38,8 +38,13 @@ describe('game-panel-links', () => {
     expect(resolvePresetRoute('ceo', m)).toBe('/corporation/7/ceo');
   });
 
-  test('resolvePresetRoute: non-CEO uses create path', () => {
+  test('resolvePresetRoute: non-CEO with corp opens corporation hub', () => {
     const m = { isCeo: false, myCorporationId: 7 };
+    expect(resolvePresetRoute('ceo', m)).toBe('/corporation/7');
+  });
+
+  test('resolvePresetRoute: no corp id uses new-corporation path', () => {
+    const m = { isCeo: false, myCorporationId: null };
     expect(resolvePresetRoute('ceo', m)).toBe(CREATE_CORPORATION_PATH);
   });
 
@@ -63,6 +68,17 @@ describe('game-panel-links', () => {
     );
     expect(items).toHaveLength(1);
     expect(items[0].label).toBe('CEO');
+  });
+
+  test('buildGamePanelMenuTemplate: non-CEO with corp shows My corporation', () => {
+    const m = { isCeo: false, myCorporationId: 9 };
+    const items = buildGamePanelMenuTemplate(
+      m,
+      [{ kind: 'preset', id: 'ceo' }],
+      jest.fn(),
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0].label).toBe('My corporation');
   });
 
   test('normalizeStoredEntries rejects invalid preset id', () => {

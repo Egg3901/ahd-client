@@ -207,7 +207,12 @@ class PipManager {
   _applyWindowBounds() {
     if (!this.pipWindow || this.pipWindow.isDestroyed()) return;
     const b = this._pipStore().bounds;
-    if (b && b.width >= MIN_W && b.height >= MIN_H && this._isVisibleBounds(b)) {
+    if (
+      b &&
+      b.width >= MIN_W &&
+      b.height >= MIN_H &&
+      this._isVisibleBounds(b)
+    ) {
       this.pipWindow.setBounds({
         x: b.x,
         y: b.y,
@@ -236,8 +241,12 @@ class PipManager {
   _defaultBounds() {
     const area = screen.getPrimaryDisplay().workArea;
     return {
-      x: area.x + Math.max(24, Math.floor((area.width - DEFAULT_BOUNDS.width) / 2)),
-      y: area.y + Math.max(24, Math.floor((area.height - DEFAULT_BOUNDS.height) / 3)),
+      x:
+        area.x +
+        Math.max(24, Math.floor((area.width - DEFAULT_BOUNDS.width) / 2)),
+      y:
+        area.y +
+        Math.max(24, Math.floor((area.height - DEFAULT_BOUNDS.height) / 3)),
       width: DEFAULT_BOUNDS.width,
       height: DEFAULT_BOUNDS.height,
     };
@@ -396,11 +405,15 @@ class PipManager {
       lastUpdate: this._lastUpdate,
     };
     const json = JSON.stringify(payload);
-    this.pipWindow.webContents.executeJavaScript(`
+    this.pipWindow.webContents
+      .executeJavaScript(
+        `
       if (typeof updatePip === 'function') {
         updatePip(${json});
       }
-    `).catch(() => {});
+    `,
+      )
+      .catch(() => {});
   }
 
   // ── Window control ──

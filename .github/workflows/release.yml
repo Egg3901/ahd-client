@@ -9,9 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: windows-latest
-
+  test:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -24,16 +23,59 @@ jobs:
 
       - run: npm test
 
-      - name: Build Windows installer
-        run: npx electron-builder --win --publish never
-        env:
-          # Skip code-signing (no cert configured yet)
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            cmd: npx electron-builder --win --publish never
+          - os: macos-latest
+            cmd: npx electron-builder --mac --publish never
+          - os: ubuntu-latest
+            cmd: npx electron-builder --linux --publish never
 
-      - name: Create GitHub Release and upload installer
+    runs-on: ${{ matrix.os }}
+
+    env:
+      # No Windows / Apple code-signing certificates — unsigned installers for all platforms
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build (${{ matrix.os }})
+        run: ${{ matrix.cmd }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: build-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
+          files: |
+            release-assets/*
           generate_release_notes: true
           draft: false
           fail_on_unmatched_files: true

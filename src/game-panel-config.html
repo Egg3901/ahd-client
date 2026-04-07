@@ -167,9 +167,7 @@
   <body>
     <h1>Game menu & PiP</h1>
     <div class="tabs">
-      <button type="button" id="tab-btn-menu" class="active">
-        Game Menu
-      </button>
+      <button type="button" id="tab-btn-menu" class="active">Game Menu</button>
       <button type="button" id="tab-btn-kbd">Keyboard Shortcuts</button>
       <button type="button" id="tab-btn-pip">PiP status bar</button>
     </div>
@@ -178,8 +176,10 @@
       <p class="hint">
         Choose which links appear under the Game menu before Reload / Go Home.
         The corporation shortcut is on by default: it opens
-        <strong>CEO</strong> when you are a CEO, or
-        <strong>Create a corporation</strong> otherwise.
+        <strong>CEO</strong> when you are a CEO,
+        <strong>My corporation</strong> when you belong to a corporation but are
+        not CEO, or <strong>Create a corporation</strong> when you have none
+        (opens <code>/corporation/new</code>).
       </p>
 
       <div class="section-title">Built-in pages</div>
@@ -195,15 +195,17 @@
         <button type="button" class="btn btn-primary" id="save-menu">
           Save shortcuts
         </button>
-        <button type="button" class="btn" id="reset-menu">Reset to defaults</button>
+        <button type="button" class="btn" id="reset-menu">
+          Reset to defaults
+        </button>
         <button type="button" class="btn" id="cancel-menu">Cancel</button>
       </div>
     </div>
 
     <div id="tab-kbd" class="tab-panel">
       <p class="hint">
-        Customize keyboard shortcuts. Click on an accelerator to edit it.
-        Use format like <code>CmdOrCtrl+Shift+K</code>.
+        Customize keyboard shortcuts. Click on an accelerator to edit it. Use
+        format like <code>CmdOrCtrl+Shift+K</code>.
       </p>
 
       <div class="section-title">Global shortcuts</div>
@@ -213,7 +215,9 @@
         <button type="button" class="btn btn-primary" id="save-kbd">
           Save shortcuts
         </button>
-        <button type="button" class="btn" id="reset-kbd">Reset to defaults</button>
+        <button type="button" class="btn" id="reset-kbd">
+          Reset to defaults
+        </button>
         <button type="button" class="btn" id="cancel-kbd">Cancel</button>
       </div>
     </div>
@@ -480,9 +484,10 @@
           input.type = 'text';
           input.placeholder = 'Accelerator';
           // Use custom accelerator if set, otherwise use default
-          const currentAccel = kbdCustomShortcuts && kbdCustomShortcuts[accelerator]
-            ? kbdCustomShortcuts[accelerator]
-            : accelerator;
+          const currentAccel =
+            kbdCustomShortcuts && kbdCustomShortcuts[accelerator]
+              ? kbdCustomShortcuts[accelerator]
+              : accelerator;
           input.value = currentAccel;
           input.dataset.defaultAccelerator = accelerator;
 
@@ -503,13 +508,15 @@
 
       function getKeyboardShortcutsOverrides() {
         const overrides = {};
-        kbdShortcutsEl.querySelectorAll('.custom-row input').forEach((input) => {
-          const defaultAccel = input.dataset.defaultAccelerator;
-          const currentAccel = input.value.trim();
-          if (currentAccel && currentAccel !== defaultAccel) {
-            overrides[defaultAccel] = currentAccel;
-          }
-        });
+        kbdShortcutsEl
+          .querySelectorAll('.custom-row input')
+          .forEach((input) => {
+            const defaultAccel = input.dataset.defaultAccelerator;
+            const currentAccel = input.value.trim();
+            if (currentAccel && currentAccel !== defaultAccel) {
+              overrides[defaultAccel] = currentAccel;
+            }
+          });
         return overrides;
       }
 
@@ -520,12 +527,24 @@
       }
 
       function setTab(which) {
-        document.getElementById('tab-menu').classList.toggle('visible', which === 'menu');
-        document.getElementById('tab-kbd').classList.toggle('visible', which === 'kbd');
-        document.getElementById('tab-pip').classList.toggle('visible', which === 'pip');
-        document.getElementById('tab-btn-menu').classList.toggle('active', which === 'menu');
-        document.getElementById('tab-btn-kbd').classList.toggle('active', which === 'kbd');
-        document.getElementById('tab-btn-pip').classList.toggle('active', which === 'pip');
+        document
+          .getElementById('tab-menu')
+          .classList.toggle('visible', which === 'menu');
+        document
+          .getElementById('tab-kbd')
+          .classList.toggle('visible', which === 'kbd');
+        document
+          .getElementById('tab-pip')
+          .classList.toggle('visible', which === 'pip');
+        document
+          .getElementById('tab-btn-menu')
+          .classList.toggle('active', which === 'menu');
+        document
+          .getElementById('tab-btn-kbd')
+          .classList.toggle('active', which === 'kbd');
+        document
+          .getElementById('tab-btn-pip')
+          .classList.toggle('active', which === 'pip');
         if (which === 'pip') {
           loadPipBar();
         } else if (which === 'kbd') {
@@ -543,26 +562,30 @@
         setTab('pip');
       });
 
-      document.getElementById('save-menu').addEventListener('click', async () => {
-        errEl.textContent = '';
-        const payload = entriesFromState();
-        const res = await window.gamePanelConfig.save(payload);
-        if (res && res.ok) {
-          window.close();
-        } else {
-          errEl.textContent = (res && res.error) || 'Could not save.';
-        }
-      });
+      document
+        .getElementById('save-menu')
+        .addEventListener('click', async () => {
+          errEl.textContent = '';
+          const payload = entriesFromState();
+          const res = await window.gamePanelConfig.save(payload);
+          if (res && res.ok) {
+            window.close();
+          } else {
+            errEl.textContent = (res && res.error) || 'Could not save.';
+          }
+        });
 
-      document.getElementById('reset-menu').addEventListener('click', async () => {
-        errEl.textContent = '';
-        const res = await window.gamePanelConfig.reset();
-        if (res && res.ok) {
-          await loadShortcuts();
-        } else {
-          errEl.textContent = (res && res.error) || 'Could not reset.';
-        }
-      });
+      document
+        .getElementById('reset-menu')
+        .addEventListener('click', async () => {
+          errEl.textContent = '';
+          const res = await window.gamePanelConfig.reset();
+          if (res && res.ok) {
+            await loadShortcuts();
+          } else {
+            errEl.textContent = (res && res.error) || 'Could not reset.';
+          }
+        });
 
       document.getElementById('cancel-menu').addEventListener('click', () => {
         window.close();
@@ -604,28 +627,34 @@
       });
 
       // Keyboard shortcuts handlers
-      document.getElementById('save-kbd').addEventListener('click', async () => {
-        errEl.textContent = '';
-        const overrides = getKeyboardShortcutsOverrides();
-        const res = await window.gamePanelConfig.saveShortcuts(overrides);
-        if (res && res.ok) {
-          showSuccess('Shortcuts saved.');
-        } else {
-          errEl.textContent = (res && res.error) || 'Could not save shortcuts.';
-        }
-      });
+      document
+        .getElementById('save-kbd')
+        .addEventListener('click', async () => {
+          errEl.textContent = '';
+          const overrides = getKeyboardShortcutsOverrides();
+          const res = await window.gamePanelConfig.saveShortcuts(overrides);
+          if (res && res.ok) {
+            showSuccess('Shortcuts saved.');
+          } else {
+            errEl.textContent =
+              (res && res.error) || 'Could not save shortcuts.';
+          }
+        });
 
-      document.getElementById('reset-kbd').addEventListener('click', async () => {
-        errEl.textContent = '';
-        const res = await window.gamePanelConfig.saveShortcuts({});
-        if (res && res.ok) {
-          kbdCustomShortcuts = null;
-          renderKeyboardShortcuts();
-          showSuccess('Shortcuts reset.');
-        } else {
-          errEl.textContent = (res && res.error) || 'Could not reset shortcuts.';
-        }
-      });
+      document
+        .getElementById('reset-kbd')
+        .addEventListener('click', async () => {
+          errEl.textContent = '';
+          const res = await window.gamePanelConfig.saveShortcuts({});
+          if (res && res.ok) {
+            kbdCustomShortcuts = null;
+            renderKeyboardShortcuts();
+            showSuccess('Shortcuts reset.');
+          } else {
+            errEl.textContent =
+              (res && res.error) || 'Could not reset shortcuts.';
+          }
+        });
 
       document.getElementById('cancel-kbd').addEventListener('click', () => {
         window.close();

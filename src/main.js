@@ -252,8 +252,42 @@ function pushThemeToSite(themeId) {
 /** @type {NodeJS.Timeout|null} */
 let unreadPollTimer = null;
 
+/** Bumped on each pull so stale retries stop after a new navigation/load. */
+let clientNavPullGeneration = 0;
+
 /**
- * Merge /api/character/me (corporation id) for World → My Corporation.
+ * @param {unknown} v
+ * @returns {number|null}
+ */
+function coerceFiniteNumber(v) {
+  if (v == null) return null;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+/**
+ * Public corporation id for `/corporation/{id}` URLs from an API corporation object.
+ * @param {object|null|undefined} corp
+ * @returns {string|number|null}
+ */
+function corporationUrlKeyFromObject(corp) {
+  if (!corp || typeof corp !== 'object') return null;
+  const n =
+    coerceFiniteNumber(corp.sequentialId) ??
+    coerceFiniteNumber(corp.sequential_id) ??
+    coerceFiniteNumber(corp.sequentialID) ??
+    coerceFiniteNumber(corp.id);
+  if (n != null) return n;
+  if (typeof corp.id === 'string' && corp.id.trim()) return corp.id.trim();
+  return null;
+}
+
+/**
+ * Merge /api/character/me (corporation id, CEO flag) for Game panel + World → My Corporation.
  * @param {object} manifest
  * @returns {Promise<object>}
  */
@@ -261,19 +295,62 @@ async function enrichClientNavManifest(manifest) {
   if (!manifest.hasCharacter) return manifest;
   try {
     const me = await siteApi.fetchCharacterMe(activeGameUrl.get());
-    if (me?.corporation) {
-      const corp = me.corporation;
-      const isCeo =
-        manifest.isCeo === true ||
-        corp.isCeo === true ||
-        corp.role === 'CEO' ||
-        corp.role === 'ceo';
-      const out = { ...manifest, isCeo };
-      if (corp.sequentialId != null) {
-        out.myCorporationId = corp.sequentialId;
+    if (!me || typeof me !== 'object') return manifest;
+
+    /** @type {object|null} */
+    let corpObj = null;
+    /** @type {string|number|null} */
+    let urlKey = null;
+
+    const rootCorp = me.corporation;
+    if (rootCorp != null) {
+      if (typeof rootCorp === 'number' || typeof rootCorp === 'string') {
+        urlKey =
+          coerceFiniteNumber(rootCorp) ??
+          (typeof rootCorp === 'string' && rootCorp.trim()
+            ? rootCorp.trim()
+            : null);
+      } else if (typeof rootCorp === 'object') {
+        corpObj = rootCorp;
+        urlKey = corporationUrlKeyFromObject(rootCorp);
       }
-      return out;
     }
+
+    const ch = me.character;
+    if (ch && typeof ch === 'object') {
+      if (urlKey == null) {
+        urlKey =
+          coerceFiniteNumber(ch.corporationSequentialId) ??
+          coerceFiniteNumber(ch.corporation_sequential_id) ??
+          coerceFiniteNumber(ch.corporationId) ??
+          coerceFiniteNumber(ch.corporation_id);
+      }
+      if (ch.corporation && typeof ch.corporation === 'object') {
+        corpObj = ch.corporation;
+        if (urlKey == null) {
+          urlKey = corporationUrlKeyFromObject(ch.corporation);
+        }
+      }
+    }
+
+    if (urlKey == null) {
+      urlKey =
+        coerceFiniteNumber(me.corporationSequentialId) ??
+        coerceFiniteNumber(me.corporation_sequential_id);
+    }
+
+    if (urlKey == null && corpObj == null) return manifest;
+
+    const corp = corpObj && typeof corpObj === 'object' ? corpObj : {};
+    const isCeo =
+      manifest.isCeo === true ||
+      corp.isCeo === true ||
+      corp.role === 'CEO' ||
+      corp.role === 'ceo';
+
+    const out = { ...manifest, isCeo };
+    if (urlKey != null) out.myCorporationId = urlKey;
+    return out;
   } catch {
     /* ignore */
   }
@@ -347,6 +424,35 @@ function handleClientNav(manifest) {
   enrichClientNavManifest(normalized)
     .then((data) => applyClientNavEffects(data))
     .catch(() => applyClientNavEffects(normalized));
+}
+
+/**
+ * Fetch client-nav and apply. When `retryOnNull`, retries a few times if the
+ * request returns null — cookies/session can lag `did-finish-load` briefly,
+ * which otherwise left the Navigate menu on "Pop Out" until the 30–60s poll.
+ * @param {{ retryOnNull?: boolean }} [options]
+ */
+function pullClientNav(options = {}) {
+  const { retryOnNull = false } = options;
+  const gen = ++clientNavPullGeneration;
+  const gapsMs = [500, 1500, 4000];
+  let gapIdx = 0;
+
+  function tryFetch() {
+    fetchClientNav().then((manifest) => {
+      if (gen !== clientNavPullGeneration) return;
+      if (manifest) {
+        handleClientNav(manifest);
+        return;
+      }
+      if (!retryOnNull || gapIdx >= gapsMs.length) return;
+      const wait = gapsMs[gapIdx++];
+      const t = setTimeout(tryFetch, wait);
+      if (typeof t.unref === 'function') t.unref();
+    });
+  }
+
+  tryFetch();
 }
 
 // --- Theme observer ---
@@ -477,8 +583,8 @@ function initModules() {
     // Ensure the observer is active in the freshly loaded page context
     reinitializeThemeObserver();
 
-    // Fetch client-nav manifest and apply
-    fetchClientNav().then(handleClientNav);
+    // Fetch client-nav manifest and apply (retry if session not ready yet)
+    pullClientNav({ retryOnNull: true });
   });
 
   // Notifications (#1)
@@ -742,7 +848,9 @@ function initModules() {
       const path = pathname + search;
       sendToRenderer('route-changed', { path });
       sendNavState();
-      mainWindow.setTitle(withServerLabel(getTitleForPath(pathname, currentNav)));
+      mainWindow.setTitle(
+        withServerLabel(getTitleForPath(pathname, currentNav)),
+      );
       // Persist last URL for session recovery after crash
       if (isGameUrl(url)) cacheManager.setPreference('lastURL', url);
 
@@ -832,7 +940,7 @@ function initModules() {
   // the error code catalog. Ongoing polling is managed by startClientNavPolling
   // via the connected/disconnected handlers above.
   sseClient.once('connected', () => {
-    fetchClientNav().then(handleClientNav);
+    pullClientNav({ retryOnNull: true });
     if (errorHandler) errorHandler.loadErrorCodes();
   });
 }
@@ -1063,13 +1171,32 @@ function injectCommandPalette(currentNav) {
     { label: 'Settings', route: '/settings' },
   ];
 
+  /**
+   * @param {{ route?: string, label?: string }|string|null|undefined} entry
+   * @param {string} fallbackLabel
+   */
+  function paletteEntry(entry, fallbackLabel) {
+    if (entry == null) return null;
+    if (typeof entry === 'string')
+      return { label: fallbackLabel, route: entry };
+    if (typeof entry === 'object' && entry.route)
+      return { label: entry.label || fallbackLabel, route: entry.route };
+    return null;
+  }
+
   const navRoutes = [];
-  if (currentNav?.executive) navRoutes.push({ label: 'Executive', route: currentNav.executive });
-  if (currentNav?.legislature) navRoutes.push({ label: 'Legislature', route: currentNav.legislature });
-  if (currentNav?.elections) navRoutes.push({ label: 'Elections', route: currentNav.elections });
-  if (currentNav?.map) navRoutes.push({ label: 'Map', route: currentNav.map });
-  if (currentNav?.whiteHouse) navRoutes.push({ label: 'White House', route: currentNav.whiteHouse });
-  if (currentNav?.congress) navRoutes.push({ label: 'Congress', route: currentNav.congress });
+  const ex = paletteEntry(currentNav?.executive, 'Executive');
+  if (ex) navRoutes.push(ex);
+  const leg = paletteEntry(currentNav?.legislature, 'Legislature');
+  if (leg) navRoutes.push(leg);
+  const el = paletteEntry(currentNav?.elections, 'Elections');
+  if (el) navRoutes.push(el);
+  const map = paletteEntry(currentNav?.map, 'Map');
+  if (map) navRoutes.push(map);
+  const wh = paletteEntry(currentNav?.whiteHouse, 'White House');
+  if (wh) navRoutes.push(wh);
+  const cg = paletteEntry(currentNav?.congress, 'Congress');
+  if (cg) navRoutes.push(cg);
 
   const allRoutes = [...navRoutes, ...staticRoutes];
   const routesJson = JSON.stringify(allRoutes);
@@ -1211,9 +1338,16 @@ let _turnAlertFired = false;
  * @param {number} nextTurnIn - Seconds until next turn
  */
 function checkTurnAlert(nextTurnIn) {
-  if (!cacheManager || cacheManager.getPreference('turnAlertEnabled') === false) return;
-  if (typeof nextTurnIn !== 'number') { _turnAlertFired = false; return; }
-  if (nextTurnIn > 60 || nextTurnIn <= 0) { _turnAlertFired = false; return; }
+  if (!cacheManager || cacheManager.getPreference('turnAlertEnabled') === false)
+    return;
+  if (typeof nextTurnIn !== 'number') {
+    _turnAlertFired = false;
+    return;
+  }
+  if (nextTurnIn > 60 || nextTurnIn <= 0) {
+    _turnAlertFired = false;
+    return;
+  }
   if (_turnAlertFired) return;
   _turnAlertFired = true;
   shell.beep();
@@ -1283,7 +1417,9 @@ app.whenReady().then(() => {
   createWindow();
 
   // Handle CLI args after window is created
-  const urlArg = process.argv.slice(2).find((a) => isGameUrl(a) || a.startsWith('ahd://'));
+  const urlArg = process.argv
+    .slice(2)
+    .find((a) => isGameUrl(a) || a.startsWith('ahd://'));
   if (urlArg) navigateToArg(urlArg);
 });
 
@@ -1295,7 +1431,9 @@ app.on('open-url', (event, url) => {
 
 // Handle Windows second-instance (when user clicks link while app is already running)
 app.on('second-instance', (_event, argv) => {
-  const urlArg = argv.slice(2).find((a) => isGameUrl(a) || a.startsWith('ahd://'));
+  const urlArg = argv
+    .slice(2)
+    .find((a) => isGameUrl(a) || a.startsWith('ahd://'));
   if (urlArg) navigateToArg(urlArg);
   if (mainWindow) {
     mainWindow.show();

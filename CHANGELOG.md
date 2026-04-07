@@ -4,12 +4,31 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
+## [1.1.0] - 2026-04-07
+
+### Added
+
+- **GitHub Actions — multi-platform releases** — Pushing a `v*` tag runs tests once on Ubuntu, then builds **Windows** (NSIS `.exe`), **macOS** (`.dmg`), and **Linux** (`.AppImage`) on native runners; all artifacts attach to a single GitHub Release (`.github/workflows/release.yml`).
+- **Keyboard shortcuts UI** — **Game menu → Customize Game Panel…** includes a **Keyboard Shortcuts** tab to override global accelerators; stored in `userPreferences.customShortcuts` (`save-shortcuts` / `get-custom-shortcuts` IPC, `shortcuts.js`).
+
+### Fixed
+
+- **Navigate menu** — `src/nav-manifest.js` derives `hasCharacter` when `/api/client-nav` omits the flag but still sends `homeState`, `adminCharacters`, nested `character`, or `has_character`, so Profile / State / Nation / World items are not hidden behind only **Pop Out Window**.
+- **Navigate menu (timing)** — `pullClientNav({ retryOnNull: true })` in `src/main.js` retries `/api/client-nav` after `did-finish-load` and first SSE connect when the response is `null` (session/cookies briefly behind the page load), instead of waiting for the 30–60s poll.
+- **Cmd+K command palette** — `injectCommandPalette` in `src/main.js` reads string `route` values from `getNavForCountry()` objects (`executive`, `legislature`, etc.) instead of passing whole objects into `navigate`.
+
+### Changed
+
+- **Unsigned macOS builds** — `CSC_IDENTITY_AUTO_DISCOVERY=false` for CI and `npm run build:mac`; `package.json` `build.mac` sets `hardenedRuntime: false` and `gatekeeperAssess: false` so DMGs build without Apple signing keys (users may need to right-click → Open the first time).
+
+---
+
 ## [1.0.3] - 2026-04-06
 
 ### Added
 
 - **Game menu — customizable quick links** — The Game menu opens with shortcuts (Profile, Campaign HQ, Notifications, Portfolio, corporation). **Customize Game Panel…** opens a small window to enable or disable built-in links and add custom paths; the layout is stored in `userPreferences.gamePanelEntries`.
-- **CEO / Create a corporation** — The corporation shortcut is included by default. The menu label is **CEO** (navigates to `/corporation/{id}/ceo`) when the character is a CEO with a corporation id; otherwise it reads **Create a corporation** and navigates to `/corporation/create`. Client-nav enrichment merges `isCeo` and `myCorporationId` from `/api/character/me`.
+- **CEO / Create a corporation** — The corporation shortcut is included by default. Labels: **CEO** → `/corporation/{id}/ceo`; **My corporation** → `/corporation/{id}` when the character has a corporation but is not CEO; **Create a corporation** → `/corporation/new` when none. Client-nav enrichment merges `isCeo` and `myCorporationId` from `/api/character/me` (supports alternate field shapes and 2xx-only JSON parsing for that request).
 - **IPC** — `get-game-panel-config`, `set-game-panel-entries`, and `reset-game-panel-entries` support the config window (`game-panel-config.html` + preload).
 - **Active game URL** — `src/active-game-url.js` resolves the current game origin; works with environment-driven config and dev/sandbox toggles (`src/game-server-dev.js`).
 - **PiP / turn dashboard** — Richer floating dashboard (multi-view Standard / Corp / Elections / Global, customizable bar and custom panel layout, AP and stat strip).

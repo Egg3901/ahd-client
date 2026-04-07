@@ -125,7 +125,9 @@ class ShortcutManager {
 
     const shortcutsToUse = shortcuts || this.getEffectiveShortcuts();
 
-    for (const [accelerator, shortcutConfig] of Object.entries(shortcutsToUse)) {
+    for (const [accelerator, shortcutConfig] of Object.entries(
+      shortcutsToUse,
+    )) {
       try {
         globalShortcut.register(accelerator, () => {
           this.handleShortcut(shortcutConfig);

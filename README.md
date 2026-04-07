@@ -5,7 +5,7 @@
 ---
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.3-blue" alt="version 1.0.3" />
+  <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="version 1.1.0" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
   <img src="https://img.shields.io/badge/license-proprietary-red" alt="license proprietary" />
 </p>
@@ -60,7 +60,7 @@ ahd-client/
 │   ├── workflows/
 │   │   ├── ci.yml           # Lint, format check, tests on every push/PR
 │   │   ├── codeql.yml       # GitHub CodeQL security scanning
-│   │   └── release.yml      # Build & publish .exe on version tag
+│   │   └── release.yml      # Build & publish Win / Mac / Linux on version tag
 │   └── dependabot.yml       # Weekly dependency update PRs
 ├── assets/                  # App icons (icon.png, icon.ico, icon.icns)
 ├── src/
@@ -140,15 +140,17 @@ Output goes to the `dist/` directory.
 
 Releases are automated via GitHub Actions. To publish a new version:
 
-1. Bump the version in `package.json`
+1. Bump the version in `package.json` and update [CHANGELOG.md](CHANGELOG.md)
 2. Tag and push:
 
 ```bash
-git tag v1.0.3
-git push origin v1.0.3
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
-The workflow in [`.github/workflows/release.yml`](.github/workflows/release.yml) will build the Windows installer and attach it to a GitHub Release automatically.
+The workflow in [`.github/workflows/release.yml`](.github/workflows/release.yml) runs tests, then builds **Windows** (NSIS installer), **macOS** (DMG), and **Linux** (AppImage) and uploads them to one GitHub Release.
+
+**Code signing:** Installers are **unsigned** (no Windows Authenticode or Apple Developer ID). On macOS, users may need to **right-click the app → Open** the first time. Set `CSC_IDENTITY_AUTO_DISCOVERY=false` is already applied in CI and in `npm run build:mac` / `build:win`.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 

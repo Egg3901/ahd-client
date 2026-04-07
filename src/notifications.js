@@ -192,7 +192,9 @@ class NotificationManager {
         if (this.onNavigate) {
           this.onNavigate('/elections');
         } else if (this.mainWindow) {
-          this.mainWindow.loadURL(`${require('./active-game-url').get()}/elections`);
+          this.mainWindow.loadURL(
+            `${require('./active-game-url').get()}/elections`,
+          );
         }
       } else if (event.type === 'turn_complete' && index === 0) {
         if (this.onNavigate) {

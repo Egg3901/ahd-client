@@ -1,6 +1,6 @@
 {
   "name": "ahd-client",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "A House Divided - Desktop Client",
   "main": "src/main.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "cross-env NODE_ENV=development electron .",
     "build": "electron-builder",
     "build:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
-    "build:mac": "electron-builder --mac",
+    "build:mac": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
@@ -36,7 +36,9 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "linux": {
       "target": "AppImage",

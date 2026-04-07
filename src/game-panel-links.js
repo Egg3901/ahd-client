@@ -2,8 +2,8 @@
 
 const { resolveGamePath } = require('./game-paths');
 
-/** Site path to open when the player is not a CEO (create / join corporation flow). */
-const CREATE_CORPORATION_PATH = '/corporation/create';
+/** Site path to start a new corporation (App Router uses `new`, not `create`). */
+const CREATE_CORPORATION_PATH = '/corporation/new';
 
 /**
  * Game menu quick links (Profile, Campaign HQ, …) with CEO vs Create a corporation and custom URLs.
@@ -33,10 +33,13 @@ const PRESET_ROUTES = {
   notifications: () => '/notifications',
   portfolio: () => '/portfolio',
   ceo: (m) => {
-    if (m.isCeo && m.myCorporationId != null) {
+    if (m.myCorporationId == null) {
+      return CREATE_CORPORATION_PATH;
+    }
+    if (m.isCeo) {
       return `/corporation/${m.myCorporationId}/ceo`;
     }
-    return CREATE_CORPORATION_PATH;
+    return `/corporation/${m.myCorporationId}`;
   },
 };
 
@@ -182,10 +185,13 @@ function resolveEntryForMenu(entry, manifest) {
   if (!route) return null;
   let label = meta.label;
   if (entry.id === 'ceo') {
-    label =
-      manifest.isCeo && manifest.myCorporationId != null
-        ? 'CEO'
-        : 'Create a corporation';
+    if (manifest.myCorporationId == null) {
+      label = 'Create a corporation';
+    } else if (manifest.isCeo) {
+      label = 'CEO';
+    } else {
+      label = 'My corporation';
+    }
   }
   return {
     label,

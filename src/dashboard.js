@@ -80,8 +80,7 @@ class DashboardPoller {
   _getCookieHeader() {
     return session
       .fromPartition('persist:ahd')
-      .cookies
-      .get({ url: activeGameUrl.get() })
+      .cookies.get({ url: activeGameUrl.get() })
       .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join('; '));
   }
 
@@ -93,7 +92,7 @@ class DashboardPoller {
   async _fetch() {
     try {
       const cookieStr = await this._getCookieHeader();
-      
+
       return new Promise((resolve, reject) => {
         let settled = false;
         const done = (val) => {
@@ -122,7 +121,9 @@ class DashboardPoller {
 
         req.on('response', (res) => {
           clearTimeout(timer);
-          console.log(`[Dashboard] /api/game/turn/dashboard → ${res.statusCode}`);
+          console.log(
+            `[Dashboard] /api/game/turn/dashboard → ${res.statusCode}`,
+          );
 
           // 401 = not logged in, 404 = route not deployed yet — both are silent
           if (res.statusCode === 401 || res.statusCode === 404) {
@@ -146,7 +147,10 @@ class DashboardPoller {
             try {
               const parsed = JSON.parse(body);
               const mapped = this._map(parsed);
-              console.log('[Dashboard] Success, mapped keys:', Object.keys(mapped || {}));
+              console.log(
+                '[Dashboard] Success, mapped keys:',
+                Object.keys(mapped || {}),
+              );
               done(mapped);
             } catch (e) {
               console.error('[Dashboard] JSON parse error:', e.message);

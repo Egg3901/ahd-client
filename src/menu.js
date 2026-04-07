@@ -458,7 +458,10 @@ class MenuManager {
             : true,
           click: (menuItem) => {
             if (this.cacheManager)
-              this.cacheManager.setPreference('turnAlertEnabled', menuItem.checked);
+              this.cacheManager.setPreference(
+                'turnAlertEnabled',
+                menuItem.checked,
+              );
           },
         },
         ...(this.gameServer?.envOverride

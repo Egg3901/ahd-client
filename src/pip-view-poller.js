@@ -146,7 +146,7 @@ class PipViewPoller {
     return p ? [p] : [];
   }
 
-    /**
+  /**
    * Get authentication cookies for the request.
    * @private
    * @returns {Promise<string>}
@@ -154,8 +154,7 @@ class PipViewPoller {
   _getCookieHeader() {
     return session
       .fromPartition('persist:ahd')
-      .cookies
-      .get({ url: activeGameUrl.get() })
+      .cookies.get({ url: activeGameUrl.get() })
       .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join('; '));
   }
 
@@ -216,7 +215,10 @@ class PipViewPoller {
             if (settled) return;
             try {
               const parsed = JSON.parse(body);
-              console.log(`[PiP] ${path} → success, data keys:`, Object.keys(parsed || {}));
+              console.log(
+                `[PiP] ${path} → success, data keys:`,
+                Object.keys(parsed || {}),
+              );
               done(parsed);
             } catch (e) {
               console.error(`[PiP] ${path} JSON parse error:`, e.message);

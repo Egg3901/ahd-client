@@ -3,6 +3,7 @@
 ## 🔧 Changes Made
 
 ### Fixed Authentication Issues
+
 1. **Added proper cookie handling** - PiP and Dashboard now manually fetch and set cookies
 2. **Removed incorrect `useSessionCookies` option** - This option doesn't work with `net.request()`
 3. **Added comprehensive error logging** - All requests now log status codes and errors
@@ -11,6 +12,7 @@
 ### Key Changes in `src/pip-view-poller.js`
 
 **Before:**
+
 ```javascript
 const req = net.request({
   url: `${activeGameUrl.get()}${path}`,
@@ -21,6 +23,7 @@ const req = net.request({
 ```
 
 **After:**
+
 ```javascript
 const cookieStr = await this._getCookieHeader();
 
@@ -39,12 +42,14 @@ req.setHeader('Cookie', cookieStr || ''); // ✅ Manual cookie handling
 To verify the fix works:
 
 1. **Check browser console logs** - You should see:
+
    ```
    [PiP] /api/pip/standard → 200
    [PiP] /api/pip/standard → success, data keys: [decay, income, notifications]
    ```
 
 2. **If still failing**, logs will show exact error:
+
    ```
    [PiP] /api/pip/standard → 401
    [PiP] /api/pip/standard failed: HTTP 401
@@ -62,8 +67,9 @@ To verify the fix works:
 ## 🎯 Expected Results
 
 After this fix:
+
 - ✅ PiP panels load with real data
-- ✅ Dashboard bar updates correctly  
+- ✅ Dashboard bar updates correctly
 - ✅ Error messages are clear and actionable
 - ✅ Consistent authentication across all client API calls
 

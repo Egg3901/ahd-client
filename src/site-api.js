@@ -43,6 +43,7 @@ function getJsonAuthed(gameUrl, path) {
 
         let body = '';
         req.on('response', (res) => {
+          const statusCode = res.statusCode ?? 0;
           res.on('data', (chunk) => {
             if (settled) return;
             body += chunk.toString();
@@ -53,6 +54,10 @@ function getJsonAuthed(gameUrl, path) {
           });
           res.on('end', () => {
             if (settled) return;
+            if (statusCode < 200 || statusCode >= 300) {
+              done(null);
+              return;
+            }
             try {
               done(JSON.parse(body));
             } catch {

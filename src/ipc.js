@@ -330,8 +330,12 @@ function registerIpcHandlers(deps) {
     if (!cacheManager || !shortcutManager) {
       return { shortcuts: null, defaults: {} };
     }
-    const customShortcuts = cacheManager.getPreference('customShortcuts') || null;
-    return { shortcuts: customShortcuts, defaults: shortcutManager.getShortcuts() };
+    const customShortcuts =
+      cacheManager.getPreference('customShortcuts') || null;
+    return {
+      shortcuts: customShortcuts,
+      defaults: shortcutManager.getShortcuts(),
+    };
   });
 
   ipcMain.handle('save-shortcuts', (_event, overrides) => {
@@ -342,7 +346,7 @@ function registerIpcHandlers(deps) {
       return { ok: false, error: 'Invalid overrides' };
     }
     // Validate accelerator format (basic check)
-    for (const [defaultAccel, customAccel] of Object.entries(overrides)) {
+    for (const [, customAccel] of Object.entries(overrides)) {
       if (customAccel && typeof customAccel !== 'string') {
         return { ok: false, error: 'Invalid accelerator format' };
       }

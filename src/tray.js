@@ -132,9 +132,18 @@ class TrayManager {
 
     const template = [
       ...(this._updateReady
-        ? [{ label: '\u27f3 Update ready \u2014 restart to install', enabled: false }, { type: 'separator' }]
+        ? [
+            {
+              label: '\u27f3 Update ready \u2014 restart to install',
+              enabled: false,
+            },
+            { type: 'separator' },
+          ]
         : this._updateAvailable
-          ? [{ label: '\u2193 Update available', enabled: false }, { type: 'separator' }]
+          ? [
+              { label: '\u2193 Update available', enabled: false },
+              { type: 'separator' },
+            ]
           : []),
       ...(this._queueCount > 0
         ? [

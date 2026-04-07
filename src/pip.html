@@ -1375,8 +1375,7 @@
             await window.pipBridge.saveCustomPanels(panels);
           }
           renderBody();
-        } catch (_err) {
-        }
+        } catch (_err) {}
       }
 
       function openMain() {
@@ -1386,8 +1385,7 @@
       async function cycleViewFromUi() {
         try {
           if (window.pipBridge) await window.pipBridge.cycleView();
-        } catch (_err) {
-        }
+        } catch (_err) {}
       }
 
       function updatePip(payload) {
@@ -1395,7 +1393,9 @@
         views = payload.views || views;
         activeView = payload.activeView || 'standard';
         lastUpdate =
-          typeof payload.lastUpdate === 'number' ? payload.lastUpdate : lastUpdate;
+          typeof payload.lastUpdate === 'number'
+            ? payload.lastUpdate
+            : lastUpdate;
         if (Array.isArray(payload.barStats) && payload.barStats.length > 0) {
           barStats = payload.barStats;
         }

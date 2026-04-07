@@ -29,4 +29,24 @@ describe('normalizeClientNavManifest', () => {
     expect(m.unreadCount).toBe(3);
     expect(m.user.username).toBe('a');
   });
+
+  test('maps has_character to hasCharacter', () => {
+    const m = normalizeClientNavManifest({ has_character: true });
+    expect(m.hasCharacter).toBe(true);
+  });
+
+  test('infers hasCharacter from homeState when booleans omitted', () => {
+    const m = normalizeClientNavManifest({
+      homeState: { id: 'CA', name: 'California' },
+    });
+    expect(m.hasCharacter).toBe(true);
+  });
+
+  test('explicit hasCharacter false wins over homeState', () => {
+    const m = normalizeClientNavManifest({
+      hasCharacter: false,
+      homeState: { id: 'CA', name: 'California' },
+    });
+    expect(m.hasCharacter).toBe(false);
+  });
 });
