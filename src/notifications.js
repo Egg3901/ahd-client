@@ -103,10 +103,13 @@ function getIcon() {
 class NotificationManager {
   /**
    * @param {Electron.BrowserWindow} mainWindow - The primary app window
+   * @param {(route: string) => void} [onNavigate] - Optional callback for notification action navigation
    */
-  constructor(mainWindow) {
+  constructor(mainWindow, onNavigate) {
     /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
+    /** @type {(route: string) => void} */
+    this.onNavigate = onNavigate;
     /** @type {boolean} */
     this.enabled = true;
     /** @type {number} */
@@ -152,18 +155,51 @@ class NotificationManager {
         ? eventConfig.format(event.data || {})
         : 'New game event';
 
-    const notification = new Notification({
+    const notificationOptions = {
       title: eventConfig.title,
       body,
       icon: getIcon(),
       urgency: eventConfig.urgent ? 'critical' : 'normal',
       silent: !eventConfig.urgent,
-    });
+    };
+
+    // Add action buttons for supported events (macOS/Linux only)
+    if (process.platform !== 'win32') {
+      if (event.type === 'election_resolved') {
+        notificationOptions.actions = [
+          { type: 'button', text: 'View Election' },
+        ];
+      } else if (event.type === 'turn_complete') {
+        notificationOptions.actions = [
+          { type: 'button', text: 'View Dashboard' },
+        ];
+      }
+    }
+
+    const notification = new Notification(notificationOptions);
 
     notification.on('click', () => {
       if (this.mainWindow) {
         this.mainWindow.show();
         this.mainWindow.focus();
+      }
+      this.clearUnread();
+    });
+
+    // Handle action button clicks (macOS/Linux only)
+    notification.on('action', (_event, index) => {
+      if (event.type === 'election_resolved' && index === 0) {
+        if (this.onNavigate) {
+          this.onNavigate('/elections');
+        } else if (this.mainWindow) {
+          this.mainWindow.loadURL(`${require('./active-game-url').get()}/elections`);
+        }
+      } else if (event.type === 'turn_complete' && index === 0) {
+        if (this.onNavigate) {
+          this.onNavigate('/');
+        } else if (this.mainWindow) {
+          this.mainWindow.loadURL(require('./active-game-url').get());
+        }
       }
       this.clearUnread();
     });

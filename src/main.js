@@ -476,7 +476,9 @@ function initModules() {
   });
 
   // Notifications (#1)
-  notificationManager = new NotificationManager(mainWindow);
+  notificationManager = new NotificationManager(mainWindow, (route) => {
+    mainWindow.loadURL(`${activeGameUrl.get()}${route}`);
+  });
   notificationManager.setEnabled(
     cacheManager.getPreference('notificationsEnabled') !== false,
   );
