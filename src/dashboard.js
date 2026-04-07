@@ -1,4 +1,4 @@
-const { net } = require('electron');
+const { net, session } = require('electron');
 const activeGameUrl = require('./active-game-url');
 
 /**
@@ -73,58 +73,107 @@ class DashboardPoller {
   }
 
   /**
+   * Get authentication cookies for the dashboard request.
+   * @private
+   * @returns {Promise<string>}
+   */
+  _getCookieHeader() {
+    return session
+      .fromPartition('persist:ahd')
+      .cookies
+      .get({ url: activeGameUrl.get() })
+      .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join('; '));
+  }
+
+  /**
    * HTTP GET /api/game/turn/dashboard using the game session partition.
    * @private
    * @returns {Promise<object|null>} mapped gameState, or null if unauthenticated
    */
-  _fetch() {
-    return new Promise((resolve, reject) => {
-      const req = net.request({
-        url: `${activeGameUrl.get()}/api/game/turn/dashboard`,
-        method: 'GET',
-        partition: 'persist:ahd',
-        useSessionCookies: true,
-      });
+  async _fetch() {
+    try {
+      const cookieStr = await this._getCookieHeader();
+      
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const done = (val) => {
+          if (settled) return;
+          settled = true;
+          resolve(val);
+        };
 
-      req.setHeader('Accept', 'application/json');
+        const req = net.request({
+          url: `${activeGameUrl.get()}/api/game/turn/dashboard`,
+          method: 'GET',
+        });
 
-      let body = '';
-      const timer = setTimeout(() => {
-        req.abort();
-        reject(new Error('Request timeout'));
-      }, 15_000);
+        req.setHeader('Cookie', cookieStr || '');
+        req.setHeader('Accept', 'application/json');
 
-      req.on('response', (res) => {
-        clearTimeout(timer);
-        // 401 = not logged in, 404 = route not deployed yet — both are silent
-        if (res.statusCode === 401 || res.statusCode === 404) {
-          resolve(null);
-          return;
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode}`));
-          return;
-        }
-        res.on('data', (chunk) => (body += chunk.toString()));
-        res.on('end', () => {
-          try {
-            resolve(this._map(JSON.parse(body)));
-          } catch (e) {
-            reject(e);
+        let body = '';
+
+        const timer = setTimeout(() => {
+          req.abort();
+          if (!settled) {
+            settled = true;
+            reject(new Error('Request timeout'));
+          }
+        }, 15_000);
+
+        req.on('response', (res) => {
+          clearTimeout(timer);
+          console.log(`[Dashboard] /api/game/turn/dashboard → ${res.statusCode}`);
+
+          // 401 = not logged in, 404 = route not deployed yet — both are silent
+          if (res.statusCode === 401 || res.statusCode === 404) {
+            done(null);
+            return;
+          }
+          if (res.statusCode !== 200) {
+            const error = new Error(`HTTP ${res.statusCode}`);
+            console.error('[Dashboard] Failed:', error.message);
+            reject(error);
+            return;
+          }
+
+          res.on('data', (chunk) => {
+            if (settled) return;
+            body += chunk.toString();
+          });
+
+          res.on('end', () => {
+            if (settled) return;
+            try {
+              const parsed = JSON.parse(body);
+              const mapped = this._map(parsed);
+              console.log('[Dashboard] Success, mapped keys:', Object.keys(mapped || {}));
+              done(mapped);
+            } catch (e) {
+              console.error('[Dashboard] JSON parse error:', e.message);
+              reject(e);
+            }
+          });
+
+          res.on('error', (err) => {
+            console.error('[Dashboard] Response error:', err.message);
+            if (!settled) reject(err);
+          });
+        });
+
+        req.on('error', (err) => {
+          clearTimeout(timer);
+          if (!settled) {
+            console.error('[Dashboard] Request error:', err.message);
+            reject(err);
           }
         });
-        res.on('error', (e) => {
-          clearTimeout(timer);
-          reject(e);
-        });
-      });
 
-      req.on('error', (e) => {
-        clearTimeout(timer);
-        reject(e);
+        req.end();
       });
-      req.end();
-    });
+    } catch (err) {
+      console.error('[Dashboard] Setup error:', err.message);
+      return null;
+    }
   }
 
   /**

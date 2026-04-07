@@ -1,4 +1,4 @@
-const { net } = require('electron');
+const { net, session } = require('electron');
 const activeGameUrl = require('./active-game-url');
 
 /** @type {Record<string, string>} view name → HTTP path */
@@ -146,52 +146,104 @@ class PipViewPoller {
     return p ? [p] : [];
   }
 
+    /**
+   * Get authentication cookies for the request.
+   * @private
+   * @returns {Promise<string>}
+   */
+  _getCookieHeader() {
+    return session
+      .fromPartition('persist:ahd')
+      .cookies
+      .get({ url: activeGameUrl.get() })
+      .then((cookies) => cookies.map((c) => `${c.name}=${c.value}`).join('; '));
+  }
+
   /** @private */
-  _fetchOne(path) {
-    return new Promise((resolve, reject) => {
-      const req = net.request({
-        url: `${activeGameUrl.get()}${path}`,
-        method: 'GET',
-        partition: 'persist:ahd',
-        useSessionCookies: true,
-      });
-      req.setHeader('Accept', 'application/json');
-      let body = '';
-      const timer = setTimeout(() => {
-        req.abort();
-        reject(new Error('Request timeout'));
-      }, 15_000);
-      req.on('response', (res) => {
-        clearTimeout(timer);
-        if (res.statusCode === 401 || res.statusCode === 404) {
-          resolve(null);
-          return;
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode}`));
-          return;
-        }
-        res.on('data', (chunk) => {
-          body += chunk.toString();
+  async _fetchOne(path) {
+    try {
+      const cookieStr = await this._getCookieHeader();
+
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const done = (val) => {
+          if (settled) return;
+          settled = true;
+          resolve(val);
+        };
+
+        const req = net.request({
+          url: `${activeGameUrl.get()}${path}`,
+          method: 'GET',
         });
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(body));
-          } catch (e) {
-            reject(e);
+
+        req.setHeader('Cookie', cookieStr || '');
+        req.setHeader('Accept', 'application/json');
+
+        let body = '';
+
+        const timer = setTimeout(() => {
+          req.abort();
+          if (!settled) {
+            settled = true;
+            reject(new Error('Request timeout'));
+          }
+        }, 15_000);
+
+        req.on('response', (res) => {
+          clearTimeout(timer);
+          // Log response status for debugging
+          console.log(`[PiP] ${path} → ${res.statusCode}`);
+
+          if (res.statusCode === 401 || res.statusCode === 404) {
+            done(null);
+            return;
+          }
+
+          if (res.statusCode !== 200) {
+            const error = new Error(`HTTP ${res.statusCode}`);
+            console.error(`[PiP] ${path} failed:`, error.message);
+            reject(error);
+            return;
+          }
+
+          res.on('data', (chunk) => {
+            if (settled) return;
+            body += chunk.toString();
+          });
+
+          res.on('end', () => {
+            if (settled) return;
+            try {
+              const parsed = JSON.parse(body);
+              console.log(`[PiP] ${path} → success, data keys:`, Object.keys(parsed || {}));
+              done(parsed);
+            } catch (e) {
+              console.error(`[PiP] ${path} JSON parse error:`, e.message);
+              reject(e);
+            }
+          });
+
+          res.on('error', (err) => {
+            console.error(`[PiP] ${path} response error:`, err.message);
+            if (!settled) reject(err);
+          });
+        });
+
+        req.on('error', (err) => {
+          clearTimeout(timer);
+          if (!settled) {
+            console.error(`[PiP] ${path} request error:`, err.message);
+            reject(err);
           }
         });
-        res.on('error', (e) => {
-          clearTimeout(timer);
-          reject(e);
-        });
+
+        req.end();
       });
-      req.on('error', (e) => {
-        clearTimeout(timer);
-        reject(e);
-      });
-      req.end();
-    });
+    } catch (err) {
+      console.error(`[PiP] ${path} setup error:`, err.message);
+      return null;
+    }
   }
 }
 
