@@ -1,11 +1,14 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 /**
- * Minimal IPC bridge for the PiP dashboard window.
- * Exposes only the two actions the widget needs: open the main window
- * and request a resize when the user toggles expanded mode.
+ * IPC bridge for the PiP dashboard window (themed views + bar).
  */
 contextBridge.exposeInMainWorld('pipBridge', {
   openMain: () => ipcRenderer.send('pip-open-main'),
-  setExpanded: (expanded) => ipcRenderer.send('pip-set-expanded', expanded),
+  /** Load a path on the main game window (e.g. /elections/abc). PiP stays open. */
+  navigateTo: (path) => ipcRenderer.send('pip-navigate', path),
+  cycleView: () => ipcRenderer.invoke('pip-cycle-view'),
+  openGamePanelConfig: () => ipcRenderer.invoke('open-game-panel-config'),
+  saveCustomPanels: (panels) =>
+    ipcRenderer.invoke('pip-set-custom-panels', panels),
 });

@@ -8,7 +8,22 @@ const {
   getGamePanelCatalog,
   buildDefaultEntries,
 } = require('./game-panel-links');
-const { closeGamePanelConfigWindow } = require('./game-panel-config-window');
+const {
+  openGamePanelConfigWindow,
+  closeGamePanelConfigWindow,
+} = require('./game-panel-config-window');
+
+/** Default PiP status bar stat keys (must match PipManager defaults). */
+const DEFAULT_PIP_BAR_STATS = [
+  'ap',
+  'funds',
+  'cash',
+  'portfolio',
+  'pi',
+  'fav',
+  'nationalInfluence',
+  'turn',
+];
 
 /** Preferences the renderer may change via set-preference (theme uses set-theme). */
 const ALLOWED_PREFERENCE_KEYS /** @type {ReadonlySet<string>} */ = new Set([
@@ -264,6 +279,45 @@ function registerIpcHandlers(deps) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadURL(activeGameUrl.get());
     }
+  });
+
+  ipcMain.handle('open-game-panel-config', () => {
+    openGamePanelConfigWindow({ parent: mainWindow });
+    return true;
+  });
+
+  ipcMain.handle('get-pip-bar-config', () => {
+    if (!cacheManager) {
+      return { stats: DEFAULT_PIP_BAR_STATS, defaults: DEFAULT_PIP_BAR_STATS };
+    }
+    const pip = cacheManager.getPreference('pip') || {};
+    const stats =
+      Array.isArray(pip.barStats) && pip.barStats.length > 0
+        ? pip.barStats
+        : DEFAULT_PIP_BAR_STATS;
+    return { stats, defaults: DEFAULT_PIP_BAR_STATS };
+  });
+
+  ipcMain.handle('set-pip-bar-config', (_event, stats) => {
+    if (!cacheManager) return { ok: false, error: 'Unavailable' };
+    if (!Array.isArray(stats) || stats.length === 0) {
+      return { ok: false, error: 'Invalid' };
+    }
+    const pip = cacheManager.getPreference('pip') || {};
+    cacheManager.setPreference('pip', { ...pip, barStats: stats });
+    if (pipManager) pipManager.applyBarStatsFromStore();
+    return { ok: true };
+  });
+
+  ipcMain.handle('reset-pip-bar-stats', () => {
+    if (!cacheManager) return { ok: false, error: 'Unavailable' };
+    const pip = cacheManager.getPreference('pip') || {};
+    cacheManager.setPreference('pip', {
+      ...pip,
+      barStats: DEFAULT_PIP_BAR_STATS,
+    });
+    if (pipManager) pipManager.applyBarStatsFromStore();
+    return { ok: true };
   });
 }
 

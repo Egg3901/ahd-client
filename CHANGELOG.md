@@ -12,7 +12,10 @@ All notable changes to the A House Divided desktop client are documented here.
 - **CEO / Create a corporation** — The corporation shortcut is included by default. The menu label is **CEO** (navigates to `/corporation/{id}/ceo`) when the character is a CEO with a corporation id; otherwise it reads **Create a corporation** and navigates to `/corporation/create`. Client-nav enrichment merges `isCeo` and `myCorporationId` from `/api/character/me`.
 - **IPC** — `get-game-panel-config`, `set-game-panel-entries`, and `reset-game-panel-entries` support the config window (`game-panel-config.html` + preload).
 - **Active game URL** — `src/active-game-url.js` resolves the current game origin; works with environment-driven config and dev/sandbox toggles (`src/game-server-dev.js`).
-- **PiP / turn dashboard** — Richer floating dashboard (AP bar with per-action counts, funds and income, decay stats, election chip, expandable income and stat detail).
+- **PiP / turn dashboard** — Richer floating dashboard (multi-view Standard / Corp / Elections / Global, customizable bar and custom panel layout, AP and stat strip).
+- **PiP view data** — `pip-view-poller.js` polls `/api/pip/standard`, `/api/pip/corp`, `/api/pip/elections`, and `/api/pip/global` on a 60s interval (with immediate refresh on view change) to hydrate each view and custom-panel bundles.
+- **PiP labels** — `pip-labels.js` maps party slugs, election and corporation types, and related display strings for the PiP window.
+- **Compact currency in PiP** — Dollar amounts use suffix-style formatting (e.g. `$130.19k`, `$140m`) via `format-compact-number.js` instead of locale thousands grouping.
 
 ### Changed
 
@@ -20,7 +23,7 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ### Tests
 
-- Unit coverage for `game-panel-links`, `active-game-url`, and `game-server-dev`.
+- Unit coverage for `game-panel-links`, `active-game-url`, `game-server-dev`, `format-compact-number`, and `pip-labels`.
 
 ---
 

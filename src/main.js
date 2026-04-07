@@ -513,7 +513,7 @@ function initModules() {
   shortcutManager.registerAll();
 
   // PiP (#8)
-  pipManager = new PipManager(mainWindow);
+  pipManager = new PipManager(mainWindow, cacheManager);
 
   // Dashboard poller (#11) — polls /api/game/turn/dashboard and feeds
   // the rich response into the same handleGameStateEvent pipeline so tray,
@@ -816,6 +816,8 @@ function handleGameStateEvent(event) {
     'favorabilityDecaying',
     'infamy',
     'infamyDecayWarning',
+    'nationalInfluence',
+    'hasCorp',
     // Election countdown
     'electionDate',
     'electionName',
@@ -830,7 +832,7 @@ function handleGameStateEvent(event) {
 
   if (Object.keys(gameState).length > 0) {
     if (trayManager) trayManager.updateGameState(gameState);
-    if (pipManager) pipManager.updateGameState(gameState);
+    if (pipManager) pipManager.updateBarState(gameState);
     cacheManager.updateGameState(gameState);
   }
 }

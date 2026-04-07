@@ -52,7 +52,7 @@ describe('SSE -> CacheManager + TrayManager + PipManager integration', () => {
       }
       if (Object.keys(gameState).length > 0) {
         tray.updateGameState(gameState);
-        pip.updateGameState(gameState);
+        pip.updateBarState(gameState);
         cache.updateGameState(gameState);
       }
     });
@@ -69,7 +69,7 @@ describe('SSE -> CacheManager + TrayManager + PipManager integration', () => {
 
     expect(cache.getGameState().turnsUntilElection).toBe(5);
     expect(tray.gameState.turnsUntilElection).toBe(5);
-    expect(pip.gameState.currentDate).toBe('Jan 2026');
+    expect(pip.barState.currentDate).toBe('Jan 2026');
   });
 
   test('two partial SSE events are merged in cache — both fields present', () => {

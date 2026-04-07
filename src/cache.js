@@ -32,6 +32,8 @@ const schema = {
       useSandboxServer: { type: 'boolean', default: false },
       /** Local Next dev server; only honored when NODE_ENV=development */
       useDevServer: { type: 'boolean', default: false },
+      /** PiP window: bar stat order, active view, bounds, custom panel IDs */
+      pip: { default: null },
     },
   },
   gameState: {
@@ -60,6 +62,8 @@ const schema = {
       favorabilityDecayWarning: false,
       infamy: null,
       infamyDecayWarning: false,
+      nationalInfluence: null,
+      hasCorp: null,
       // Election countdown
       electionDate: null,
       electionName: null,

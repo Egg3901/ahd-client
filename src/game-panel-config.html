@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Game panel shortcuts</title>
+    <title>Game menu & PiP</title>
     <style>
       * {
         box-sizing: border-box;
@@ -23,8 +23,34 @@
         text-transform: uppercase;
         letter-spacing: 0.14em;
         color: #c9a959;
-        margin: 0 0 12px;
+        margin: 0 0 10px;
         font-weight: 600;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      .tabs button {
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: #8b8bb8;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .tabs button.active {
+        background: rgba(201, 169, 89, 0.18);
+        border-color: rgba(201, 169, 89, 0.35);
+        color: #c9a959;
+        font-weight: 600;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.visible {
+        display: block;
       }
       p.hint {
         font-size: 11px;
@@ -76,6 +102,26 @@
         color: #e8e8f0;
         font-size: 12px;
       }
+      .bar-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.15);
+        margin-bottom: 6px;
+        cursor: move;
+      }
+      .bar-row input[type='checkbox'] {
+        accent-color: #c9a959;
+      }
+      .bar-drag {
+        color: #8b8bb8;
+        font-size: 14px;
+        cursor: grab;
+      }
       .btn {
         padding: 6px 12px;
         border-radius: 6px;
@@ -113,38 +159,93 @@
     </style>
   </head>
   <body>
-    <h1>Game panel shortcuts</h1>
-    <p class="hint">
-      Choose which links appear under the Game menu before Reload / Go Home. The
-      corporation shortcut is on by default: it opens
-      <strong>CEO</strong> when you are a CEO, or
-      <strong>Create a corporation</strong> otherwise.
-    </p>
-
-    <div class="section-title">Built-in pages</div>
-    <div class="presets" id="presets"></div>
-
-    <div class="section-title">Custom links</div>
-    <div class="custom-list" id="custom-list"></div>
-    <button type="button" class="btn" id="add-custom">+ Add custom link</button>
-
-    <div class="actions">
-      <button type="button" class="btn btn-primary" id="save">Save</button>
-      <button type="button" class="btn" id="reset">Reset to defaults</button>
-      <button type="button" class="btn" id="cancel">Cancel</button>
+    <h1>Game menu & PiP</h1>
+    <div class="tabs">
+      <button type="button" id="tab-btn-shortcuts" class="active">
+        Shortcuts
+      </button>
+      <button type="button" id="tab-btn-pip">PiP status bar</button>
     </div>
+
+    <div id="tab-shortcuts" class="tab-panel visible">
+      <p class="hint">
+        Choose which links appear under the Game menu before Reload / Go Home.
+        The corporation shortcut is on by default: it opens
+        <strong>CEO</strong> when you are a CEO, or
+        <strong>Create a corporation</strong> otherwise.
+      </p>
+
+      <div class="section-title">Built-in pages</div>
+      <div class="presets" id="presets"></div>
+
+      <div class="section-title">Custom links</div>
+      <div class="custom-list" id="custom-list"></div>
+      <button type="button" class="btn" id="add-custom">
+        + Add custom link
+      </button>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="save">
+          Save shortcuts
+        </button>
+        <button type="button" class="btn" id="reset">Reset to defaults</button>
+        <button type="button" class="btn" id="cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="tab-pip" class="tab-panel">
+      <p class="hint">
+        Choose which stats appear in the floating PiP window status bar and in
+        what order. Drag rows to reorder.
+      </p>
+      <div id="pip-bar-list"></div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="save-pip-bar">
+          Save status bar
+        </button>
+        <button type="button" class="btn" id="reset-pip-bar">
+          Restore defaults
+        </button>
+        <button type="button" class="btn" id="cancel-pip">Cancel</button>
+      </div>
+    </div>
+
     <div class="err" id="err"></div>
 
     <script>
       const presetsEl = document.getElementById('presets');
       const customListEl = document.getElementById('custom-list');
       const errEl = document.getElementById('err');
+      const pipBarListEl = document.getElementById('pip-bar-list');
+
+      const BAR_LABELS = {
+        ap: 'AP',
+        funds: 'Funds',
+        cash: 'Cash',
+        portfolio: 'Portfolio',
+        pi: 'PI',
+        fav: 'Favorability',
+        nationalInfluence: 'National PI',
+        turn: 'Turn',
+      };
+      const BAR_ALL_KEYS = [
+        'ap',
+        'funds',
+        'cash',
+        'portfolio',
+        'pi',
+        'fav',
+        'nationalInfluence',
+        'turn',
+      ];
 
       let catalog = [];
-      /** @type {Set<string>} */
       let enabledPresets = new Set();
-      /** @type {{ label: string, path: string }[]} */
       let customRows = [];
+      /** @type {string[]} */
+      let pipRowOrder = [];
+      /** @type {Set<string>} */
+      let pipEnabled = new Set();
 
       function entriesFromState() {
         const out = [];
@@ -225,13 +326,68 @@
         });
       }
 
+      function pipStatsFromUi() {
+        return pipRowOrder.filter((k) => pipEnabled.has(k));
+      }
+
+      function hydratePipBar(stats) {
+        const raw = Array.isArray(stats) ? stats : [];
+        const ordered = raw.filter((k) => BAR_ALL_KEYS.includes(k));
+        pipEnabled = new Set(ordered);
+        const rest = BAR_ALL_KEYS.filter((k) => !ordered.includes(k));
+        pipRowOrder = [...ordered, ...rest];
+      }
+
+      function renderPipBar() {
+        pipBarListEl.innerHTML = '';
+        pipRowOrder.forEach((key, idx) => {
+          const row = document.createElement('div');
+          row.className = 'bar-row';
+          row.draggable = true;
+          row.dataset.idx = String(idx);
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = pipEnabled.has(key);
+          cb.addEventListener('change', () => {
+            if (cb.checked) pipEnabled.add(key);
+            else pipEnabled.delete(key);
+          });
+          const lab = document.createElement('span');
+          lab.textContent = BAR_LABELS[key] || key;
+          const drag = document.createElement('span');
+          drag.className = 'bar-drag';
+          drag.textContent = '⠿';
+          row.appendChild(cb);
+          row.appendChild(lab);
+          row.appendChild(drag);
+          pipBarListEl.appendChild(row);
+        });
+        let dragFrom = null;
+        pipBarListEl.querySelectorAll('.bar-row').forEach((el) => {
+          el.addEventListener('dragstart', (e) => {
+            dragFrom = Number(el.dataset.idx);
+            e.dataTransfer.effectAllowed = 'move';
+          });
+          el.addEventListener('dragover', (e) => e.preventDefault());
+          el.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const to = Number(el.dataset.idx);
+            if (dragFrom == null || dragFrom === to) return;
+            const next = pipRowOrder.slice();
+            const [m] = next.splice(dragFrom, 1);
+            next.splice(to, 0, m);
+            pipRowOrder = next;
+            renderPipBar();
+          });
+        });
+      }
+
       document.getElementById('add-custom').addEventListener('click', () => {
         customRows.push({ label: '', path: '' });
         renderCustom();
       });
 
-      async function load() {
-        errEl.textContent = '';
+      async function loadShortcuts() {
         const data = await window.gamePanelConfig.getConfig();
         catalog = data.catalog || [];
         const stored = data.stored;
@@ -242,6 +398,46 @@
         renderPresets();
         renderCustom();
       }
+
+      async function loadPipBar() {
+        const data = await window.gamePanelConfig.getPipBarConfig();
+        const stats =
+          data.stats && data.stats.length ? data.stats : data.defaults;
+        hydratePipBar(stats);
+        renderPipBar();
+      }
+
+      async function load() {
+        errEl.textContent = '';
+        await loadShortcuts();
+      }
+
+      function setTab(which) {
+        document
+          .getElementById('tab-shortcuts')
+          .classList.toggle('visible', which === 'shortcuts');
+        document
+          .getElementById('tab-pip')
+          .classList.toggle('visible', which === 'pip');
+        document
+          .getElementById('tab-btn-shortcuts')
+          .classList.toggle('active', which === 'shortcuts');
+        document
+          .getElementById('tab-btn-pip')
+          .classList.toggle('active', which === 'pip');
+        if (which === 'pip' && pipBarListEl.children.length === 0) {
+          loadPipBar();
+        }
+      }
+
+      document
+        .getElementById('tab-btn-shortcuts')
+        .addEventListener('click', () => {
+          setTab('shortcuts');
+        });
+      document.getElementById('tab-btn-pip').addEventListener('click', () => {
+        setTab('pip');
+      });
 
       document.getElementById('save').addEventListener('click', async () => {
         errEl.textContent = '';
@@ -258,13 +454,46 @@
         errEl.textContent = '';
         const res = await window.gamePanelConfig.reset();
         if (res && res.ok) {
-          await load();
+          await loadShortcuts();
         } else {
           errEl.textContent = (res && res.error) || 'Could not reset.';
         }
       });
 
       document.getElementById('cancel').addEventListener('click', () => {
+        window.close();
+      });
+
+      document
+        .getElementById('save-pip-bar')
+        .addEventListener('click', async () => {
+          errEl.textContent = '';
+          const stats = pipStatsFromUi();
+          if (stats.length === 0) {
+            errEl.textContent = 'Enable at least one stat.';
+            return;
+          }
+          const res = await window.gamePanelConfig.setPipBarConfig(stats);
+          if (res && res.ok) {
+            errEl.textContent = 'Saved.';
+          } else {
+            errEl.textContent = (res && res.error) || 'Could not save.';
+          }
+        });
+
+      document
+        .getElementById('reset-pip-bar')
+        .addEventListener('click', async () => {
+          errEl.textContent = '';
+          const res = await window.gamePanelConfig.resetPipBarStats();
+          if (res && res.ok) {
+            await loadPipBar();
+          } else {
+            errEl.textContent = (res && res.error) || 'Could not reset.';
+          }
+        });
+
+      document.getElementById('cancel-pip').addEventListener('click', () => {
         window.close();
       });
 

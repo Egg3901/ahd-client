@@ -83,34 +83,32 @@ describe('PipManager', () => {
     });
   });
 
-  describe('updateGameState()', () => {
+  describe('updateBarState()', () => {
     it('merges state fields — only provided fields change', () => {
       const pip = new PipManager(makeMockWindow());
-      // Set initial known state
-      pip.gameState = {
+      pip.barState = {
         currentDate: '1861-01-01',
         nextTurnIn: '2h',
         actionPoints: 5,
       };
 
-      pip.updateGameState({ currentDate: '1862-06-01' });
+      pip.updateBarState({ currentDate: '1862-06-01' });
 
-      expect(pip.gameState.currentDate).toBe('1862-06-01');
-      // Other fields unchanged
-      expect(pip.gameState.nextTurnIn).toBe('2h');
-      expect(pip.gameState.actionPoints).toBe(5);
+      expect(pip.barState.currentDate).toBe('1862-06-01');
+      expect(pip.barState.nextTurnIn).toBe('2h');
+      expect(pip.barState.actionPoints).toBe(5);
     });
 
     it('merges multiple fields at once', () => {
       const pip = new PipManager(makeMockWindow());
-      pip.updateGameState({
+      pip.updateBarState({
         currentDate: '1863-03-01',
         nextTurnIn: '5h',
         actionPoints: 10,
       });
-      expect(pip.gameState.currentDate).toBe('1863-03-01');
-      expect(pip.gameState.nextTurnIn).toBe('5h');
-      expect(pip.gameState.actionPoints).toBe(10);
+      expect(pip.barState.currentDate).toBe('1863-03-01');
+      expect(pip.barState.nextTurnIn).toBe('5h');
+      expect(pip.barState.actionPoints).toBe(10);
     });
   });
 

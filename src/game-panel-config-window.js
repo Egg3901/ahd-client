@@ -24,7 +24,7 @@ function openGamePanelConfigWindow(opts) {
     minWidth: 360,
     minHeight: 400,
     show: false,
-    title: 'Game panel shortcuts',
+    title: 'Game menu & PiP',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'game-panel-config-preload.js'),

@@ -9,7 +9,7 @@ const activeGameUrl = require('./active-game-url');
  *  - Immediate fetch when start() is called (first load)
  *  - On-demand via poll() — call this after turn_complete,
  *    action_points_refreshed, and campaign_update SSE events
- *  - Fallback every 60 s so the turn-countdown timer stays accurate
+ *  - Fallback every 10 s so the turn-countdown timer stays accurate
  *    even if SSE events are missed
  *
  * Authentication: uses the persist:ahd session partition so the game's
@@ -27,14 +27,14 @@ class DashboardPoller {
     this._callback = null;
     /** @type {NodeJS.Timeout|null} */
     this._interval = null;
-    /** @type {number} Fallback poll period in ms */
-    this._POLL_MS = 60_000;
+    /** @type {number} Fallback poll period in ms (spec: 10s for dashboard bar) */
+    this._POLL_MS = 10_000;
   }
 
   // ── Lifecycle ──
 
   /**
-   * Start polling. Fires immediately, then every 60 s.
+   * Start polling. Fires immediately, then every 10 s.
    * @param {function(object): void} callback - receives mapped gameState object
    */
   start(callback) {
@@ -173,6 +173,9 @@ class DashboardPoller {
     // ── Funds & income ───────────────────────────────────────────────────
     if (ch) {
       out.funds = ch.funds ?? null;
+      if (ch.nationalInfluence != null)
+        out.nationalInfluence = ch.nationalInfluence;
+      if (ch.hasCorp === true || ch.hasCorp === false) out.hasCorp = ch.hasCorp;
       if (ch.cashOnHand != null) out.cashOnHand = ch.cashOnHand;
       if (ch.portfolioValue != null) out.portfolioValue = ch.portfolioValue;
       if (ch.portfolioChangePercent != null)

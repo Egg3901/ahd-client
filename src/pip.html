@@ -8,7 +8,6 @@
         padding: 0;
         box-sizing: border-box;
       }
-
       :root {
         --bg-top: #222238;
         --bg-bottom: #12121f;
@@ -20,22 +19,18 @@
         --green: #5cbf63;
         --amber: #ffb04a;
         --red: #f05a5a;
-        --warn: #ff7a45;
         --radius-shell: 14px;
         --radius-card: 10px;
-        --radius-pill: 999px;
         --radius-sm: 6px;
         --shadow-shell:
           0 12px 40px rgba(0, 0, 0, 0.55),
           0 0 0 1px rgba(201, 169, 89, 0.07) inset;
       }
-
       html {
         background: transparent;
         height: 100%;
         overflow: hidden;
       }
-
       body {
         height: 100%;
         margin: 0;
@@ -49,14 +44,14 @@
         user-select: none;
         cursor: default;
       }
-
-      .pip-shell {
+      .pip-root {
+        container-type: inline-size;
+        container-name: piproot;
         flex: 1;
         display: flex;
         flex-direction: column;
         min-height: 0;
-        padding: 10px 12px 8px;
-        gap: 0;
+        padding: 8px 10px 6px;
         border-radius: var(--radius-shell);
         border: 1px solid var(--border);
         background: linear-gradient(
@@ -67,930 +62,510 @@
         box-shadow: var(--shadow-shell);
         overflow: hidden;
       }
-
-      .pip-header {
+      .pip-titlebar {
         flex-shrink: 0;
-        -webkit-app-region: drag;
-      }
-
-      .pip-scroll {
-        flex: 1;
-        min-height: 0;
-        overflow-x: hidden;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 8px;
-        padding-right: 2px;
-        -webkit-app-region: no-drag;
-      }
-
-      .no-drag,
-      button {
-        -webkit-app-region: no-drag;
-      }
-
-      /* ── Header ── */
-      .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        -webkit-app-region: drag;
+        margin-bottom: 6px;
       }
-
-      .title {
+      .pip-title {
         font-size: 9px;
         color: var(--gold);
         text-transform: uppercase;
-        letter-spacing: 0.18em;
+        letter-spacing: 0.14em;
         font-weight: 600;
       }
-
-      .header-btns {
+      .pip-titlebar-btns {
         display: flex;
         gap: 2px;
         -webkit-app-region: no-drag;
       }
-
       .icon-btn {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 26px;
+        min-width: 26px;
         height: 26px;
+        padding: 0 6px;
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: var(--radius-sm);
         color: var(--dim);
         cursor: pointer;
-        font-size: 14px;
+        font-size: 11px;
         line-height: 1;
-        padding: 0;
         transition:
           background 0.15s ease,
-          color 0.15s ease,
-          border-color 0.15s ease;
+          color 0.15s ease;
       }
-
       .icon-btn:hover {
         background: rgba(201, 169, 89, 0.12);
         border-color: rgba(201, 169, 89, 0.25);
         color: var(--gold);
       }
-
       .icon-btn.close:hover {
         background: rgba(240, 90, 90, 0.15);
-        border-color: rgba(240, 90, 90, 0.35);
         color: var(--red);
       }
-
-      /* ── AP Section ── */
-      .ap-section {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .ap-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .ap-label {
-        font-size: 9px;
-        color: var(--dim);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-
-      .ap-value {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--gold);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .ap-track {
-        height: 7px;
-        background: rgba(0, 0, 0, 0.35);
-        border-radius: var(--radius-pill);
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-      }
-
-      .ap-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--green), var(--gold));
-        border-radius: var(--radius-pill);
-        transition: width 0.4s ease;
-      }
-
-      .ap-tiers {
-        display: flex;
+      .pip-bar {
+        display: grid;
         gap: 4px;
-        flex-wrap: wrap;
-      }
-
-      .ap-tier {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 8px;
-        border-radius: var(--radius-pill);
-        font-size: 9px;
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .ap-tier.t1 {
-        background: rgba(92, 191, 99, 0.14);
-        color: var(--green);
-        border: 1px solid rgba(92, 191, 99, 0.35);
-      }
-
-      .ap-tier.t2 {
-        background: rgba(255, 176, 74, 0.14);
-        color: var(--amber);
-        border: 1px solid rgba(255, 176, 74, 0.35);
-      }
-
-      .ap-tier.t3 {
-        background: rgba(240, 90, 90, 0.14);
-        color: var(--red);
-        border: 1px solid rgba(240, 90, 90, 0.35);
-      }
-
-      .ap-tier.zero {
-        opacity: 0.4;
-      }
-
-      /* ── Stats Row ── */
-      .stats-strip {
-        display: flex;
+        padding: 6px;
         background: rgba(0, 0, 0, 0.22);
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: var(--radius-card);
-        padding: 6px 4px;
-        gap: 2px;
+        margin-bottom: 6px;
+        flex-shrink: 0;
       }
-
-      .stat {
-        flex: 1;
+      @container piproot (min-width: 400px) {
+        .pip-bar {
+          grid-template-columns: repeat(var(--bar-cols, 8), minmax(0, 1fr));
+          grid-template-rows: auto;
+        }
+      }
+      @container piproot (max-width: 399px) {
+        .pip-bar {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-rows: auto auto;
+        }
+      }
+      .pip-stat {
         text-align: center;
-        cursor: pointer;
-        padding: 4px 2px;
+        padding: 3px 2px;
         border-radius: var(--radius-sm);
-        transition: background 0.15s ease;
+        cursor: pointer;
+        min-width: 0;
       }
-
-      .stat:hover {
+      .pip-stat:hover {
         background: rgba(255, 255, 255, 0.06);
       }
-
-      .stat-value {
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--gold);
-        line-height: 1.25;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .stat-label {
-        font-size: 8px;
-        color: var(--dim);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-top: 1px;
-      }
-
-      .income-badge {
-        font-size: 8px;
-        display: block;
-        line-height: 1.2;
-        font-variant-numeric: tabular-nums;
-      }
-
-      /* ── Portfolio + cash (compact) ── */
-      .fin-strip {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-      }
-
-      .fin-card {
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: var(--radius-card);
-        padding: 6px 8px;
-        cursor: pointer;
-        transition: background 0.15s ease;
-      }
-
-      .fin-card:hover {
-        background: rgba(255, 255, 255, 0.05);
-      }
-
-      .fin-title {
-        font-size: 8px;
-        color: var(--dim);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 3px;
-      }
-
-      .fin-val {
+      .pip-stat-val {
         font-size: 12px;
         font-weight: 700;
         color: var(--gold);
         font-variant-numeric: tabular-nums;
         line-height: 1.2;
-      }
-
-      .fin-pct {
-        font-size: 9px;
-        font-weight: 600;
-        margin-top: 3px;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .fin-pct.muted {
-        color: rgba(139, 139, 184, 0.55);
-      }
-
-      .fin-pct.up {
-        color: var(--green);
-      }
-
-      .fin-pct.down {
-        color: var(--red);
-      }
-
-      .fin-pct.flat {
-        color: var(--dim);
-      }
-
-      /* ── Info strip (mail, election ETA, candidate) ── */
-      .info-strip {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 4px;
-      }
-
-      .info-cell {
-        background: rgba(0, 0, 0, 0.18);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: var(--radius-sm);
-        padding: 5px 6px;
-        text-align: center;
-      }
-
-      .info-label {
-        font-size: 7px;
-        color: var(--dim);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 2px;
-      }
-
-      .info-val {
-        font-size: 10px;
-        font-weight: 700;
-        color: var(--text);
-        font-variant-numeric: tabular-nums;
-        line-height: 1.2;
-      }
-
-      .info-val.muted {
-        color: rgba(139, 139, 184, 0.65);
-        font-weight: 600;
-      }
-
-      .info-val.hot {
-        color: var(--gold);
-      }
-
-      .info-val.mail-unread {
-        color: var(--amber);
-      }
-
-      /* ── Decay Row ── */
-      .decay-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        flex-shrink: 0;
-      }
-
-      .decay-stats {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .decay-stat {
-        font-size: 9px;
-        color: var(--dim);
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .decay-stat .val {
-        color: var(--text);
-        font-weight: 600;
-      }
-
-      .d-ok {
-        color: var(--green);
-      }
-
-      .d-warn {
-        color: var(--warn);
-      }
-
-      .d-danger {
-        color: var(--red);
-      }
-
-      .election-chip {
-        font-size: 9px;
-        color: var(--gold);
-        background: rgba(201, 169, 89, 0.12);
-        border: 1px solid var(--border-strong);
-        border-radius: var(--radius-pill);
-        padding: 3px 9px;
         white-space: nowrap;
-        font-variant-numeric: tabular-nums;
-        flex-shrink: 0;
-        max-width: 52%;
         overflow: hidden;
         text-overflow: ellipsis;
       }
-
-      .election-chip.candidate {
-        border-color: rgba(92, 191, 99, 0.45);
-        background: rgba(92, 191, 99, 0.1);
+      .pip-stat-lab {
+        font-size: 7px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 1px;
       }
-
-      /* ── Expanded Content ── */
-      .expanded-content {
-        display: none;
-        flex-direction: column;
-        gap: 8px;
+      .pip-body {
+        flex: 1;
         min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-app-region: no-drag;
+        padding-right: 2px;
       }
-
-      .expanded-content.visible {
-        display: flex;
+      @container piproot (min-width: 560px) {
+        .pip-custom-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
       }
-
-      .divider {
-        height: 1px;
-        background: linear-gradient(
-          90deg,
-          transparent,
-          var(--border) 12%,
-          var(--border) 88%,
-          transparent
-        );
-        margin: 0 -2px;
+      @container piproot (min-width: 400px) {
+        .pip-view-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
       }
-
-      .section {
+      .pip-view-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .pip-panel {
+        background: rgba(0, 0, 0, 0.18);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: var(--radius-card);
-        background: rgba(0, 0, 0, 0.18);
-        padding: 8px 10px;
+        padding: 8px;
       }
-
-      .section-title {
+      .pip-panel h3 {
         font-size: 8px;
         color: var(--dim);
         text-transform: uppercase;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.1em;
         margin-bottom: 6px;
         font-weight: 600;
       }
-
-      .wallet-grid {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 4px 10px;
+      .pip-muted {
+        color: var(--dim);
         font-size: 10px;
-        align-items: baseline;
       }
-
-      .wallet-grid .wk-label {
-        color: var(--dim);
+      .pip-skel {
+        height: 10px;
+        border-radius: 4px;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.04),
+          rgba(255, 255, 255, 0.09),
+          rgba(255, 255, 255, 0.04)
+        );
+        background-size: 200% 100%;
+        animation: sk 1.1s ease-in-out infinite;
+        margin-bottom: 6px;
       }
-
-      .wallet-grid .wk-val {
-        font-weight: 700;
-        color: var(--gold);
-        font-variant-numeric: tabular-nums;
-        text-align: right;
+      @keyframes sk {
+        0% {
+          background-position: 100% 0;
+        }
+        100% {
+          background-position: -100% 0;
+        }
       }
-
-      .wk-pct {
-        font-size: 9px;
-        font-weight: 600;
-        text-align: right;
-        min-width: 3.25rem;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .wk-pct.muted {
-        color: rgba(139, 139, 184, 0.55);
-      }
-
-      .wk-pct.up {
-        color: var(--green);
-      }
-
-      .wk-pct.down {
-        color: var(--red);
-      }
-
-      .wk-pct.flat {
-        color: var(--dim);
-      }
-
-      /* Income grid */
-      .income-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4px 10px;
-        font-size: 9px;
-      }
-
-      .income-item {
-        color: var(--dim);
+      .pip-footer {
+        flex-shrink: 0;
         display: flex;
-        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 6px;
+        font-size: 9px;
+        color: rgba(139, 139, 184, 0.75);
+        -webkit-app-region: no-drag;
+      }
+      .pip-footer a,
+      .pip-footer button.link {
+        background: none;
+        border: none;
+        color: var(--gold);
+        cursor: pointer;
+        font: inherit;
+        text-decoration: underline;
+        padding: 0;
+      }
+      .pip-footer a:hover,
+      .pip-footer button.link:hover {
+        color: #e0c978;
+      }
+      .pip-badge {
+        display: inline-block;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: rgba(92, 191, 99, 0.12);
+        border: 1px solid rgba(92, 191, 99, 0.35);
+        color: var(--green);
+        margin: 2px 4px 2px 0;
+      }
+      .pip-badge.warn {
+        background: rgba(255, 122, 69, 0.12);
+        border-color: rgba(255, 122, 69, 0.35);
+        color: #ff7a45;
+      }
+      .pip-list {
+        font-size: 10px;
+        line-height: 1.35;
+        color: var(--text);
+      }
+      .pip-list li {
+        margin-bottom: 4px;
+        list-style: none;
+      }
+      .pip-table {
+        width: 100%;
+        font-size: 9px;
+        border-collapse: collapse;
+      }
+      .pip-table th,
+      .pip-table td {
+        padding: 3px 4px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .pip-custom-grid {
+        display: grid;
+        grid-template-columns: 1fr;
         gap: 6px;
       }
-
-      .ival {
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
+      .pip-custom-tile {
+        position: relative;
+        min-height: 48px;
       }
-
-      .pos {
-        color: var(--green);
+      .pip-custom-tile.edit {
+        outline: 1px dashed rgba(201, 169, 89, 0.35);
       }
-
-      .neg {
+      .pip-drag {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        cursor: grab;
+        color: var(--dim);
+        font-size: 12px;
+      }
+      .pip-rm {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 20px;
+        height: 20px;
+        border: none;
+        background: rgba(240, 90, 90, 0.15);
         color: var(--red);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 1;
       }
-
-      .income-net {
+      .pip-add-slot {
+        border: 1px dashed rgba(255, 255, 255, 0.15);
+        border-radius: var(--radius-card);
+        padding: 12px;
+        text-align: center;
+        color: var(--dim);
+        cursor: pointer;
         font-size: 10px;
-        font-weight: 700;
-        color: var(--gold);
-        margin-top: 6px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        padding-top: 5px;
-        font-variant-numeric: tabular-nums;
       }
-
-      .action-grid {
+      .pip-add-slot:hover {
+        border-color: rgba(201, 169, 89, 0.35);
+        color: var(--gold);
+      }
+      .pip-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        padding: 12px;
+      }
+      .pip-overlay.open {
+        display: flex;
+      }
+      .pip-overlay-inner {
+        background: var(--bg-top);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-card);
+        max-height: 80%;
+        overflow: auto;
+        padding: 10px;
+        min-width: 200px;
+      }
+      .pip-overlay-inner button.row {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 8px;
+        margin-bottom: 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 11px;
+      }
+      .pip-overlay-inner button.row:hover {
+        background: rgba(201, 169, 89, 0.12);
+      }
+      .pip-country-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 4px 8px;
-        font-size: 9px;
+        gap: 6px;
       }
-
-      .action-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 4px 6px;
+      .pip-country-cell {
+        padding: 6px;
         border-radius: var(--radius-sm);
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(0, 0, 0, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.06);
-      }
-
-      .action-item .an {
-        color: var(--dim);
-      }
-
-      .action-item .ac {
-        font-weight: 700;
-        color: var(--gold);
-        font-variant-numeric: tabular-nums;
-      }
-
-      /* Decay detail */
-      .decay-detail {
-        display: flex;
-        justify-content: space-around;
-        gap: 4px;
-      }
-
-      .dd-item {
-        text-align: center;
-        flex: 1;
-      }
-
-      .dd-val {
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--gold);
-        display: block;
-        line-height: 1.25;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .dd-label {
-        font-size: 8px;
-        color: var(--dim);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-      }
-
-      .dd-next {
-        font-size: 8px;
-        color: rgba(139, 139, 184, 0.9);
-        margin-top: 2px;
-        min-height: 14px;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .dd-warning {
-        font-size: 8px;
-        margin-top: 2px;
-        min-height: 12px;
-      }
-
-      /* Election detail */
-      .election-detail .edate {
-        font-weight: 700;
-        color: var(--gold);
-        display: block;
-        margin-bottom: 2px;
-      }
-
-      .election-detail .ecountdown {
         font-size: 9px;
-        color: var(--dim);
       }
-
-      .election-detail .ecand {
-        font-size: 8px;
-        color: var(--green);
-        margin-top: 4px;
-        font-weight: 600;
+      .pip-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+        vertical-align: middle;
       }
-
-      /* ── Toggle hint ── */
-      .toggle-hint {
-        text-align: center;
-        font-size: 8px;
-        color: rgba(139, 139, 184, 0.55);
-        cursor: pointer;
+      .no-drag,
+      button {
         -webkit-app-region: no-drag;
-        padding: 6px 0 0;
-        line-height: 1.3;
-        letter-spacing: 0.04em;
-        border-radius: var(--radius-sm);
-        transition:
-          color 0.15s ease,
-          background 0.15s ease;
-        flex-shrink: 0;
-        margin-top: 2px;
       }
-
-      .toggle-hint:hover {
-        color: var(--dim);
-        background: rgba(255, 255, 255, 0.04);
+      .pip-click {
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+      }
+      .pip-click:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .pip-feed-row {
+        padding: 5px 4px;
+        margin: 0 -4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        cursor: pointer;
+        list-style: none;
+      }
+      .pip-feed-row:last-child {
+        border-bottom: none;
+      }
+      .pip-feed-row:hover {
+        color: var(--gold);
+      }
+      .pip-pct {
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .pip-pct.up {
+        color: var(--green);
+      }
+      .pip-pct.down {
+        color: var(--red);
+      }
+      .pip-turn-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(201, 169, 89, 0.15);
+        border: 1px solid rgba(201, 169, 89, 0.35);
+        color: var(--gold);
+        font-weight: 700;
+        font-size: 10px;
       }
     </style>
   </head>
   <body>
-    <div class="pip-shell">
-      <div class="pip-header">
-        <div class="header">
-          <span class="title">A House Divided</span>
-          <div class="header-btns">
-            <button class="icon-btn" onclick="openMain()" title="Open full app">
-              ⊞
-            </button>
-            <button
-              class="icon-btn close"
-              onclick="window.close()"
-              title="Close"
-            >
-              ×
-            </button>
-          </div>
+    <div class="pip-root" id="pip-root">
+      <div class="pip-titlebar">
+        <span class="pip-title">A House Divided</span>
+        <div class="pip-titlebar-btns">
+          <button
+            type="button"
+            class="icon-btn"
+            id="btn-view-cycle"
+            title="Cycle view"
+          >
+            Standard ▸
+          </button>
+          <button
+            type="button"
+            class="icon-btn"
+            onclick="openMain()"
+            title="Open full app"
+          >
+            ⊞
+          </button>
+          <button
+            type="button"
+            class="icon-btn close"
+            onclick="window.close()"
+            title="Close"
+          >
+            ×
+          </button>
         </div>
       </div>
 
-      <div class="pip-scroll">
-        <!-- AP Section -->
-        <div class="ap-section">
-          <div class="ap-header">
-            <span class="ap-label">Action Points</span>
-            <span class="ap-value" id="ap-value">— AP</span>
-          </div>
-          <div class="ap-track">
-            <div class="ap-fill" id="ap-fill" style="width: 0%"></div>
-          </div>
-          <div class="ap-tiers" id="ap-tiers"></div>
-        </div>
+      <div class="pip-bar" id="pip-bar" style="--bar-cols: 8"></div>
 
-        <!-- Core Stats Row -->
-        <div class="stats-strip">
-          <div class="stat" onclick="openMain()">
-            <div class="stat-value" id="date">—</div>
-            <div class="stat-label">Date</div>
-          </div>
-          <div class="stat" onclick="openMain()">
-            <div class="stat-value" id="timer">—</div>
-            <div class="stat-label">Next Turn</div>
-          </div>
-          <div class="stat no-drag" onclick="toggleExpanded()">
-            <div class="stat-value" id="funds">—</div>
-            <span class="income-badge" id="income-badge"></span>
-            <div class="stat-label">Funds</div>
-          </div>
-        </div>
+      <div class="pip-body" id="pip-body"></div>
 
-        <!-- Portfolio + cash (values & % chg) -->
-        <div class="fin-strip">
-          <div class="fin-card" onclick="openMain()">
-            <div class="fin-title">Portfolio</div>
-            <div class="fin-val" id="fin-portfolio-val">—</div>
-            <div class="fin-pct muted" id="fin-portfolio-pct">—</div>
-          </div>
-          <div class="fin-card" onclick="openMain()">
-            <div class="fin-title">Cash on hand</div>
-            <div class="fin-val" id="fin-cash-val">—</div>
-            <div class="fin-pct muted" id="fin-cash-pct">—</div>
-          </div>
-        </div>
-
-        <!-- Mail / election clock / running -->
-        <div class="info-strip">
-          <div class="info-cell">
-            <div class="info-label">Unread mail</div>
-            <div class="info-val muted" id="info-mail">—</div>
-          </div>
-          <div class="info-cell">
-            <div class="info-label">Election (~h)</div>
-            <div class="info-val muted" id="info-eta">—</div>
-          </div>
-          <div class="info-cell">
-            <div class="info-label">Running</div>
-            <div class="info-val muted" id="info-candidate">—</div>
-          </div>
-        </div>
-
-        <!-- Decay + Election Row -->
-        <div class="decay-row">
-          <div class="decay-stats">
-            <div class="decay-stat">
-              PI <span class="val" id="pi-val">—</span>
-              <span id="pi-ind"></span>
-            </div>
-            <div class="decay-stat">
-              FAV <span class="val" id="fav-val">—</span>
-              <span id="fav-ind"></span>
-            </div>
-            <div class="decay-stat">
-              INF <span class="val" id="inf-val">—</span>
-              <span id="inf-ind"></span>
-            </div>
-          </div>
-          <div class="election-chip" id="election-chip">—</div>
-        </div>
-
-        <!-- Expanded Content -->
-        <div class="expanded-content" id="expanded-content">
-          <div class="divider"></div>
-
-          <!-- Wallet -->
-          <div class="section" id="wallet-section">
-            <div class="section-title">Wallet</div>
-            <div class="wallet-grid">
-              <span class="wk-label">Funds</span>
-              <span class="wk-val" id="wallet-funds">—</span>
-              <span class="wk-pct muted" id="wallet-funds-pct">—</span>
-              <span class="wk-label" id="wallet-cash-label">Cash on hand</span>
-              <span class="wk-val" id="wallet-cash">—</span>
-              <span class="wk-pct muted" id="wallet-cash-pct">—</span>
-              <span class="wk-label">Portfolio</span>
-              <span class="wk-val" id="wallet-portfolio">—</span>
-              <span class="wk-pct muted" id="wallet-portfolio-pct">—</span>
-            </div>
-          </div>
-
-          <!-- Income Breakdown -->
-          <div class="section">
-            <div class="section-title">Income / hr</div>
-            <div class="income-grid">
-              <div class="income-item">
-                Base <span class="ival pos" id="inc-base">—</span>
-              </div>
-              <div class="income-item">
-                Donors <span class="ival pos" id="inc-donors">—</span>
-              </div>
-              <div class="income-item">
-                Salary <span class="ival pos" id="inc-salary">—</span>
-              </div>
-              <div class="income-item" id="row-party-combined">
-                Party tax <span class="ival neg" id="inc-tax">—</span>
-              </div>
-              <div class="income-item" id="row-state-tax" style="display: none">
-                State tax <span class="ival neg" id="inc-state-tax">—</span>
-              </div>
-              <div class="income-item" id="row-nat-tax" style="display: none">
-                National tax <span class="ival neg" id="inc-nat-tax">—</span>
-              </div>
-            </div>
-            <div class="income-net" id="income-net">Net: —</div>
-          </div>
-
-          <!-- Action costs -->
-          <div class="section">
-            <div class="section-title">Action costs (AP)</div>
-            <div class="action-grid" id="action-cost-grid"></div>
-          </div>
-
-          <!-- Stat Detail with Decay Warnings -->
-          <div class="section">
-            <div class="section-title">Stats</div>
-            <div class="decay-detail">
-              <div class="dd-item">
-                <span class="dd-val" id="pi-detail">—</span>
-                <span class="dd-label">Pol. Influence</span>
-                <div class="dd-next" id="pi-next"></div>
-                <div class="dd-warning" id="pi-warning"></div>
-              </div>
-              <div class="dd-item">
-                <span class="dd-val" id="fav-detail">—</span>
-                <span class="dd-label">Favorability</span>
-                <div class="dd-next" id="fav-next"></div>
-                <div class="dd-warning" id="fav-warning"></div>
-              </div>
-              <div class="dd-item">
-                <span class="dd-val" id="inf-detail">—</span>
-                <span class="dd-label">Infamy</span>
-                <div class="dd-next" id="inf-next"></div>
-                <div class="dd-warning" id="inf-warning"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Election Detail -->
-          <div class="section" id="election-section">
-            <div class="section-title">Next Election</div>
-            <div class="election-detail">
-              <span class="edate" id="election-name">—</span>
-              <span class="ecountdown" id="election-countdown"></span>
-              <div
-                class="ecand"
-                id="election-cand-line"
-                style="display: none"
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Toggle Hint -->
-      <div class="toggle-hint" id="toggle-hint" onclick="toggleExpanded()">
-        ▼ details
+      <div class="pip-footer" id="pip-footer">
+        <button type="button" class="link" id="link-bar-config">
+          ✦ customize bar
+        </button>
+        <button type="button" class="link" id="link-edit-custom" hidden>
+          edit layout
+        </button>
       </div>
     </div>
 
-    <script>
-      let expanded = false;
+    <div class="pip-overlay" id="pip-picker">
+      <div class="pip-overlay-inner">
+        <div
+          style="
+            font-size: 10px;
+            color: var(--dim);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+          "
+        >
+          Add panel
+        </div>
+        <div id="pip-picker-list"></div>
+        <button
+          type="button"
+          class="row"
+          style="margin-top: 8px"
+          id="pip-picker-close"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
 
-      let state = {
-        currentDate: null,
-        nextTurnIn: null,
-        actionPoints: null,
-        maxActionPoints: 15,
-        funds: null,
-        cashOnHand: null,
-        portfolioValue: null,
-        portfolioChangePercent: null,
-        cashOnHandChangePercent: null,
-        projectedIncome: null,
-        incomeBreakdown: null,
-        politicalInfluence: null,
-        politicalInfluenceDecayWarning: false,
-        politicalInfluenceProjected: null,
-        politicalInfluenceDecaying: false,
-        favorability: null,
-        favorabilityDecayWarning: false,
-        favorabilityProjected: null,
-        favorabilityDecaying: false,
-        infamy: null,
-        infamyDecayWarning: false,
-        electionDate: null,
-        electionName: null,
-        electionIsCandidate: false,
-        turnsUntilElection: null,
-        unreadMailCount: null,
-        actionCosts: {
-          fundraise: 1,
-          advertise: 2,
-          donorBuild: 3,
-          poll: 1,
-          campaign: 2,
-        },
+    <script src="pip-labels.js"></script>
+    <script src="format-compact-number.js"></script>
+    <script>
+      const VIEW_LABELS = {
+        standard: 'Standard',
+        corp: 'Corp',
+        elections: 'Elections',
+        global: 'Global',
+        custom: 'Custom',
       };
 
-      const ACTION_ORDER = [
-        ['fundraise', 'Fundraise'],
-        ['advertise', 'Advertise'],
-        ['donorBuild', 'Donor build'],
-        ['poll', 'Poll'],
-        ['campaign', 'Campaign'],
+      const PANEL_LABELS = {
+        'my-status': 'My Status',
+        'my-election': 'My Race',
+        'decay-stats': 'Decay Stats',
+        'income-breakdown': 'Income',
+        notifications: 'Notifications',
+        legislature: 'Legislature',
+        'elections-feed': 'Elections Feed',
+        'my-corp': 'My Corp',
+        commodities: 'Commodities',
+        'top-corps': 'Top Corps',
+        'country-snapshot': 'Countries',
+        crises: 'Crises',
+        'mail-count': 'Mail',
+        'portfolio-value': 'Portfolio',
+      };
+
+      const BAR_LABELS = {
+        ap: 'AP',
+        funds: 'Funds',
+        cash: 'Cash',
+        portfolio: 'Port',
+        pi: 'PI',
+        fav: 'FAV',
+        nationalInfluence: 'Natl PI',
+        turn: 'Turn',
+      };
+
+      let bar = {};
+      let views = {
+        standard: null,
+        corp: null,
+        elections: null,
+        global: null,
+        custom: null,
+      };
+      let activeView = 'standard';
+      let barStats = [
+        'ap',
+        'funds',
+        'cash',
+        'portfolio',
+        'pi',
+        'fav',
+        'nationalInfluence',
+        'turn',
       ];
-
-      /** Previous snapshot for session % delta when the API omits change fields. */
-      let _prevPortfolioVal = null;
-      let _prevCashOnHand = null;
-
-      /** Effective % after computeFinancePct() — used by compact strip + expanded wallet. */
-      let lastFinancePct = { port: null, cash: null };
-
-      function toFiniteNum(v) {
-        if (v == null || v === '') return null;
-        const n = Number(v);
-        return Number.isFinite(n) ? n : null;
-      }
-
-      function computeFinancePct() {
-        const pv = state.portfolioValue;
-        const cash = state.cashOnHand;
-        const sp = toFiniteNum(state.portfolioChangePercent);
-        const sc = toFiniteNum(state.cashOnHandChangePercent);
-
-        let portPct = null;
-        let cashPct = null;
-
-        if (sp != null) portPct = sp;
-        else if (
-          pv != null &&
-          _prevPortfolioVal != null &&
-          _prevPortfolioVal !== 0
-        ) {
-          portPct = ((pv - _prevPortfolioVal) / _prevPortfolioVal) * 100;
-        }
-
-        if (sc != null) cashPct = sc;
-        else if (
-          cash != null &&
-          _prevCashOnHand != null &&
-          _prevCashOnHand !== 0
-        ) {
-          cashPct = ((cash - _prevCashOnHand) / _prevCashOnHand) * 100;
-        }
-
-        _prevPortfolioVal = pv;
-        _prevCashOnHand = cash;
-
-        lastFinancePct = { port: portPct, cash: cashPct };
-        return lastFinancePct;
-      }
-
-      /**
-       * @param {string} id
-       * @param {number|null} pct
-       * @param {string} baseClass - 'fin-pct' or 'wk-pct'
-       */
-      function paintPct(id, pct, baseClass) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (pct == null || Number.isNaN(pct)) {
-          el.textContent = '—';
-          el.className = baseClass + ' muted';
-          return;
-        }
-        const r = Math.round(pct * 100) / 100;
-        const sign = r > 0 ? '+' : '';
-        el.textContent = sign + r + '%';
-        let tier = 'flat';
-        if (r > 0) tier = 'up';
-        else if (r < 0) tier = 'down';
-        el.className = baseClass + ' ' + tier;
-      }
-
-      function renderFinanceStrip() {
-        document.getElementById('fin-portfolio-val').textContent =
-          state.portfolioValue != null ? fmtMoney(state.portfolioValue) : '—';
-        document.getElementById('fin-cash-val').textContent =
-          state.cashOnHand != null ? fmtMoney(state.cashOnHand) : '—';
-        paintPct('fin-portfolio-pct', lastFinancePct.port, 'fin-pct');
-        paintPct('fin-cash-pct', lastFinancePct.cash, 'fin-pct');
-      }
+      let customPanels = [
+        'my-status',
+        'my-election',
+        'notifications',
+        'legislature',
+      ];
+      let customEdit = false;
 
       function rnd(n) {
         if (n == null || Number.isNaN(Number(n))) return null;
@@ -998,21 +573,7 @@
       }
 
       function fmtMoney(n) {
-        const r = rnd(n);
-        return r == null ? '—' : '$' + r.toLocaleString();
-      }
-
-      function fmtSignedMoney(n) {
-        const r = rnd(n);
-        if (r == null) return '—';
-        const sign = r >= 0 ? '+' : '−';
-        return sign + '$' + Math.abs(r).toLocaleString();
-      }
-
-      function fmtMoneyNeg(n) {
-        const r = rnd(n);
-        if (r == null) return '—';
-        return '−$' + Math.abs(r).toLocaleString();
+        return formatMoneyCompact(n);
       }
 
       function fmtStat(n) {
@@ -1020,426 +581,789 @@
         return r == null ? '—' : String(r);
       }
 
-      function fmtProj(current, projected) {
-        if (projected == null) return '';
-        const pc = rnd(projected);
-        const c = rnd(current);
-        if (pc == null) return '';
-        if (c != null && pc === c) return '';
-        return '→ ' + pc;
+      function barValue(key) {
+        switch (key) {
+          case 'ap': {
+            const ap = bar.actionPoints;
+            const max = bar.maxActionPoints ?? 15;
+            if (ap == null) return '—';
+            return `${fmtStat(ap)}/${fmtStat(max)}`;
+          }
+          case 'funds':
+            return bar.funds != null ? fmtMoney(bar.funds) : '—';
+          case 'cash':
+            return bar.cashOnHand != null ? fmtMoney(bar.cashOnHand) : '—';
+          case 'portfolio':
+            return bar.portfolioValue != null
+              ? fmtMoney(bar.portfolioValue)
+              : '—';
+          case 'pi':
+            return fmtStat(bar.politicalInfluence);
+          case 'fav':
+            return fmtStat(bar.favorability);
+          case 'nationalInfluence':
+            return fmtStat(bar.nationalInfluence);
+          case 'turn':
+            return bar.nextTurnIn || '—';
+          default:
+            return '—';
+        }
       }
 
-      // ── Actions ──
+      function renderBar() {
+        const el = document.getElementById('pip-bar');
+        const keys = barStats.filter((k) => BAR_LABELS[k]);
+        el.style.setProperty('--bar-cols', String(Math.max(keys.length, 1)));
+        el.innerHTML = '';
+        keys.forEach((k) => {
+          const d = document.createElement('div');
+          d.className = 'pip-stat';
+          d.onclick = openMain;
+          d.innerHTML =
+            '<div class="pip-stat-val">' +
+            escapeHtml(barValue(k)) +
+            '</div><div class="pip-stat-lab">' +
+            escapeHtml(BAR_LABELS[k]) +
+            '</div>';
+          el.appendChild(d);
+        });
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function skel(n) {
+        let h = '';
+        for (let i = 0; i < n; i++) h += '<div class="pip-skel"></div>';
+        return h;
+      }
+
+      function viewSkeleton() {
+        return '<div class="pip-panel">' + skel(4) + '</div>';
+      }
+
+      function renderBody() {
+        const root = document.getElementById('pip-body');
+        const v = activeView;
+        const loaded = views[v];
+        const showSkel = loaded === null && v !== 'custom';
+
+        document.getElementById('btn-view-cycle').textContent =
+          (VIEW_LABELS[v] || v) + ' ▸';
+
+        document.getElementById('link-edit-custom').hidden =
+          v !== 'custom' || showSkel;
+
+        if (showSkel) {
+          root.innerHTML = viewSkeleton();
+          return;
+        }
+
+        if (v === 'standard') root.innerHTML = renderStandard(views.standard);
+        else if (v === 'corp') root.innerHTML = renderCorp(views.corp);
+        else if (v === 'elections')
+          root.innerHTML = renderElections(views.elections);
+        else if (v === 'global') root.innerHTML = renderGlobal(views.global);
+        else if (v === 'custom') {
+          root.innerHTML = renderCustom();
+          wireCustomView();
+        }
+      }
+
+      function wireCustomView() {
+        document.querySelectorAll('.pip-rm').forEach((b) => {
+          b.onclick = () => removePanel(b.getAttribute('data-panel'));
+        });
+        const add = document.getElementById('pip-add-module');
+        if (add) add.onclick = openPicker;
+        let dragFrom = null;
+        document.querySelectorAll('.pip-drag').forEach((h) => {
+          h.ondragstart = (e) => {
+            dragFrom = Number(h.getAttribute('data-idx'));
+            e.dataTransfer.effectAllowed = 'move';
+          };
+        });
+        document.querySelectorAll('.pip-custom-tile').forEach((tile, idx) => {
+          tile.ondragover = (e) => e.preventDefault();
+          tile.ondrop = (e) => {
+            e.preventDefault();
+            if (dragFrom == null || Number.isNaN(dragFrom)) return;
+            const from = dragFrom;
+            const to = idx;
+            dragFrom = null;
+            if (from === to) return;
+            const next = customPanels.slice();
+            const [m] = next.splice(from, 1);
+            next.splice(to, 0, m);
+            savePanels(next);
+          };
+        });
+      }
+
+      function legislatureSeatsHtml(rec) {
+        if (!rec || typeof rec !== 'object') return '—';
+        return Object.keys(rec)
+          .map((k) => partyLabel(k) + ' ' + rec[k])
+          .join(' · ');
+      }
+
+      function formatPctChange(pct) {
+        if (pct == null || Number.isNaN(Number(pct))) return '—';
+        const n = Number(pct);
+        const cls = n >= 0 ? 'up' : 'down';
+        const sign = n > 0 ? '+' : '';
+        const t = Math.abs(n) >= 10 ? n.toFixed(0) : n.toFixed(1);
+        return '<span class="pip-pct ' + cls + '">' + sign + t + '%</span>';
+      }
+
+      function decayBadge(key, x) {
+        if (!x) return '';
+        const lab =
+          { pi: 'PI', fav: 'FAV', infamy: 'INF' }[key] ||
+          String(key).toUpperCase();
+        const cur = x.current;
+        const proj = x.projected;
+        let arrow = '→';
+        if (proj != null && cur != null) {
+          if (proj > cur) arrow = '↑';
+          else if (proj < cur) arrow = '↓';
+        }
+        const warn = x.isDecaying ? ' warn' : '';
+        return (
+          '<span class="pip-badge' +
+          warn +
+          '">' +
+          lab +
+          ' ' +
+          fmtStat(cur) +
+          ' ' +
+          arrow +
+          ' ' +
+          fmtStat(proj) +
+          '</span>'
+        );
+      }
+
+      function renderStandard(d) {
+        d = d || {};
+        const dec = d.decay || {};
+        const inc = d.income || {};
+        const n = d.notifications || {};
+        let decayHtml = '';
+        ['pi', 'fav', 'infamy'].forEach((k) => {
+          const x = dec[k];
+          if (!x) return;
+          decayHtml += decayBadge(k, x);
+        });
+        const net =
+          inc.netPerTurn != null ? fmtMoney(inc.netPerTurn) + ' / turn' : '—';
+        let recent = '';
+        (n.recent || []).forEach((r) => {
+          recent +=
+            '<li class="pip-feed-row pip-click" data-pip-route="/notifications">' +
+            escapeHtml(r.message || r.type || '') +
+            '</li>';
+        });
+        return (
+          '<div class="pip-view-grid">' +
+          '<div class="pip-panel"><h3>Decay (next turn)</h3>' +
+          (decayHtml || '<p class="pip-muted">No data</p>') +
+          '</div>' +
+          '<div class="pip-panel"><h3>Income</h3><div class="pip-list">Net/turn: <strong style="color:var(--gold)">' +
+          escapeHtml(net) +
+          '</strong></div></div>' +
+          '<div class="pip-panel"><h3>Notifications</h3>' +
+          '<div class="pip-muted" style="margin-bottom:6px">Unread: ' +
+          escapeHtml(String(n.unreadCount ?? '—')) +
+          ' · Mail: ' +
+          escapeHtml(String(n.unreadMailCount ?? '—')) +
+          '</div>' +
+          '<ul class="pip-list" style="padding:0">' +
+          recent +
+          '</ul></div></div>'
+        );
+      }
+
+      function renderCorp(d) {
+        d = d || {};
+        const pc = d.playerCorp;
+        let card =
+          '<p class="pip-muted">No corporation (create one in the full app).</p>';
+        if (pc) {
+          const typeLab =
+            pc.type != null
+              ? corpTypeLabel(String(pc.type))
+              : pc.sector != null
+                ? corpTypeLabel(String(pc.sector))
+                : '';
+          const route =
+            pc.id != null
+              ? '/corporation/' + encodeURIComponent(String(pc.id))
+              : '';
+          const head =
+            '<strong>' +
+            escapeHtml(pc.name || '') +
+            '</strong>' +
+            (typeLab
+              ? '<br/><span class="pip-muted">' +
+                escapeHtml(typeLab) +
+                '</span>'
+              : '') +
+            '<br/>Rev/turn ' +
+            escapeHtml(fmtMoney(pc.revenuePerTurn)) +
+            (pc.tier != null ? ' · Tier ' + escapeHtml(String(pc.tier)) : '') +
+            '<br/>CEO actions: ' +
+            escapeHtml(String(pc.ceoActionsRemaining ?? '—'));
+          card = route
+            ? '<div class="pip-list pip-click" data-pip-route="' +
+              escapeHtml(route) +
+              '">' +
+              head +
+              '</div>'
+            : '<div class="pip-list">' + head + '</div>';
+        }
+        let rows = '';
+        (d.commodities || []).forEach((c) => {
+          const icon = commodityIcon(c.type);
+          rows +=
+            '<tr><td>' +
+            icon +
+            ' ' +
+            escapeHtml(corpTypeLabel(String(c.type || ''))) +
+            '</td><td>' +
+            fmtMoney(c.price) +
+            '</td><td>' +
+            formatPctChange(c.change24h) +
+            '</td></tr>';
+        });
+        let tops = '';
+        (d.topCorps || []).forEach((t) => {
+          const path =
+            t.id != null
+              ? '/corporation/' + encodeURIComponent(String(t.id))
+              : '';
+          const rowClick =
+            path !== ''
+              ? ' class="pip-click" data-pip-route="' + escapeHtml(path) + '"'
+              : '';
+          const nameStyle = t.isPlayerCorp
+            ? ' style="color:var(--gold);font-weight:700"'
+            : '';
+          tops +=
+            '<tr' +
+            rowClick +
+            '><td>#' +
+            escapeHtml(String(t.rank)) +
+            '</td><td' +
+            nameStyle +
+            '>' +
+            escapeHtml(t.name) +
+            '</td><td>' +
+            fmtMoney(t.revenuePerTurn) +
+            '</td></tr>';
+        });
+        return (
+          '<div class="pip-view-grid">' +
+          '<div class="pip-panel"><h3>Your corp</h3>' +
+          card +
+          '</div>' +
+          '<div class="pip-panel"><h3>Commodities</h3>' +
+          '<table class="pip-table"><thead><tr><th>Commodity</th><th>Price</th><th>24h</th></tr></thead><tbody>' +
+          rows +
+          '</tbody></table></div>' +
+          '<div class="pip-panel"><h3>Top corps</h3>' +
+          '<table class="pip-table"><thead><tr><th>#</th><th>Name</th><th>Rev</th></tr></thead><tbody>' +
+          tops +
+          '</tbody></table></div></div>'
+        );
+      }
+
+      function renderElections(d) {
+        d = d || {};
+        const pr = d.playerRace;
+        let race = '<p class="pip-muted">Not running in an active race.</p>';
+        if (pr) {
+          const ends =
+            pr.phase === 'primary' && pr.primaryEndsAt
+              ? pr.primaryEndsAt
+              : pr.endsAt;
+          const cd = formatCountdownTo(ends);
+          const et = electionTypeLabel(String(pr.electionType || ''));
+          const route =
+            pr.electionId != null
+              ? '/elections/' + encodeURIComponent(String(pr.electionId))
+              : '';
+          const inner =
+            '<span class="pip-muted">' +
+            countryFlagEmoji(pr.countryId) +
+            '</span> ' +
+            escapeHtml(et) +
+            ' · ' +
+            escapeHtml(pr.state || '') +
+            '<br/>Phase: ' +
+            escapeHtml(pr.phase) +
+            ' · Rank ' +
+            escapeHtml(pr.position != null ? String(pr.position) : '?') +
+            ' / ' +
+            escapeHtml(String(pr.totalCandidates ?? '—')) +
+            '<br/><span class="pip-muted">Ends in ' +
+            escapeHtml(cd) +
+            '</span>';
+          race = route
+            ? '<div class="pip-list pip-click" data-pip-route="' +
+              escapeHtml(route) +
+              '">' +
+              inner +
+              '</div>'
+            : '<div class="pip-list">' + inner + '</div>';
+        }
+        let feed = '';
+        (d.activeFeed || []).forEach((e) => {
+          const flag = countryFlagEmoji(e.countryId);
+          const et = electionTypeLabel(String(e.electionType || ''));
+          const cd = formatCountdownTo(e.endsAt);
+          const path =
+            e.id != null
+              ? '/elections/' + encodeURIComponent(String(e.id))
+              : '';
+          const row =
+            (path
+              ? '<li class="pip-feed-row pip-click" data-pip-route="' +
+                escapeHtml(path) +
+                '">'
+              : '<li class="pip-feed-row">') +
+            '<span class="pip-muted">' +
+            flag +
+            '</span> ' +
+            escapeHtml(et) +
+            ' · ' +
+            escapeHtml(e.state || '') +
+            '<br/><span class="pip-muted">' +
+            escapeHtml(cd) +
+            '</span></li>';
+          feed += row;
+        });
+        const leg = d.legislature || {};
+        const prim = legislatureSeatsHtml(leg.primary || {});
+        const sec = legislatureSeatsHtml(leg.secondary || {});
+        return (
+          '<div class="pip-view-grid">' +
+          '<div class="pip-panel"><h3>My race</h3>' +
+          race +
+          '</div>' +
+          '<div class="pip-panel"><h3>Active elections</h3><ul class="pip-list" style="padding:0">' +
+          feed +
+          '</ul></div>' +
+          '<div class="pip-panel"><h3>' +
+          escapeHtml(leg.primaryLabel || 'Legislature') +
+          '</h3><div class="pip-muted" style="font-size:9px;line-height:1.4">' +
+          escapeHtml(prim) +
+          '</div>' +
+          (leg.secondaryLabel
+            ? '<h3 style="margin-top:8px">' +
+              escapeHtml(leg.secondaryLabel) +
+              '</h3><div class="pip-muted" style="font-size:9px;line-height:1.4">' +
+              escapeHtml(sec) +
+              '</div>'
+            : '') +
+          '</div></div>'
+        );
+      }
+
+      function renderGlobal(d) {
+        d = d || {};
+        const countries = d.countries || [];
+        let cg = '';
+        countries.forEach((c) => {
+          const cid = String(c.id || '');
+          const route =
+            cid !== ''
+              ? '/country/' + encodeURIComponent(cid.toLowerCase())
+              : '';
+          const seats =
+            (c.dominantSeats != null ? c.dominantSeats : 0) +
+            '/' +
+            (c.totalSeats != null ? c.totalSeats : 0);
+          const inner =
+            '<div style="font-size:10px;margin-bottom:4px">' +
+            '<span class="pip-muted" style="font-size:14px">' +
+            countryFlagEmoji(c.id) +
+            '</span> ' +
+            '<strong>' +
+            escapeHtml(cid) +
+            '</strong></div>' +
+            '<span class="pip-dot" style="background:' +
+            escapeHtml(c.dominantPartyColor || '#888') +
+            '"></span> ' +
+            escapeHtml(
+              c.dominantPartyName ||
+                partyLabel(String(c.dominantParty || '')) ||
+                '—',
+            ) +
+            '<br/><span class="pip-muted">' +
+            escapeHtml(seats) +
+            ' seats · ' +
+            escapeHtml(String(c.activeElections ?? 0)) +
+            ' races</span>';
+          cg +=
+            '<div class="pip-country-cell' +
+            (route ? ' pip-click' : '') +
+            '"' +
+            (route ? ' data-pip-route="' + escapeHtml(route) + '"' : '') +
+            '>' +
+            inner +
+            '</div>';
+        });
+        let cr = '';
+        (d.crises || []).forEach((x) => {
+          cr +=
+            '<li>' +
+            countryFlagEmoji(x.countryId) +
+            ' ' +
+            escapeHtml(x.countryId) +
+            ' · ' +
+            escapeHtml(x.type) +
+            ' <span class="pip-muted">(' +
+            escapeHtml(x.status) +
+            ')</span></li>';
+        });
+        const t = d.turn || {};
+        return (
+          '<div class="pip-view-grid">' +
+          '<div class="pip-panel"><h3>Countries</h3><div class="pip-country-grid">' +
+          cg +
+          '</div></div>' +
+          '<div class="pip-panel"><h3>Crises</h3><ul class="pip-list">' +
+          cr +
+          '</ul></div>' +
+          '<div class="pip-panel"><h3>Turn</h3><div class="pip-list">' +
+          '<span class="pip-turn-badge">Turn ' +
+          escapeHtml(String(t.currentTurn ?? '—')) +
+          '</span> ' +
+          '<span class="pip-muted">Year ' +
+          escapeHtml(String(t.currentYear ?? '—')) +
+          '</span></div></div></div>'
+        );
+      }
+
+      function panelHtml(id) {
+        const bundle = views.custom || {};
+        const st = bundle.standard || views.standard || {};
+        const el = bundle.elections || views.elections || {};
+        const co = bundle.corp || views.corp || {};
+        const gl = bundle.global || views.global || {};
+
+        if (id === 'my-status') {
+          return (
+            '<div class="pip-list">AP ' +
+            barValue('ap') +
+            '<br/>Funds ' +
+            barValue('funds') +
+            '<br/>Mail unread ' +
+            fmtStat(bar.unreadMailCount) +
+            '</div>'
+          );
+        }
+        if (id === 'portfolio-value') {
+          return (
+            '<div class="pip-list">Portfolio ' +
+            barValue('portfolio') +
+            '</div>'
+          );
+        }
+        if (id === 'decay-stats') {
+          const dec = st.decay || {};
+          let h = '';
+          ['pi', 'fav', 'infamy'].forEach((k) => {
+            const x = dec[k];
+            if (!x) return;
+            h += decayBadge(k, x);
+          });
+          return h || '<p class="pip-muted">—</p>';
+        }
+        if (id === 'income-breakdown') {
+          const inc = st.income || {};
+          return (
+            '<div class="pip-list">Net/turn ' +
+            (inc.netPerTurn != null ? fmtMoney(inc.netPerTurn) : '—') +
+            '</div>'
+          );
+        }
+        if (id === 'notifications' || id === 'mail-count') {
+          const n = st.notifications || {};
+          if (id === 'mail-count') {
+            return (
+              '<div class="pip-list">Unread mail: ' +
+              fmtStat(n.unreadMailCount) +
+              '</div>'
+            );
+          }
+          let r = '';
+          (n.recent || []).forEach((x) => {
+            r +=
+              '<li class="pip-feed-row pip-click" data-pip-route="/notifications">' +
+              escapeHtml(x.message || '') +
+              '</li>';
+          });
+          return (
+            '<div class="pip-muted">Unread ' +
+            fmtStat(n.unreadCount) +
+            '</div><ul class="pip-list">' +
+            r +
+            '</ul>'
+          );
+        }
+        if (id === 'my-election') {
+          const pr = el.playerRace;
+          if (!pr) return '<p class="pip-muted">—</p>';
+          const ends =
+            pr.phase === 'primary' && pr.primaryEndsAt
+              ? pr.primaryEndsAt
+              : pr.endsAt;
+          return (
+            '<div class="pip-list">' +
+            countryFlagEmoji(pr.countryId) +
+            ' ' +
+            escapeHtml(electionTypeLabel(String(pr.electionType || ''))) +
+            ' · ' +
+            escapeHtml(pr.state || '') +
+            '<br/>Rank ' +
+            escapeHtml(pr.position != null ? String(pr.position) : '?') +
+            ' / ' +
+            escapeHtml(String(pr.totalCandidates ?? '—')) +
+            '<br/><span class="pip-muted">' +
+            escapeHtml(formatCountdownTo(ends)) +
+            '</span></div>'
+          );
+        }
+        if (id === 'elections-feed') {
+          let h = '<ul class="pip-list">';
+          (el.activeFeed || []).forEach((e) => {
+            h +=
+              '<li>' +
+              escapeHtml(e.electionType || '') +
+              ' · ' +
+              escapeHtml(e.state || '') +
+              '</li>';
+          });
+          h += '</ul>';
+          return h || '<p class="pip-muted">—</p>';
+        }
+        if (id === 'legislature') {
+          const leg = el.legislature || {};
+          return (
+            '<div class="pip-muted" style="font-size:9px">' +
+            escapeHtml(leg.primaryLabel || '') +
+            '<br/>' +
+            escapeHtml(legislatureSeatsHtml(leg.primary || {})) +
+            '</div>'
+          );
+        }
+        if (id === 'my-corp') {
+          const pc = co.playerCorp;
+          if (!pc) return '<p class="pip-muted">—</p>';
+          return (
+            '<div class="pip-list"><strong>' +
+            escapeHtml(pc.name || '') +
+            '</strong><br/>Rev/turn ' +
+            fmtMoney(pc.revenuePerTurn) +
+            '</div>'
+          );
+        }
+        if (id === 'commodities') {
+          let rows = '';
+          (co.commodities || []).forEach((c) => {
+            rows +=
+              '<tr><td>' +
+              commodityIcon(c.type) +
+              ' ' +
+              escapeHtml(corpTypeLabel(String(c.type || ''))) +
+              '</td><td>' +
+              fmtMoney(c.price) +
+              '</td><td>' +
+              formatPctChange(c.change24h) +
+              '</td></tr>';
+          });
+          return (
+            '<table class="pip-table"><thead><tr><th>Commodity</th><th>Price</th><th>24h</th></tr></thead><tbody>' +
+            rows +
+            '</tbody></table>'
+          );
+        }
+        if (id === 'top-corps') {
+          let rows = '';
+          (co.topCorps || []).forEach((t) => {
+            rows +=
+              '<tr><td>#' +
+              escapeHtml(String(t.rank)) +
+              '</td><td>' +
+              escapeHtml(t.name) +
+              '</td></tr>';
+          });
+          return '<table class="pip-table"><tbody>' + rows + '</tbody></table>';
+        }
+        if (id === 'country-snapshot') {
+          let cg = '';
+          (gl.countries || []).forEach((c) => {
+            cg +=
+              '<div style="font-size:9px;margin-bottom:4px"><span class="pip-muted">' +
+              countryFlagEmoji(c.id) +
+              '</span> <strong>' +
+              escapeHtml(c.id) +
+              '</strong> ' +
+              escapeHtml(
+                c.dominantPartyName ||
+                  partyLabel(String(c.dominantParty || '')) ||
+                  '',
+              ) +
+              '</div>';
+          });
+          return cg || '<p class="pip-muted">—</p>';
+        }
+        if (id === 'crises') {
+          let cr = '<ul class="pip-list">';
+          (gl.crises || []).forEach((x) => {
+            cr +=
+              '<li>' +
+              escapeHtml(x.countryId) +
+              ' · ' +
+              escapeHtml(x.type) +
+              '</li>';
+          });
+          cr += '</ul>';
+          return cr;
+        }
+        return '<p class="pip-muted">—</p>';
+      }
+
+      function renderCustom() {
+        let html = '<div class="pip-custom-grid" id="pip-custom-grid">';
+        customPanels.forEach((pid, idx) => {
+          const title = PANEL_LABELS[pid] || pid;
+          const body = panelHtml(pid);
+          html +=
+            '<div class="pip-panel pip-custom-tile' +
+            (customEdit ? ' edit' : '') +
+            '">';
+          if (customEdit) {
+            html +=
+              '<span class="pip-drag" draggable="true" data-idx="' +
+              idx +
+              '">⠿</span>';
+            html +=
+              '<button type="button" class="pip-rm" data-panel="' +
+              escapeHtml(pid) +
+              '">×</button>';
+          }
+          html += '<h3>' + escapeHtml(title) + '</h3>' + body + '</div>';
+        });
+        if (customEdit) {
+          html +=
+            '<div class="pip-add-slot" id="pip-add-module">+ add module</div>';
+        }
+        html += '</div>';
+        return html;
+      }
+
+      function removePanel(id) {
+        savePanels(customPanels.filter((p) => p !== id));
+      }
+
+      function openPicker() {
+        const avail = Object.keys(PANEL_LABELS).filter(
+          (id) => !customPanels.includes(id),
+        );
+        const list = document.getElementById('pip-picker-list');
+        list.innerHTML = '';
+        avail.forEach((id) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'row';
+          b.textContent = PANEL_LABELS[id];
+          b.onclick = () => {
+            savePanels(customPanels.concat([id]));
+            closePicker();
+          };
+          list.appendChild(b);
+        });
+        if (avail.length === 0) {
+          list.innerHTML = '<p class="pip-muted">All panels added.</p>';
+        }
+        document.getElementById('pip-picker').classList.add('open');
+      }
+
+      function closePicker() {
+        document.getElementById('pip-picker').classList.remove('open');
+      }
+
+      async function savePanels(panels) {
+        customPanels = panels;
+        if (window.pipBridge) {
+          await window.pipBridge.saveCustomPanels(panels);
+        }
+        renderBody();
+      }
 
       function openMain() {
         if (window.pipBridge) window.pipBridge.openMain();
       }
 
-      function toggleExpanded() {
-        expanded = !expanded;
-        document
-          .getElementById('expanded-content')
-          .classList.toggle('visible', expanded);
-        document.getElementById('toggle-hint').textContent = expanded
-          ? '▲ collapse'
-          : '▼ details';
-        if (window.pipBridge) window.pipBridge.setExpanded(expanded);
+      async function cycleViewFromUi() {
+        if (window.pipBridge) await window.pipBridge.cycleView();
       }
 
-      // ── Public update entry point (called by pip.js via executeJavaScript) ──
-
-      function updatePip(newState) {
-        Object.assign(state, newState);
-        render();
-      }
-
-      // ── Render ──
-
-      function render() {
-        computeFinancePct();
-        renderAP();
-        renderStats();
-        renderFinanceStrip();
-        renderInfoStrip();
-        renderDecayRow();
-        renderElectionChip();
-        renderExpanded();
-      }
-
-      function renderAP() {
-        const ap = state.actionPoints ?? 0;
-        const maxAp = state.maxActionPoints ?? 15;
-        const apN = state.actionPoints != null ? rnd(state.actionPoints) : 0;
-        const maxN = rnd(maxAp) ?? 15;
-        const pct = maxN > 0 ? Math.min(100, (apN / maxN) * 100) : 0;
-
-        document.getElementById('ap-value').textContent =
-          `${fmtStat(ap)} / ${fmtStat(maxAp)} AP`;
-        document.getElementById('ap-fill').style.width = `${pct}%`;
-
-        const costs = state.actionCosts || {};
-        const ACTIONS = [
-          { name: 'Fundraise', cost: costs.fundraise ?? 1, tier: 1 },
-          { name: 'Advertise', cost: costs.advertise ?? 2, tier: 2 },
-          { name: 'Donor Build', cost: costs.donorBuild ?? 3, tier: 3 },
-          { name: 'Poll', cost: costs.poll ?? 1, tier: 1 },
-          { name: 'Campaign', cost: costs.campaign ?? 2, tier: 2 },
-        ];
-
-        const tiersEl = document.getElementById('ap-tiers');
-        tiersEl.innerHTML = '';
-        ACTIONS.forEach(({ name, cost, tier }) => {
-          const c = rnd(cost) ?? 1;
-          const count = c > 0 ? Math.floor(apN / c) : 0;
-          const el = document.createElement('div');
-          el.className = `ap-tier t${tier}${count === 0 ? ' zero' : ''}`;
-          el.title = `${c} AP each`;
-          el.textContent = `×${count} ${name}`;
-          tiersEl.appendChild(el);
-        });
-      }
-
-      function renderStats() {
-        if (state.currentDate)
-          document.getElementById('date').textContent = state.currentDate;
-        if (state.nextTurnIn)
-          document.getElementById('timer').textContent = state.nextTurnIn;
-
-        const fundsEl = document.getElementById('funds');
-        if (state.funds != null) {
-          fundsEl.textContent = fmtMoney(state.funds);
+      function updatePip(payload) {
+        bar = payload.bar || {};
+        views = payload.views || views;
+        activeView = payload.activeView || 'standard';
+        if (Array.isArray(payload.barStats) && payload.barStats.length > 0) {
+          barStats = payload.barStats;
         }
-
-        const badge = document.getElementById('income-badge');
-        if (state.projectedIncome != null) {
-          const n = Number(state.projectedIncome);
-          badge.textContent = fmtSignedMoney(n) + '/hr';
-          badge.style.color = n >= 0 ? '#5cbf63' : '#f05a5a';
-        } else {
-          badge.textContent = '';
+        if (
+          Array.isArray(payload.customPanels) &&
+          payload.customPanels.length > 0
+        ) {
+          customPanels = payload.customPanels;
         }
+        renderBar();
+        renderBody();
       }
 
-      function renderInfoStrip() {
-        const mailEl = document.getElementById('info-mail');
-        if (state.unreadMailCount != null) {
-          const u = rnd(state.unreadMailCount);
-          mailEl.textContent = u != null ? String(u) : '—';
-          mailEl.className = 'info-val' + (u > 0 ? ' mail-unread' : ' muted');
-        } else {
-          mailEl.textContent = '—';
-          mailEl.className = 'info-val muted';
-        }
+      document.getElementById('btn-view-cycle').onclick = cycleViewFromUi;
+      document.getElementById('link-bar-config').onclick = () => {
+        if (window.pipBridge) window.pipBridge.openGamePanelConfig();
+      };
+      document.getElementById('link-edit-custom').onclick = () => {
+        customEdit = !customEdit;
+        document.getElementById('link-edit-custom').textContent = customEdit
+          ? 'done editing'
+          : 'edit layout';
+        renderBody();
+      };
+      document.getElementById('pip-picker-close').onclick = closePicker;
 
-        const etaEl = document.getElementById('info-eta');
-        if (state.turnsUntilElection != null) {
-          const h = rnd(state.turnsUntilElection);
-          etaEl.textContent = h != null ? '~' + h + 'h' : '—';
-          etaEl.className = 'info-val hot';
-        } else {
-          etaEl.textContent = '—';
-          etaEl.className = 'info-val muted';
-        }
-
-        const candEl = document.getElementById('info-candidate');
-        if (state.electionIsCandidate === true) {
-          candEl.textContent = 'Yes';
-          candEl.className = 'info-val hot';
-        } else if (state.electionIsCandidate === false) {
-          candEl.textContent = 'No';
-          candEl.className = 'info-val muted';
-        } else {
-          candEl.textContent = '—';
-          candEl.className = 'info-val muted';
-        }
-      }
-
-      function renderDecayRow() {
-        setDecayStat(
-          'pi',
-          state.politicalInfluence,
-          state.politicalInfluenceDecayWarning,
-          false,
-        );
-        setDecayStat(
-          'fav',
-          state.favorability,
-          state.favorabilityDecayWarning,
-          false,
-        );
-        setDecayStat('inf', state.infamy, state.infamyDecayWarning, true);
-      }
-
-      function setDecayStat(key, value, warn, highIsBad) {
-        const valEl = document.getElementById(`${key}-val`);
-        const indEl = document.getElementById(`${key}-ind`);
-        valEl.textContent = value != null ? fmtStat(value) : '—';
-        if (warn == null) {
-          indEl.textContent = '';
+      document.getElementById('pip-body').addEventListener('click', (e) => {
+        const el = e.target.closest('[data-pip-route]');
+        if (
+          !el ||
+          !window.pipBridge ||
+          typeof window.pipBridge.navigateTo !== 'function'
+        ) {
           return;
         }
-        const v = rnd(value);
-        const isDanger = v != null && (highIsBad ? v > 88 : v < 10);
-        if (isDanger) {
-          indEl.textContent = highIsBad ? '▲!' : '▼!';
-          indEl.className = 'd-danger';
-        } else if (warn) {
-          indEl.textContent = highIsBad ? '▲' : '▼';
-          indEl.className = 'd-warn';
-        } else {
-          indEl.textContent = '●';
-          indEl.className = 'd-ok';
-        }
-      }
+        const path = el.getAttribute('data-pip-route');
+        if (!path) return;
+        e.preventDefault();
+        window.pipBridge.navigateTo(path);
+      });
 
-      function renderElectionChip() {
-        const chip = document.getElementById('election-chip');
-        chip.classList.remove('candidate');
-        if (state.electionDate) {
-          const cd = getCountdown(state.electionDate);
-          let t = cd ? '⚑ ' + cd : '—';
-          if (state.electionIsCandidate === true) {
-            chip.classList.add('candidate');
-            t += ' · ★';
-          }
-          chip.textContent = t;
-        } else {
-          chip.textContent = '—';
-        }
-      }
-
-      function renderActionCosts() {
-        const grid = document.getElementById('action-cost-grid');
-        grid.innerHTML = '';
-        const costs = state.actionCosts || {};
-        ACTION_ORDER.forEach(([key, label]) => {
-          if (costs[key] === undefined) return;
-          const c = rnd(costs[key]);
-          if (c == null) return;
-          const row = document.createElement('div');
-          row.className = 'action-item';
-          row.innerHTML =
-            '<span class="an">' +
-            label +
-            '</span><span class="ac">' +
-            c +
-            '</span>';
-          grid.appendChild(row);
-        });
-      }
-
-      function renderExpanded() {
-        const wf = document.getElementById('wallet-funds');
-        const wc = document.getElementById('wallet-cash');
-        const wcl = document.getElementById('wallet-cash-label');
-        const wp = document.getElementById('wallet-portfolio');
-        const ws = document.getElementById('wallet-section');
-
-        wf.textContent = state.funds != null ? fmtMoney(state.funds) : '—';
-        paintPct('wallet-funds-pct', null, 'wk-pct');
-
-        wp.textContent =
-          state.portfolioValue != null ? fmtMoney(state.portfolioValue) : '—';
-        paintPct('wallet-portfolio-pct', lastFinancePct.port, 'wk-pct');
-
-        wcl.style.display = '';
-        wc.textContent =
-          state.cashOnHand != null ? fmtMoney(state.cashOnHand) : '—';
-        paintPct('wallet-cash-pct', lastFinancePct.cash, 'wk-pct');
-
-        ws.style.display =
-          state.funds != null ||
-          state.cashOnHand != null ||
-          state.portfolioValue != null
-            ? ''
-            : 'none';
-
-        const ib = state.incomeBreakdown;
-        const rowCombined = document.getElementById('row-party-combined');
-        const rowSt = document.getElementById('row-state-tax');
-        const rowNt = document.getElementById('row-nat-tax');
-
-        if (!ib) {
-          setText('inc-base', '—');
-          setText('inc-donors', '—');
-          setText('inc-salary', '—');
-          rowCombined.style.display = '';
-          setText('inc-tax', '—');
-          rowSt.style.display = 'none';
-          rowNt.style.display = 'none';
-        } else {
-          if (ib.base != null) {
-            document.getElementById('inc-base').textContent = fmtMoney(ib.base);
-            document.getElementById('inc-base').className = 'ival pos';
-          } else setText('inc-base', '—');
-
-          if (ib.donorBonus != null) {
-            document.getElementById('inc-donors').textContent = fmtSignedMoney(
-              ib.donorBonus,
-            );
-            document.getElementById('inc-donors').className = 'ival pos';
-          } else setText('inc-donors', '—');
-
-          if (ib.officeSalary != null) {
-            document.getElementById('inc-salary').textContent = fmtSignedMoney(
-              ib.officeSalary,
-            );
-            document.getElementById('inc-salary').className = 'ival pos';
-          } else setText('inc-salary', '—');
-
-          const hasSplit =
-            ib.statePartyTax != null || ib.nationalPartyTax != null;
-          if (hasSplit) {
-            rowCombined.style.display = 'none';
-            if (ib.statePartyTax != null) {
-              rowSt.style.display = '';
-              document.getElementById('inc-state-tax').textContent =
-                fmtMoneyNeg(ib.statePartyTax);
-              document.getElementById('inc-state-tax').className = 'ival neg';
-            } else rowSt.style.display = 'none';
-
-            if (ib.nationalPartyTax != null) {
-              rowNt.style.display = '';
-              document.getElementById('inc-nat-tax').textContent = fmtMoneyNeg(
-                ib.nationalPartyTax,
-              );
-              document.getElementById('inc-nat-tax').className = 'ival neg';
-            } else rowNt.style.display = 'none';
-          } else {
-            rowSt.style.display = 'none';
-            rowNt.style.display = 'none';
-            rowCombined.style.display = '';
-            const taxEl = document.getElementById('inc-tax');
-            if (ib.partyTax != null) {
-              taxEl.textContent = fmtMoneyNeg(ib.partyTax);
-              taxEl.className = 'ival neg';
-            } else {
-              taxEl.textContent = '—';
-              taxEl.className = 'ival neg';
-            }
-          }
-        }
-
-        const net = state.projectedIncome;
-        const netEl = document.getElementById('income-net');
-        if (net != null) {
-          const n = Number(net);
-          netEl.textContent = 'Net ' + fmtSignedMoney(n) + '/hr';
-          netEl.style.color = n >= 0 ? '#c9a959' : '#f05a5a';
-        } else {
-          netEl.textContent = 'Net —';
-          netEl.style.color = '';
-        }
-
-        setDetailStat(
-          'pi',
-          state.politicalInfluence,
-          state.politicalInfluenceProjected,
-          state.politicalInfluenceDecayWarning,
-          false,
-        );
-        setDetailStat(
-          'fav',
-          state.favorability,
-          state.favorabilityProjected,
-          state.favorabilityDecayWarning,
-          false,
-        );
-        setDetailStat(
-          'inf',
-          state.infamy,
-          null,
-          state.infamyDecayWarning,
-          true,
-        );
-
-        renderActionCosts();
-
-        const candLine = document.getElementById('election-cand-line');
-        const nameEl = document.getElementById('election-name');
-        const countEl = document.getElementById('election-countdown');
-        if (state.electionDate) {
-          nameEl.textContent =
-            state.electionName || fmtDate(state.electionDate);
-          const cd = getCountdown(state.electionDate);
-          countEl.textContent = cd ? ' · ' + cd : '';
-          if (state.electionIsCandidate === true) {
-            candLine.style.display = '';
-            candLine.textContent = 'You are on the ballot';
-          } else {
-            candLine.style.display = 'none';
-            candLine.textContent = '';
-          }
-        } else {
-          nameEl.textContent = '—';
-          countEl.textContent = '';
-          candLine.style.display = 'none';
-          candLine.textContent = '';
-        }
-      }
-
-      function setDetailStat(key, value, projected, warn, highIsBad) {
-        const dEl = document.getElementById(`${key}-detail`);
-        const nEl = document.getElementById(`${key}-next`);
-        dEl.textContent = value != null ? fmtStat(value) : '—';
-
-        if (key === 'inf') {
-          nEl.textContent = '';
-        } else {
-          const decayKey =
-            key === 'pi'
-              ? 'politicalInfluenceDecaying'
-              : 'favorabilityDecaying';
-          let line = fmtProj(value, projected);
-          if (line && state[decayKey] === true) line += ' · decay';
-          else if (!line && state[decayKey] === true) line = 'Decay active';
-          nEl.textContent = line || '';
-        }
-
-        const wEl = document.getElementById(`${key}-warning`);
-        if (!warn) {
-          wEl.textContent = '';
-          wEl.style.color = '';
-          return;
-        }
-        wEl.style.color = '#ff7a45';
-        wEl.textContent = highIsBad ? '▲ approaching limit' : '▼ decay warning';
-      }
-
-      // ── Utilities ──
-
-      function setText(id, text) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-      }
-
-      function getCountdown(dateStr) {
-        if (!dateStr) return null;
-        try {
-          const diff = new Date(dateStr) - new Date();
-          if (diff <= 0) return 'Today';
-          const d = Math.floor(diff / 86400000);
-          const h = Math.floor((diff % 86400000) / 3600000);
-          if (d > 0) return `${d}d ${h}h`;
-          const m = Math.floor((diff % 3600000) / 60000);
-          return `${h}h ${m}m`;
-        } catch {
-          return null;
-        }
-      }
-
-      function fmtDate(dateStr) {
-        if (!dateStr) return '—';
-        try {
-          return new Date(dateStr).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
-        } catch {
-          return dateStr;
-        }
-      }
+      renderBar();
+      renderBody();
     </script>
   </body>
 </html>

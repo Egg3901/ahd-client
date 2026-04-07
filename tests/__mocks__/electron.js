@@ -65,6 +65,15 @@ BrowserWindow.prototype.isFocused = jest.fn(function () {
 BrowserWindow.prototype.setTitle = jest.fn(function (t) {
   this._title = t;
 });
+BrowserWindow.prototype.setMinimumSize = jest.fn();
+BrowserWindow.prototype.setMaximumSize = jest.fn();
+BrowserWindow.prototype.setSize = jest.fn();
+BrowserWindow.prototype.getBounds = jest.fn(() => ({
+  x: 0,
+  y: 0,
+  width: 360,
+  height: 420,
+}));
 BrowserWindow.prototype.setProgressBar = jest.fn();
 BrowserWindow.prototype.setBounds = jest.fn();
 BrowserWindow.prototype.setMenuBarVisibility = jest.fn();
@@ -73,6 +82,7 @@ BrowserWindow.prototype.on = jest.fn(function (event, handler) {
   if (event === 'focus') this._onFocus = handler;
   return this;
 });
+BrowserWindow.prototype.removeListener = jest.fn();
 BrowserWindow.prototype.once = jest.fn(function (event, handler) {
   if (event === 'ready-to-show') this._onReadyToShow = handler;
   return this;
