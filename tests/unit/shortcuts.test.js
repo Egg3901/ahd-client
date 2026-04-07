@@ -23,19 +23,19 @@ beforeEach(() => {
 
 describe('ShortcutManager', () => {
   describe('registerAll()', () => {
-    it('registers exactly 9 shortcuts', () => {
+    it('registers exactly 10 shortcuts', () => {
       const win = makeMockWindow();
       const sm = new ShortcutManager(win);
       sm.registerAll();
-      expect(globalShortcut.register).toHaveBeenCalledTimes(9);
+      expect(globalShortcut.register).toHaveBeenCalledTimes(10);
     });
 
-    it('is idempotent: calling twice still only registers 9 shortcuts', () => {
+    it('is idempotent: calling twice still only registers 10 shortcuts', () => {
       const win = makeMockWindow();
       const sm = new ShortcutManager(win);
       sm.registerAll();
       sm.registerAll();
-      expect(globalShortcut.register).toHaveBeenCalledTimes(9);
+      expect(globalShortcut.register).toHaveBeenCalledTimes(10);
     });
 
     it('sets registered to true after first call', () => {

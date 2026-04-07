@@ -20,8 +20,9 @@ describe('NotificationManager', () => {
   let win;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     win = makeMockWindow({ focused: false });
-    manager = new NotificationManager(win);
+    manager = new NotificationManager(win, null);
   });
 
   // --- Initial state ---

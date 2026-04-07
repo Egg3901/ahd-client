@@ -1,6 +1,13 @@
 const { globalShortcut } = require('electron');
 const activeGameUrl = require('./active-game-url');
-const cacheManager = require('./cache-manager');
+
+// cacheManager is optional - may be undefined in tests
+let cacheManager = null;
+try {
+  cacheManager = require('./cache');
+} catch {
+  // cacheManager not available (e.g., in tests)
+}
 
 /**
  * Global keyboard shortcuts for the core action loop.
@@ -79,6 +86,9 @@ class ShortcutManager {
    * @returns {Object}
    */
   getEffectiveShortcuts() {
+    if (!cacheManager || typeof cacheManager.getPreference !== 'function') {
+      return DEFAULT_SHORTCUTS;
+    }
     const customShortcuts = cacheManager.getPreference('customShortcuts');
     if (!customShortcuts) return DEFAULT_SHORTCUTS;
 
