@@ -123,6 +123,8 @@ const app = {
   setBadgeCount: jest.fn(),
   on: jest.fn(),
   isPackaged: false,
+  getLoginItemSettings: jest.fn().mockReturnValue({ openAtLogin: false }),
+  setLoginItemSettings: jest.fn(),
 };
 
 // --- globalShortcut ---
@@ -135,6 +137,8 @@ const globalShortcut = {
 // --- nativeTheme ---
 const nativeTheme = {
   themeSource: 'system',
+  shouldUseDarkColors: true,
+  on: jest.fn(),
 };
 
 // --- dialog ---
@@ -222,6 +226,20 @@ const net = {
   request: jest.fn(() => createMockRequest()),
 };
 
+// --- screen ---
+const screen = {
+  getPrimaryDisplay: jest.fn(() => ({
+    workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+    bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+  })),
+  getAllDisplays: jest.fn(() => [
+    {
+      workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    },
+  ]),
+};
+
 module.exports = {
   BrowserWindow,
   Tray,
@@ -238,4 +256,5 @@ module.exports = {
   Notification,
   nativeImage,
   net,
+  screen,
 };

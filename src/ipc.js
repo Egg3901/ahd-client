@@ -71,6 +71,7 @@ function registerIpcHandlers(deps) {
     fetchClientNav,
     enrichClientNavManifest,
     isGameUrl,
+    broadcastQueueStatus,
   } = deps;
 
   ipcMain.handle('get-game-panel-config', () => {
@@ -121,7 +122,9 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('queue-action', (_event, action) => {
     if (!actionQueue) return 0;
-    return actionQueue.add(action);
+    const count = actionQueue.add(action);
+    if (broadcastQueueStatus) broadcastQueueStatus();
+    return count;
   });
 
   ipcMain.handle('get-queue', () => {
@@ -130,6 +133,7 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('action-result', (_event, { id, success, error }) => {
     if (actionQueue) actionQueue.reportResult(id, success, error);
+    if (broadcastQueueStatus) broadcastQueueStatus();
   });
 
   ipcMain.handle('get-theme', () => {

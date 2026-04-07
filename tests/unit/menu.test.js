@@ -166,6 +166,33 @@ describe('MenuManager', () => {
     });
   });
 
+  describe('View → Game server', () => {
+    it('includes Standard game server (default) as a radio option', () => {
+      const win = makeMockWindow();
+      const wm = makeMockWindowManager();
+      const mm = new MenuManager(win, wm, {
+        gameServer: {
+          envOverride: false,
+          useSandbox: false,
+          useDevServer: false,
+          showDevToggle: false,
+          onSwitch: jest.fn(),
+          onSwitchDev: jest.fn(),
+          onUseStandardServer: jest.fn(),
+        },
+      });
+      mm.build();
+      const template = Menu.buildFromTemplate.mock.calls[0][0];
+      const viewMenu = template.find((m) => m.label === 'View');
+      const gs = viewMenu.submenu.find((m) => m.label === 'Game server');
+      expect(gs).toBeDefined();
+      expect(gs.submenu.some((i) => /Standard game server/.test(i.label))).toBe(
+        true,
+      );
+      expect(gs.submenu.some((i) => i.type === 'radio')).toBe(true);
+    });
+  });
+
   describe('theme change callback', () => {
     it('calls onThemeChange with "default" when the first theme item is clicked', () => {
       const win = makeMockWindow();
@@ -177,7 +204,7 @@ describe('MenuManager', () => {
       const template = Menu.buildFromTemplate.mock.calls[0][0];
       const viewMenu = template.find((m) => m.label === 'View');
       const themeItem = viewMenu.submenu.find((m) => m.label === 'Theme');
-      themeItem.submenu[0].click();
+      themeItem.submenu.find((t) => t.label === 'Default').click();
 
       expect(onThemeChange).toHaveBeenCalledWith('default');
     });

@@ -1,4 +1,4 @@
-const { BrowserWindow, ipcMain } = require('electron');
+const { BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const activeGameUrl = require('./active-game-url');
 const PipViewPoller = require('./pip-view-poller');
@@ -62,6 +62,7 @@ class PipManager {
     this.updateInterval = null;
     /** @type {NodeJS.Timeout|null} */
     this._boundsSaveTimer = null;
+    this._lastUpdate = Date.now();
 
     this._hydrateFromStore();
     this._registerIpc();
@@ -87,6 +88,8 @@ class PipManager {
       favorabilityDecayWarning: false,
       infamy: null,
       infamyDecayWarning: false,
+      infamyProjected: null,
+      infamyDecayAmount: null,
       nationalInfluence: null,
       hasCorp: null,
       electionDate: null,
@@ -204,7 +207,7 @@ class PipManager {
   _applyWindowBounds() {
     if (!this.pipWindow || this.pipWindow.isDestroyed()) return;
     const b = this._pipStore().bounds;
-    if (b && b.width >= MIN_W && b.height >= MIN_H) {
+    if (b && b.width >= MIN_W && b.height >= MIN_H && this._isVisibleBounds(b)) {
       this.pipWindow.setBounds({
         x: b.x,
         y: b.y,
@@ -212,12 +215,32 @@ class PipManager {
         height: b.height,
       });
     } else {
-      this.pipWindow.setSize(
-        DEFAULT_BOUNDS.width,
-        DEFAULT_BOUNDS.height,
-        false,
-      );
+      this.pipWindow.setBounds(this._defaultBounds());
     }
+  }
+
+  /** @private */
+  _isVisibleBounds(bounds) {
+    const displays = screen.getAllDisplays();
+    return displays.some((d) => {
+      return (
+        bounds.x < d.bounds.x + d.bounds.width &&
+        bounds.x + bounds.width > d.bounds.x &&
+        bounds.y < d.bounds.y + d.bounds.height &&
+        bounds.y + bounds.height > d.bounds.y
+      );
+    });
+  }
+
+  /** @private */
+  _defaultBounds() {
+    const area = screen.getPrimaryDisplay().workArea;
+    return {
+      x: area.x + Math.max(24, Math.floor((area.width - DEFAULT_BOUNDS.width) / 2)),
+      y: area.y + Math.max(24, Math.floor((area.height - DEFAULT_BOUNDS.height) / 3)),
+      width: DEFAULT_BOUNDS.width,
+      height: DEFAULT_BOUNDS.height,
+    };
   }
 
   // ── Lifecycle ──
@@ -303,6 +326,7 @@ class PipManager {
    */
   updateBarState(state) {
     Object.assign(this.barState, state);
+    this._lastUpdate = Date.now();
     if (this.activeView === 'corp' && this.barState.hasCorp === false) {
       this.activeView = 'standard';
       this._setPipStore({ activeView: 'standard' });
@@ -321,6 +345,7 @@ class PipManager {
     } else {
       this.viewState[viewName] = data;
     }
+    this._lastUpdate = Date.now();
     this.updateDisplay();
   }
 
@@ -368,13 +393,14 @@ class PipManager {
       activeView: this.activeView,
       barStats: this.barStatsOrder,
       customPanels: this.customPanels,
+      lastUpdate: this._lastUpdate,
     };
     const json = JSON.stringify(payload);
     this.pipWindow.webContents.executeJavaScript(`
       if (typeof updatePip === 'function') {
         updatePip(${json});
       }
-    `);
+    `).catch(() => {});
   }
 
   // ── Window control ──

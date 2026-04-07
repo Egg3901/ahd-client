@@ -89,8 +89,13 @@ class DashboardPoller {
       req.setHeader('Accept', 'application/json');
 
       let body = '';
+      const timer = setTimeout(() => {
+        req.abort();
+        reject(new Error('Request timeout'));
+      }, 15_000);
 
       req.on('response', (res) => {
+        clearTimeout(timer);
         // 401 = not logged in, 404 = route not deployed yet — both are silent
         if (res.statusCode === 401 || res.statusCode === 404) {
           resolve(null);
@@ -108,10 +113,16 @@ class DashboardPoller {
             reject(e);
           }
         });
-        res.on('error', reject);
+        res.on('error', (e) => {
+          clearTimeout(timer);
+          reject(e);
+        });
       });
 
-      req.on('error', reject);
+      req.on('error', (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
       req.end();
     });
   }
@@ -224,8 +235,12 @@ class DashboardPoller {
       if (favDp.isDecaying != null) out.favorabilityDecaying = favDp.isDecaying;
     }
 
-    // Infamy: high is bad — warn when above threshold regardless of decay
-    if (ch && ch.infamy != null) {
+    const infDp = dp.infamy;
+    if (infDp) {
+      out.infamyDecayWarning = infDp.isDecaying;
+      out.infamyDecayAmount = infDp.decayAmount;
+      out.infamyProjected = infDp.projected;
+    } else if (ch && ch.infamy != null) {
       out.infamyDecayWarning = ch.infamy > INF_WARN_THRESHOLD;
     }
 

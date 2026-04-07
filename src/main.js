@@ -163,12 +163,16 @@ function createWindow() {
       path: '/',
       sameSite: 'lax',
     });
-    mainWindow.loadURL(activeGameUrl.get());
+    // Session recovery: restore last page after crash (cleared on graceful quit)
+    const lastURL = cacheManager.getPreference('lastURL');
+    mainWindow.loadURL(
+      lastURL && isGameUrl(lastURL) ? lastURL : activeGameUrl.get(),
+    );
   });
 
   // Mirror page title into window title bar
   mainWindow.webContents.on('page-title-updated', (_event, title) => {
-    mainWindow.setTitle(`A House Divided \u2014 ${title}`);
+    mainWindow.setTitle(withServerLabel(`A House Divided \u2014 ${title}`));
   });
 
   // External links open in system browser
@@ -212,12 +216,13 @@ function createWindow() {
  * @param {string} themeId
  */
 function pushThemeToSite(themeId) {
+  const resolved = resolveTheme(themeId);
   session
     .fromPartition(GAME_SESSION_PARTITION)
     .cookies.get({ url: activeGameUrl.get() })
     .then((cookies) => {
       const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-      const body = JSON.stringify({ theme: themeId });
+      const body = JSON.stringify({ theme: resolved });
       const request = net.request({
         url: `${activeGameUrl.get()}/api/settings/theme`,
         method: 'PATCH',
@@ -490,7 +495,7 @@ function initModules() {
   }
 
   // Window Manager (#3)
-  windowManager = new WindowManager();
+  windowManager = new WindowManager(cacheManager);
 
   // Shortcuts (#4)
   shortcutManager = new ShortcutManager(mainWindow);
@@ -519,9 +524,9 @@ function initModules() {
   // the rich response into the same handleGameStateEvent pipeline so tray,
   // pip, and cache all stay in sync from a single source of truth.
   dashboardPoller = new DashboardPoller();
-  // Start polling once SSE is connected (session cookies are ready)
-  sseClient.once('connected', () => {
-    dashboardPoller.start((mapped) => handleGameStateEvent({ data: mapped }));
+  dashboardPoller.start((mapped) => handleGameStateEvent({ data: mapped }));
+  sseClient.on('connected', () => {
+    if (dashboardPoller) dashboardPoller.poll();
   });
   // Re-poll immediately after any event that changes character state
   const REPOLL_EVENTS = [
@@ -595,6 +600,19 @@ function initModules() {
         }
         if (menuManager) menuManager.build();
       },
+      /** Main production URL — clears sandbox and dev-server preferences. */
+      onUseStandardServer() {
+        const dev = cacheManager.getPreference('useDevServer') === true;
+        const sb = cacheManager.getPreference('useSandboxServer') === true;
+        if (!dev && !sb) return;
+        cacheManager.setPreference('useDevServer', false);
+        cacheManager.setPreference('useSandboxServer', false);
+        if (sseClient) sseClient.disconnect();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(activeGameUrl.get());
+        }
+        if (menuManager) menuManager.build();
+      },
     },
   });
   if (process.env.NODE_ENV === 'development') {
@@ -613,6 +631,12 @@ function initModules() {
 
   // Auto-updater (#7)
   updateManager = new UpdateManager(mainWindow);
+  updateManager.onUpdateAvailable = () => {
+    if (trayManager) trayManager.setUpdateAvailable(true);
+  };
+  updateManager.onUpdateReady = () => {
+    if (trayManager) trayManager.setUpdateReady(true);
+  };
   setTimeout(() => updateManager.checkForUpdates(), 10000);
 
   // SSE -> game state propagation (#2, #6, #8)
@@ -630,12 +654,20 @@ function initModules() {
     }
   });
 
+  // OS dark mode changed — re-sync background/themeSource when using 'auto'
+  nativeTheme.on('updated', () => {
+    if (cacheManager && cacheManager.getTheme() === 'auto') {
+      syncNativeTheme('auto');
+    }
+  });
+
   // SSE connection status -> renderer
   sseClient.on('connected', () => {
     console.log('SSE connected');
     sendToRenderer('sse-status', { connected: true });
     // Flush queued actions to renderer for replay (with retry tracking)
     actionQueue.flush(sendToRenderer);
+    broadcastQueueStatus();
     scheduleClientNavPollInterval();
   });
 
@@ -654,6 +686,7 @@ function initModules() {
       type: action.type,
       error: action.lastError,
     });
+    broadcastQueueStatus();
   });
   sseClient.on('disconnected', () => {
     console.log('SSE disconnected');
@@ -683,6 +716,7 @@ function initModules() {
     fetchClientNav,
     enrichClientNavManifest,
     isGameUrl,
+    broadcastQueueStatus,
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -696,7 +730,9 @@ function initModules() {
       const path = pathname + search;
       sendToRenderer('route-changed', { path });
       sendNavState();
-      mainWindow.setTitle(getTitleForPath(pathname, currentNav));
+      mainWindow.setTitle(withServerLabel(getTitleForPath(pathname, currentNav)));
+      // Persist last URL for session recovery after crash
+      if (isGameUrl(url)) cacheManager.setPreference('lastURL', url);
 
       // Optimistically clear unread badge when user visits notifications
       if (pathname === '/notifications' && notificationManager) {
@@ -816,6 +852,8 @@ function handleGameStateEvent(event) {
     'favorabilityDecaying',
     'infamy',
     'infamyDecayWarning',
+    'infamyProjected',
+    'infamyDecayAmount',
     'nationalInfluence',
     'hasCorp',
     // Election countdown
@@ -835,14 +873,62 @@ function handleGameStateEvent(event) {
     if (pipManager) pipManager.updateBarState(gameState);
     cacheManager.updateGameState(gameState);
   }
+
+  if (data.nextTurnIn !== undefined) {
+    checkTurnAlert(data.nextTurnIn);
+  }
+}
+
+/**
+ * Return a bracketed server label for non-standard servers, or '' for main.
+ * @returns {string} e.g. '[Sandbox]', '[Dev]', '[Custom]', or ''
+ */
+function getServerLabel() {
+  if (config.ENV_GAME_URL) return '[Custom]';
+  if (cacheManager && cacheManager.getPreference('useDevServer') === true)
+    return '[Dev]';
+  if (cacheManager && cacheManager.getPreference('useSandboxServer') === true)
+    return '[Sandbox]';
+  return '';
+}
+
+/**
+ * Prefix a window title with the active server label when not on main.
+ * @param {string} title
+ * @returns {string}
+ */
+function withServerLabel(title) {
+  const label = getServerLabel();
+  return label ? `${label} ${title}` : title;
+}
+
+/**
+ * Resolve 'auto' to a concrete theme ID based on current OS dark mode state.
+ * All other IDs pass through unchanged.
+ * @param {string} themeId
+ * @returns {string}
+ */
+function resolveTheme(themeId) {
+  if (themeId !== 'auto') return themeId;
+  return nativeTheme.shouldUseDarkColors ? 'default' : 'light';
 }
 
 /**
  * Map a theme ID to Electron's nativeTheme.themeSource, update the titlebar
  * overlay colour (Windows), and set the window background colour.
- * @param {string} themeId - One of the site's theme IDs
+ * @param {string} themeId - One of the site's theme IDs (may be 'auto')
  */
 function syncNativeTheme(themeId) {
+  if (themeId === 'auto') {
+    nativeTheme.themeSource = 'system';
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const bg = nativeTheme.shouldUseDarkColors
+        ? THEME_BACKGROUNDS.default
+        : THEME_BACKGROUNDS.light;
+      mainWindow.setBackgroundColor(bg);
+    }
+    return;
+  }
   const lightThemes = ['light', 'pastel', 'usa'];
   nativeTheme.themeSource = lightThemes.includes(themeId) ? 'light' : 'dark';
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -938,9 +1024,82 @@ function dismissErrorOverlay() {
 }
 
 /**
+ * Inject or update the offline action queue banner at the top of the window.
+ * @param {number} count
+ */
+function injectQueueBanner(count) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const text = `\u23f3 ${count} action${count === 1 ? '' : 's'} queued \u2014 reconnecting\u2026`;
+  mainWindow.webContents
+    .executeJavaScript(
+      `(function() {
+        let el = document.getElementById('ahd-queue-banner');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'ahd-queue-banner';
+          Object.assign(el.style, {
+            position: 'fixed', top: '0', left: '0', width: '100%',
+            background: '#2a1f00', color: '#ffcc44',
+            padding: '6px 16px', zIndex: '999998',
+            fontFamily: 'system-ui, sans-serif', fontSize: '13px',
+            textAlign: 'center', boxSizing: 'border-box',
+          });
+          document.body.appendChild(el);
+        }
+        el.textContent = ${JSON.stringify(text)};
+      })();`,
+    )
+    .catch(() => {});
+}
+
+function dismissQueueBanner() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents
+    .executeJavaScript(
+      `(function() { const el = document.getElementById('ahd-queue-banner'); if (el) el.remove(); })();`,
+    )
+    .catch(() => {});
+}
+
+/**
+ * Sync pending queue count to the native banner and tray.
+ * Call this whenever the queue changes (add, result, flush).
+ */
+function broadcastQueueStatus() {
+  const count = actionQueue ? actionQueue.getPending().length : 0;
+  if (count > 0) {
+    injectQueueBanner(count);
+  } else {
+    dismissQueueBanner();
+  }
+  if (trayManager) trayManager.setQueueCount(count);
+}
+
+// --- Turn alert ---
+
+/** Prevents re-firing the audio alert within the same turn countdown window. */
+let _turnAlertFired = false;
+
+/**
+ * Beep once when ≤60 seconds remain until the next turn (if alert is enabled).
+ * Resets automatically when the turn countdown resets.
+ * @param {number} nextTurnIn - Seconds until next turn
+ */
+function checkTurnAlert(nextTurnIn) {
+  if (!cacheManager || cacheManager.getPreference('turnAlertEnabled') === false) return;
+  if (typeof nextTurnIn !== 'number') { _turnAlertFired = false; return; }
+  if (nextTurnIn > 60 || nextTurnIn <= 0) { _turnAlertFired = false; return; }
+  if (_turnAlertFired) return;
+  _turnAlertFired = true;
+  shell.beep();
+}
+
+/**
  * Tear down all modules. Called on window close and app quit.
  */
 function cleanup() {
+  // Clear session recovery URL — only restore after a crash, not a clean quit
+  if (cacheManager) cacheManager.setPreference('lastURL', null);
   if (unreadPollTimer) {
     clearInterval(unreadPollTimer);
     unreadPollTimer = null;

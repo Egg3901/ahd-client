@@ -77,6 +77,12 @@
         letter-spacing: 0.14em;
         font-weight: 600;
       }
+      .pip-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
       .pip-titlebar-btns {
         display: flex;
         gap: 2px;
@@ -150,6 +156,12 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      .pip-stat-val.warn {
+        color: var(--amber);
+      }
+      .pip-stat-val.danger {
+        color: var(--red);
       }
       .pip-stat-lab {
         font-size: 7px;
@@ -243,6 +255,16 @@
       .pip-footer a:hover,
       .pip-footer button.link:hover {
         color: #e0c978;
+      }
+      .pip-stale {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 9px;
+        color: var(--amber);
+      }
+      .pip-stale[hidden] {
+        display: none;
       }
       .pip-badge {
         display: inline-block;
@@ -433,7 +455,10 @@
   <body>
     <div class="pip-root" id="pip-root">
       <div class="pip-titlebar">
-        <span class="pip-title">A House Divided</span>
+        <span class="pip-title-wrap">
+          <span class="pip-title">A House Divided</span>
+          <span class="pip-stale" id="pip-stale-badge" hidden>● stale</span>
+        </span>
         <div class="pip-titlebar-btns">
           <button
             type="button"
@@ -473,6 +498,7 @@
         <button type="button" class="link" id="link-edit-custom" hidden>
           edit layout
         </button>
+        <span class="pip-stale" id="pip-stale-footer" hidden>● data stale</span>
       </div>
     </div>
 
@@ -536,6 +562,7 @@
         portfolio: 'Port',
         pi: 'PI',
         fav: 'FAV',
+        infamy: 'Infamy',
         nationalInfluence: 'Natl PI',
         turn: 'Turn',
       };
@@ -549,6 +576,7 @@
         custom: null,
       };
       let activeView = 'standard';
+      let lastUpdate = Date.now();
       let barStats = [
         'ap',
         'funds',
@@ -598,9 +626,17 @@
               ? fmtMoney(bar.portfolioValue)
               : '—';
           case 'pi':
-            return fmtStat(bar.politicalInfluence);
+            return (
+              fmtStat(bar.politicalInfluence) +
+              (bar.politicalInfluenceDecayWarning ? ' ↓' : '')
+            );
           case 'fav':
-            return fmtStat(bar.favorability);
+            return (
+              fmtStat(bar.favorability) +
+              (bar.favorabilityDecayWarning ? ' ↓' : '')
+            );
+          case 'infamy':
+            return fmtStat(bar.infamy ?? 0);
           case 'nationalInfluence':
             return fmtStat(bar.nationalInfluence);
           case 'turn':
@@ -608,6 +644,13 @@
           default:
             return '—';
         }
+      }
+
+      function barValueClass(key) {
+        if (key === 'pi' && bar.politicalInfluenceDecayWarning) return 'warn';
+        if (key === 'fav' && bar.favorabilityDecayWarning) return 'warn';
+        if (key === 'infamy' && bar.infamyDecayWarning) return 'danger';
+        return '';
       }
 
       function renderBar() {
@@ -619,14 +662,23 @@
           const d = document.createElement('div');
           d.className = 'pip-stat';
           d.onclick = openMain;
+          const valueCls = barValueClass(k);
           d.innerHTML =
-            '<div class="pip-stat-val">' +
+            '<div class="pip-stat-val' +
+            (valueCls ? ' ' + valueCls : '') +
+            '">' +
             escapeHtml(barValue(k)) +
             '</div><div class="pip-stat-lab">' +
             escapeHtml(BAR_LABELS[k]) +
             '</div>';
           el.appendChild(d);
         });
+      }
+
+      function renderFreshness() {
+        const stale = Date.now() - lastUpdate > 120000;
+        document.getElementById('pip-stale-badge').hidden = !stale;
+        document.getElementById('pip-stale-footer').hidden = !stale;
       }
 
       function escapeHtml(s) {
@@ -651,7 +703,7 @@
         const root = document.getElementById('pip-body');
         const v = activeView;
         const loaded = views[v];
-        const showSkel = loaded === null && v !== 'custom';
+        const showSkel = loaded === null;
 
         document.getElementById('btn-view-cycle').textContent =
           (VIEW_LABELS[v] || v) + ' ▸';
@@ -906,7 +958,7 @@
             ' · ' +
             escapeHtml(pr.state || '') +
             '<br/>Phase: ' +
-            escapeHtml(pr.phase) +
+            escapeHtml(electionTypeLabel(String(pr.phase || ''))) +
             ' · Rank ' +
             escapeHtml(pr.position != null ? String(pr.position) : '?') +
             ' / ' +
@@ -1027,7 +1079,7 @@
             ' ' +
             escapeHtml(x.countryId) +
             ' · ' +
-            escapeHtml(x.type) +
+            escapeHtml(crisisTypeLabel(String(x.type || ''))) +
             ' <span class="pip-muted">(' +
             escapeHtml(x.status) +
             ')</span></li>';
@@ -1038,9 +1090,11 @@
           '<div class="pip-panel"><h3>Countries</h3><div class="pip-country-grid">' +
           cg +
           '</div></div>' +
-          '<div class="pip-panel"><h3>Crises</h3><ul class="pip-list">' +
-          cr +
-          '</ul></div>' +
+          '<div class="pip-panel"><h3>Crises</h3>' +
+          (cr
+            ? '<ul class="pip-list">' + cr + '</ul>'
+            : '<p class="pip-muted">No active crises.</p>') +
+          '</div>' +
           '<div class="pip-panel"><h3>Turn</h3><div class="pip-list">' +
           '<span class="pip-turn-badge">Turn ' +
           escapeHtml(String(t.currentTurn ?? '—')) +
@@ -1146,7 +1200,7 @@
           (el.activeFeed || []).forEach((e) => {
             h +=
               '<li>' +
-              escapeHtml(e.electionType || '') +
+              escapeHtml(electionTypeLabel(String(e.electionType || ''))) +
               ' · ' +
               escapeHtml(e.state || '') +
               '</li>';
@@ -1198,14 +1252,25 @@
         if (id === 'top-corps') {
           let rows = '';
           (co.topCorps || []).forEach((t) => {
+            const nameStyle = t.isPlayerCorp
+              ? ' style="color:var(--gold);font-weight:700"'
+              : '';
             rows +=
               '<tr><td>#' +
               escapeHtml(String(t.rank)) +
-              '</td><td>' +
+              '</td><td' +
+              nameStyle +
+              '>' +
               escapeHtml(t.name) +
+              '</td><td>' +
+              fmtMoney(t.revenuePerTurn) +
               '</td></tr>';
           });
-          return '<table class="pip-table"><tbody>' + rows + '</tbody></table>';
+          return (
+            '<table class="pip-table"><thead><tr><th>#</th><th>Name</th><th>Rev</th></tr></thead><tbody>' +
+            rows +
+            '</tbody></table>'
+          );
         }
         if (id === 'country-snapshot') {
           let cg = '';
@@ -1232,11 +1297,13 @@
               '<li>' +
               escapeHtml(x.countryId) +
               ' · ' +
-              escapeHtml(x.type) +
+              escapeHtml(crisisTypeLabel(String(x.type || ''))) +
               '</li>';
           });
           cr += '</ul>';
-          return cr;
+          return (gl.crises || []).length
+            ? cr
+            : '<p class="pip-muted">No active crises.</p>';
         }
         return '<p class="pip-muted">—</p>';
       }
@@ -1302,11 +1369,14 @@
       }
 
       async function savePanels(panels) {
-        customPanels = panels;
-        if (window.pipBridge) {
-          await window.pipBridge.saveCustomPanels(panels);
+        try {
+          customPanels = panels;
+          if (window.pipBridge) {
+            await window.pipBridge.saveCustomPanels(panels);
+          }
+          renderBody();
+        } catch (_err) {
         }
-        renderBody();
       }
 
       function openMain() {
@@ -1314,13 +1384,18 @@
       }
 
       async function cycleViewFromUi() {
-        if (window.pipBridge) await window.pipBridge.cycleView();
+        try {
+          if (window.pipBridge) await window.pipBridge.cycleView();
+        } catch (_err) {
+        }
       }
 
       function updatePip(payload) {
         bar = payload.bar || {};
         views = payload.views || views;
         activeView = payload.activeView || 'standard';
+        lastUpdate =
+          typeof payload.lastUpdate === 'number' ? payload.lastUpdate : lastUpdate;
         if (Array.isArray(payload.barStats) && payload.barStats.length > 0) {
           barStats = payload.barStats;
         }
@@ -1332,6 +1407,7 @@
         }
         renderBar();
         renderBody();
+        renderFreshness();
       }
 
       document.getElementById('btn-view-cycle').onclick = cycleViewFromUi;
@@ -1346,6 +1422,7 @@
         renderBody();
       };
       document.getElementById('pip-picker-close').onclick = closePicker;
+      setInterval(renderFreshness, 30000);
 
       document.getElementById('pip-body').addEventListener('click', (e) => {
         const el = e.target.closest('[data-pip-route]');

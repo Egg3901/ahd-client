@@ -16,8 +16,14 @@ class UpdateManager {
     this.mainWindow = mainWindow;
     /** @type {boolean} */
     this.updateAvailable = false;
+    /** @type {boolean} */
+    this.updateReady = false;
     /** @type {object|null} */
     this.updateInfo = null;
+    /** @type {((info: object) => void)|null} */
+    this.onUpdateAvailable = null;
+    /** @type {((info: object) => void)|null} */
+    this.onUpdateReady = null;
 
     // Don't auto-download — let user decide
     autoUpdater.autoDownload = false;
@@ -35,6 +41,7 @@ class UpdateManager {
     autoUpdater.on('update-available', (info) => {
       this.updateAvailable = true;
       this.updateInfo = info;
+      if (this.onUpdateAvailable) this.onUpdateAvailable(info);
       this.promptUpdate(info);
     });
 
@@ -50,9 +57,11 @@ class UpdateManager {
     });
 
     autoUpdater.on('update-downloaded', (info) => {
+      this.updateReady = true;
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.setProgressBar(-1);
       }
+      if (this.onUpdateReady) this.onUpdateReady(info);
       this.promptInstall(info);
     });
 

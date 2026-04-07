@@ -3,6 +3,7 @@
 const {
   partyLabel,
   electionTypeLabel,
+  crisisTypeLabel,
   formatCountdownMs,
   formatCountdownTo,
 } = require('../../src/pip-labels');
@@ -17,6 +18,11 @@ describe('pip-labels', () => {
   test('electionTypeLabel maps house/senate', () => {
     expect(electionTypeLabel('house')).toBe('House');
     expect(electionTypeLabel('senate')).toBe('Senate');
+  });
+
+  test('crisisTypeLabel maps known crisis types and falls back', () => {
+    expect(crisisTypeLabel('economic_recession')).toBe('Economic Recession');
+    expect(crisisTypeLabel('unknown_crisis')).toBe('Unknown Crisis');
   });
 
   test('formatCountdownMs edge cases', () => {

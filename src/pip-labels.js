@@ -94,6 +94,34 @@ function electionTypeLabel(t) {
 }
 
 /** @type {Record<string, string>} */
+const CRISIS_TYPE_LABELS = {
+  economic_recession: 'Economic Recession',
+  political_scandal: 'Political Scandal',
+  constitutional_crisis: 'Constitutional Crisis',
+  banking_crisis: 'Banking Crisis',
+  debt_crisis: 'Debt Crisis',
+  energy_crisis: 'Energy Crisis',
+  food_crisis: 'Food Crisis',
+  government_shutdown: 'Government Shutdown',
+  humanitarian_crisis: 'Humanitarian Crisis',
+  public_health_crisis: 'Public Health Crisis',
+  refugee_crisis: 'Refugee Crisis',
+  security_crisis: 'Security Crisis',
+  trade_crisis: 'Trade Crisis',
+};
+
+/**
+ * @param {string} t
+ * @returns {string}
+ */
+function crisisTypeLabel(t) {
+  if (t == null || t === '') return '';
+  const k = String(t).toLowerCase().replace(/\s+/g, '_');
+  if (CRISIS_TYPE_LABELS[k]) return CRISIS_TYPE_LABELS[k];
+  return titleCaseSlug(String(t));
+}
+
+/** @type {Record<string, string>} */
 const CORP_TYPE_LABELS = {
   energy: 'Energy',
   oil: 'Oil & gas',
@@ -208,6 +236,7 @@ function formatCountdownTo(isoOrDate) {
 if (typeof globalThis !== 'undefined') {
   globalThis.partyLabel = partyLabel;
   globalThis.electionTypeLabel = electionTypeLabel;
+  globalThis.crisisTypeLabel = crisisTypeLabel;
   globalThis.corpTypeLabel = corpTypeLabel;
   globalThis.commodityIcon = commodityIcon;
   globalThis.countryFlagEmoji = countryFlagEmoji;
@@ -219,6 +248,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     partyLabel,
     electionTypeLabel,
+    crisisTypeLabel,
     corpTypeLabel,
     commodityIcon,
     countryFlagEmoji,

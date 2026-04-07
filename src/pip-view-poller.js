@@ -95,24 +95,30 @@ class PipViewPoller {
       return;
     }
     const path = paths[0];
-    this._fetchOne(path).then((data) => {
-      this._onUpdate(this._view, data || {});
-    });
+    this._fetchOne(path)
+      .then((data) => {
+        this._onUpdate(this._view, data || {});
+      })
+      .catch(() => {
+        // Preserve stale viewState on fetch failure.
+      });
   }
 
   /** @private @param {string[]} paths */
   _fetchCustom(paths) {
-    Promise.all(paths.map((p) => this._fetchOne(p)))
+    Promise.allSettled(paths.map((p) => this._fetchOne(p)))
       .then((results) => {
         const merged = {};
         for (let i = 0; i < paths.length; i++) {
           const key = this._pathToKey(paths[i]);
-          if (key) merged[key] = results[i];
+          if (key && results[i].status === 'fulfilled' && results[i].value) {
+            merged[key] = results[i].value;
+          }
         }
         this._onUpdate('custom', merged);
       })
-      .catch(() => {
-        this._onUpdate('custom', {});
+      .catch((err) => {
+        console.warn('[pip-view-poller] custom fetch failed:', err.message);
       });
   }
 
@@ -151,7 +157,12 @@ class PipViewPoller {
       });
       req.setHeader('Accept', 'application/json');
       let body = '';
+      const timer = setTimeout(() => {
+        req.abort();
+        reject(new Error('Request timeout'));
+      }, 15_000);
       req.on('response', (res) => {
+        clearTimeout(timer);
         if (res.statusCode === 401 || res.statusCode === 404) {
           resolve(null);
           return;
@@ -170,9 +181,15 @@ class PipViewPoller {
             reject(e);
           }
         });
-        res.on('error', reject);
+        res.on('error', (e) => {
+          clearTimeout(timer);
+          reject(e);
+        });
       });
-      req.on('error', reject);
+      req.on('error', (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
       req.end();
     });
   }

@@ -1,4 +1,4 @@
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, screen } = require('electron');
 const path = require('path');
 const activeGameUrl = require('./active-game-url');
 
@@ -49,9 +49,16 @@ const WINDOW_PRESETS = {
 };
 
 class WindowManager {
-  constructor() {
+  /**
+   * @param {import('./cache')|null} [cacheManager]
+   */
+  constructor(cacheManager) {
     /** @type {Map<string, Electron.BrowserWindow>} */
     this.windows = new Map();
+    /** @type {import('./cache')|null} */
+    this._cache = cacheManager || null;
+    /** @type {Map<string, NodeJS.Timeout>} */
+    this._boundsTimers = new Map();
   }
 
   /**
@@ -74,9 +81,22 @@ class WindowManager {
       this.windows.delete(preset);
     }
 
+    // Restore saved bounds if available and on-screen
+    const savedBounds = this._cache
+      ? this._cache.getPreference(`windowBounds.${preset}`)
+      : null;
+    const bounds =
+      savedBounds && this._isVisibleBounds(savedBounds)
+        ? {
+            x: savedBounds.x,
+            y: savedBounds.y,
+            width: Math.max(savedBounds.width, 400),
+            height: Math.max(savedBounds.height, 300),
+          }
+        : { width: presetConfig.width, height: presetConfig.height };
+
     const win = new BrowserWindow({
-      width: presetConfig.width,
-      height: presetConfig.height,
+      ...bounds,
       minWidth: 400,
       minHeight: 300,
       title: presetConfig.title,
@@ -94,7 +114,16 @@ class WindowManager {
     win.loadURL(`${activeGameUrl.get()}${presetConfig.route}`);
     win.setMenuBarVisibility(false);
 
+    const saveBounds = () => this._scheduleBoundsSave(preset, win);
+    win.on('resize', saveBounds);
+    win.on('move', saveBounds);
+
     win.on('closed', () => {
+      const timer = this._boundsTimers.get(preset);
+      if (timer) {
+        clearTimeout(timer);
+        this._boundsTimers.delete(preset);
+      }
       this.windows.delete(preset);
     });
 
@@ -147,6 +176,46 @@ class WindowManager {
       WINDOW_PRESETS.country.route = nav.map.route;
       WINDOW_PRESETS.country.title = 'Map — A House Divided';
     }
+  }
+
+  /**
+   * Debounce-save bounds for a preset window (500ms).
+   * @param {string} preset
+   * @param {Electron.BrowserWindow} win
+   * @private
+   */
+  _scheduleBoundsSave(preset, win) {
+    if (!this._cache) return;
+    const existing = this._boundsTimers.get(preset);
+    if (existing) clearTimeout(existing);
+    this._boundsTimers.set(
+      preset,
+      setTimeout(() => {
+        this._boundsTimers.delete(preset);
+        if (!win.isDestroyed()) {
+          const b = win.getBounds();
+          this._cache.setPreference(`windowBounds.${preset}`, b);
+        }
+      }, 500),
+    );
+  }
+
+  /**
+   * Returns true if the bounds intersect at least one display's work area.
+   * @param {{x: number, y: number, width: number, height: number}} bounds
+   * @returns {boolean}
+   * @private
+   */
+  _isVisibleBounds(bounds) {
+    return screen.getAllDisplays().some((d) => {
+      const wa = d.workArea;
+      return (
+        bounds.x < wa.x + wa.width &&
+        bounds.x + bounds.width > wa.x &&
+        bounds.y < wa.y + wa.height &&
+        bounds.y + bounds.height > wa.y
+      );
+    });
   }
 
   /**

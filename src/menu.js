@@ -1,4 +1,4 @@
-const { Menu, session, shell } = require('electron');
+const { Menu, session, shell, clipboard, app } = require('electron');
 const activeGameUrl = require('./active-game-url');
 const siteApi = require('./site-api');
 const urls = require('./urls');
@@ -17,6 +17,7 @@ const { buildGamePanelMenuTemplate } = require('./game-panel-links');
 
 /** @type {{id: string, label: string}[]} The site's available themes */
 const THEMES = [
+  { id: 'auto', label: 'Auto (follows OS)' },
   { id: 'default', label: 'Default' },
   { id: 'light', label: 'Light' },
   { id: 'oled', label: 'OLED' },
@@ -59,7 +60,7 @@ class MenuManager {
     this.nav = getNavForCountry(null);
     /** @type {object|null} Latest client-nav manifest */
     this.manifest = null;
-    /** @type {{ envOverride: boolean, useSandbox: boolean, onSwitch: (useSandbox: boolean) => void }|undefined} */
+    /** @type {{ envOverride: boolean, useSandbox: boolean, useDevServer?: boolean, showDevToggle?: boolean, onSwitch: (useSandbox: boolean) => void, onSwitchDev?: (useDev: boolean) => void, onUseStandardServer?: () => void }|undefined} */
     this.gameServer = options.gameServer;
   }
 
@@ -94,7 +95,26 @@ class MenuManager {
       this.navigate(route),
     );
     /** @type {Electron.MenuItemConstructorOptions[]} */
-    const submenu = [...quickLinks];
+    const submenu = [
+      ...quickLinks,
+      {
+        label: 'Actions',
+        click: () => this.navigate('/actions'),
+      },
+      {
+        label: 'Copy current link',
+        accelerator: 'CmdOrCtrl+Shift+U',
+        click: () => {
+          if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
+          try {
+            const url = this.mainWindow.webContents.getURL();
+            if (url) clipboard.writeText(url);
+          } catch {
+            /* ignore */
+          }
+        },
+      },
+    ];
     if (this.onOpenGamePanelConfig) {
       submenu.push({
         label: 'Customize Game Panel…',
@@ -430,6 +450,17 @@ class MenuManager {
             }
           },
         },
+        {
+          label: 'Turn Alert (60s warning)',
+          type: 'checkbox',
+          checked: this.cacheManager
+            ? this.cacheManager.getPreference('turnAlertEnabled') !== false
+            : true,
+          click: (menuItem) => {
+            if (this.cacheManager)
+              this.cacheManager.setPreference('turnAlertEnabled', menuItem.checked);
+          },
+        },
         ...(this.gameServer?.envOverride
           ? [
               {
@@ -438,31 +469,52 @@ class MenuManager {
               },
             ]
           : [
-              ...(this.gameServer?.showDevToggle
-                ? [
-                    {
-                      label:
-                        'Local dev server (localhost:3000) — dev build or admin',
-                      type: 'checkbox',
-                      checked: this.gameServer?.useDevServer ?? false,
-                      click: (menuItem) => {
-                        if (this.gameServer?.onSwitchDev) {
-                          this.gameServer.onSwitchDev(menuItem.checked);
-                        }
-                      },
+              (() => {
+                const gs = this.gameServer;
+                const useDev = gs?.useDevServer === true;
+                const useSb = gs?.useSandbox === true;
+                const standard = !useDev && !useSb;
+                /** @type {Electron.MenuItemConstructorOptions[]} */
+                const radios = [
+                  {
+                    type: 'radio',
+                    label: 'Standard game server (default)',
+                    checked: standard,
+                    click: (menuItem) => {
+                      if (menuItem.checked && gs?.onUseStandardServer) {
+                        gs.onUseStandardServer();
+                      }
                     },
-                  ]
-                : []),
-              {
-                label: 'Use sandbox / test server (Supporter+)',
-                type: 'checkbox',
-                checked: this.gameServer?.useSandbox ?? false,
-                click: (menuItem) => {
-                  if (this.gameServer?.onSwitch) {
-                    this.gameServer.onSwitch(menuItem.checked);
-                  }
-                },
-              },
+                  },
+                  {
+                    type: 'radio',
+                    label: 'Sandbox / test server (Supporter+)',
+                    checked: useSb,
+                    click: (menuItem) => {
+                      if (menuItem.checked && gs?.onSwitch) {
+                        gs.onSwitch(true);
+                      }
+                    },
+                  },
+                ];
+                if (gs?.showDevToggle) {
+                  radios.push({
+                    type: 'radio',
+                    label:
+                      'Local dev server (localhost:3000) — dev build or admin',
+                    checked: useDev,
+                    click: (menuItem) => {
+                      if (menuItem.checked && gs?.onSwitchDev) {
+                        gs.onSwitchDev(true);
+                      }
+                    },
+                  });
+                }
+                return {
+                  label: 'Game server',
+                  submenu: radios,
+                };
+              })(),
             ]),
         { type: 'separator' },
         { role: 'zoomIn' },
@@ -478,6 +530,19 @@ class MenuManager {
             if (this.onTogglePip) this.onTogglePip();
           },
         },
+        ...(process.platform !== 'linux'
+          ? [
+              { type: 'separator' },
+              {
+                label: 'Open at Login',
+                type: 'checkbox',
+                checked: app.getLoginItemSettings().openAtLogin,
+                click: (menuItem) => {
+                  app.setLoginItemSettings({ openAtLogin: menuItem.checked });
+                },
+              },
+            ]
+          : []),
       ],
     };
   }

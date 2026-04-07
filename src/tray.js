@@ -31,6 +31,12 @@ class TrayManager {
     this._menuThrottle = null;
     /** @type {number} Minimum ms between tray menu rebuilds */
     this._menuThrottleMs = 1000;
+    /** @type {number} Pending offline action count */
+    this._queueCount = 0;
+    /** @type {boolean} Update available but not yet downloaded */
+    this._updateAvailable = false;
+    /** @type {boolean} Update downloaded and ready to install */
+    this._updateReady = false;
   }
 
   /**
@@ -73,6 +79,35 @@ class TrayManager {
   }
 
   /**
+   * Update the pending offline action count and refresh the tray menu.
+   * @param {number} count
+   */
+  setQueueCount(count) {
+    this._queueCount = count;
+    this.updateMenu();
+  }
+
+  /**
+   * Mark that an update is available (downloaded or not) and refresh.
+   * @param {boolean} available
+   */
+  setUpdateAvailable(available) {
+    this._updateAvailable = available;
+    this.rebuildMenu();
+    this.updateBadge();
+  }
+
+  /**
+   * Mark that an update has been downloaded and is ready to install.
+   * @param {boolean} ready
+   */
+  setUpdateReady(ready) {
+    this._updateReady = ready;
+    this.rebuildMenu();
+    this.updateBadge();
+  }
+
+  /**
    * Throttled wrapper around rebuildMenu(). Prevents excessive context menu
    * reconstructions when SSE events arrive in bursts.
    */
@@ -96,6 +131,20 @@ class TrayManager {
       : 0;
 
     const template = [
+      ...(this._updateReady
+        ? [{ label: '\u27f3 Update ready \u2014 restart to install', enabled: false }, { type: 'separator' }]
+        : this._updateAvailable
+          ? [{ label: '\u2193 Update available', enabled: false }, { type: 'separator' }]
+          : []),
+      ...(this._queueCount > 0
+        ? [
+            {
+              label: `\u23f3 ${this._queueCount} action${this._queueCount === 1 ? '' : 's'} queued`,
+              enabled: false,
+            },
+            { type: 'separator' },
+          ]
+        : []),
       {
         label: `Turns to Election: ${this.gameState.turnsUntilElection}`,
         enabled: false,
@@ -109,6 +158,10 @@ class TrayManager {
         enabled: false,
       },
       { type: 'separator' },
+      {
+        label: 'Actions',
+        click: () => this.navigateTo('/actions'),
+      },
       {
         label: 'Open Campaign HQ',
         click: () => this.navigateTo('/campaign'),
@@ -168,13 +221,15 @@ class TrayManager {
       }
     }
 
-    // On Windows, use overlay icon or progress bar for badge
+    // On Windows, use progress bar to signal state (update > unread > none)
     if (
       process.platform === 'win32' &&
       this.mainWindow &&
       !this.mainWindow.isDestroyed()
     ) {
-      if (unread > 0) {
+      if (this._updateReady) {
+        this.mainWindow.setProgressBar(1, { mode: 'normal' });
+      } else if (unread > 0) {
         this.mainWindow.setProgressBar(1, { mode: 'error' });
       } else {
         this.mainWindow.setProgressBar(-1);

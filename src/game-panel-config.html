@@ -156,6 +156,12 @@
         margin-top: 8px;
         min-height: 1.2em;
       }
+      .success {
+        color: #5cbf63;
+        font-size: 11px;
+        margin-top: 8px;
+        min-height: 1.2em;
+      }
     </style>
   </head>
   <body>
@@ -211,12 +217,15 @@
     </div>
 
     <div class="err" id="err"></div>
+    <div class="success" id="success"></div>
 
     <script>
       const presetsEl = document.getElementById('presets');
       const customListEl = document.getElementById('custom-list');
       const errEl = document.getElementById('err');
+      const successEl = document.getElementById('success');
       const pipBarListEl = document.getElementById('pip-bar-list');
+      let successTimer = null;
 
       const BAR_LABELS = {
         ap: 'AP',
@@ -225,6 +234,7 @@
         portfolio: 'Portfolio',
         pi: 'PI',
         fav: 'Favorability',
+        infamy: 'Infamy',
         nationalInfluence: 'National PI',
         turn: 'Turn',
       };
@@ -235,9 +245,27 @@
         'portfolio',
         'pi',
         'fav',
+        'infamy',
         'nationalInfluence',
         'turn',
       ];
+
+      function clearSuccess() {
+        if (successTimer) {
+          clearTimeout(successTimer);
+          successTimer = null;
+        }
+        successEl.textContent = '';
+      }
+
+      function showSuccess(message) {
+        clearSuccess();
+        successEl.textContent = message;
+        successTimer = setTimeout(() => {
+          successTimer = null;
+          successEl.textContent = '';
+        }, 3000);
+      }
 
       let catalog = [];
       let enabledPresets = new Set();
@@ -409,6 +437,7 @@
 
       async function load() {
         errEl.textContent = '';
+        clearSuccess();
         await loadShortcuts();
       }
 
@@ -425,7 +454,7 @@
         document
           .getElementById('tab-btn-pip')
           .classList.toggle('active', which === 'pip');
-        if (which === 'pip' && pipBarListEl.children.length === 0) {
+        if (which === 'pip') {
           loadPipBar();
         }
       }
@@ -468,6 +497,7 @@
         .getElementById('save-pip-bar')
         .addEventListener('click', async () => {
           errEl.textContent = '';
+          clearSuccess();
           const stats = pipStatsFromUi();
           if (stats.length === 0) {
             errEl.textContent = 'Enable at least one stat.';
@@ -475,7 +505,7 @@
           }
           const res = await window.gamePanelConfig.setPipBarConfig(stats);
           if (res && res.ok) {
-            errEl.textContent = 'Saved.';
+            showSuccess('Saved.');
           } else {
             errEl.textContent = (res && res.error) || 'Could not save.';
           }
@@ -485,6 +515,7 @@
         .getElementById('reset-pip-bar')
         .addEventListener('click', async () => {
           errEl.textContent = '';
+          clearSuccess();
           const res = await window.gamePanelConfig.resetPipBarStats();
           if (res && res.ok) {
             await loadPipBar();
