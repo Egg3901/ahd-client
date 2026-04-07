@@ -1,5 +1,6 @@
 const { globalShortcut } = require('electron');
 const activeGameUrl = require('./active-game-url');
+const cacheManager = require('./cache-manager');
 
 /**
  * Global keyboard shortcuts for the core action loop.
@@ -52,6 +53,11 @@ const DEFAULT_SHORTCUTS = {
     handler: 'toggleMiniMode',
     label: 'Toggle Mini Mode',
   },
+  'CmdOrCtrl+K': {
+    action: 'custom',
+    handler: 'openCommandPalette',
+    label: 'Command Palette',
+  },
 };
 
 class ShortcutManager {
@@ -68,16 +74,51 @@ class ShortcutManager {
   }
 
   /**
-   * Register all default shortcuts with the OS.
-   * Safe to call multiple times — no-ops if already registered.
+   * Get effective shortcuts: defaults merged with custom overrides from cache.
+   * Returns a map of accelerator -> config.
+   * @returns {Object}
    */
-  registerAll() {
+  getEffectiveShortcuts() {
+    const customShortcuts = cacheManager.getPreference('customShortcuts');
+    if (!customShortcuts) return DEFAULT_SHORTCUTS;
+
+    // customShortcuts is a map of defaultAccel -> customAccel
+    // We need to build a new DEFAULT_SHORTCUTS-like object with updated accelerators
+    const result = { ...DEFAULT_SHORTCUTS };
+
+    Object.entries(customShortcuts).forEach(([defaultAccel, customAccel]) => {
+      if (result[defaultAccel]) {
+        // Move the config from default accelerator to custom accelerator
+        result[customAccel] = result[defaultAccel];
+        delete result[defaultAccel];
+      }
+    });
+
+    return result;
+  }
+
+  /**
+   * Get the current active shortcuts map (defaults merged with custom overrides).
+   * @returns {Object}
+   */
+  getShortcuts() {
+    return this.getEffectiveShortcuts();
+  }
+
+  /**
+   * Register all shortcuts with the OS.
+   * Safe to call multiple times — no-ops if already registered.
+   * @param {Object} [shortcuts] - Optional shortcuts map (defaults to getEffectiveShortcuts())
+   */
+  registerAll(shortcuts) {
     if (this.registered) return;
 
-    for (const [accelerator, shortcut] of Object.entries(DEFAULT_SHORTCUTS)) {
+    const shortcutsToUse = shortcuts || this.getEffectiveShortcuts();
+
+    for (const [accelerator, shortcutConfig] of Object.entries(shortcutsToUse)) {
       try {
         globalShortcut.register(accelerator, () => {
-          this.handleShortcut(shortcut);
+          this.handleShortcut(shortcutConfig);
         });
       } catch (err) {
         console.warn(`Failed to register shortcut ${accelerator}:`, err);
@@ -85,6 +126,14 @@ class ShortcutManager {
     }
 
     this.registered = true;
+  }
+
+  /**
+   * Unregister a single shortcut by accelerator.
+   * @param {string} accelerator
+   */
+  unregister(accelerator) {
+    globalShortcut.unregister(accelerator);
   }
 
   /**

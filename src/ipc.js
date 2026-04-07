@@ -48,6 +48,7 @@ const MAX_ZOOM = 3;
  *   feedbackManager: import('./feedback'),
  *   updateManager: import('./updater'),
  *   sseClient: import('./sse'),
+ *   shortcutManager: import('./shortcuts'),
  *   mainWindow: Electron.BrowserWindow,
  *   syncNativeTheme: (themeId: string) => void,
  *   handleGameStateEvent: (event: {data: object}) => void,
@@ -64,6 +65,7 @@ function registerIpcHandlers(deps) {
     feedbackManager,
     updateManager,
     sseClient,
+    shortcutManager,
     mainWindow,
     syncNativeTheme,
     handleGameStateEvent,
@@ -321,6 +323,35 @@ function registerIpcHandlers(deps) {
       barStats: DEFAULT_PIP_BAR_STATS,
     });
     if (pipManager) pipManager.applyBarStatsFromStore();
+    return { ok: true };
+  });
+
+  ipcMain.handle('get-custom-shortcuts', () => {
+    if (!cacheManager || !shortcutManager) {
+      return { shortcuts: null, defaults: {} };
+    }
+    const customShortcuts = cacheManager.getPreference('customShortcuts') || null;
+    return { shortcuts: customShortcuts, defaults: shortcutManager.getShortcuts() };
+  });
+
+  ipcMain.handle('save-shortcuts', (_event, overrides) => {
+    if (!cacheManager || !shortcutManager) {
+      return { ok: false, error: 'Unavailable' };
+    }
+    if (typeof overrides !== 'object' || overrides === null) {
+      return { ok: false, error: 'Invalid overrides' };
+    }
+    // Validate accelerator format (basic check)
+    for (const [defaultAccel, customAccel] of Object.entries(overrides)) {
+      if (customAccel && typeof customAccel !== 'string') {
+        return { ok: false, error: 'Invalid accelerator format' };
+      }
+    }
+    // Save to cache
+    cacheManager.setPreference('customShortcuts', overrides);
+    // Re-register shortcuts with new mappings
+    shortcutManager.unregisterAll();
+    shortcutManager.registerAll();
     return { ok: true };
   });
 }

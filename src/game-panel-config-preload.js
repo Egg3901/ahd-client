@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('gamePanelConfig', {
   getPipBarConfig: () => ipcRenderer.invoke('get-pip-bar-config'),
   setPipBarConfig: (stats) => ipcRenderer.invoke('set-pip-bar-config', stats),
   resetPipBarStats: () => ipcRenderer.invoke('reset-pip-bar-stats'),
+  getCustomShortcuts: () => ipcRenderer.invoke('get-custom-shortcuts'),
+  saveShortcuts: (overrides) => ipcRenderer.invoke('save-shortcuts', overrides),
 });

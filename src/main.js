@@ -709,6 +709,7 @@ function initModules() {
     feedbackManager,
     updateManager,
     sseClient,
+    shortcutManager,
     mainWindow,
     syncNativeTheme,
     handleGameStateEvent,
