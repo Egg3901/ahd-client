@@ -25,6 +25,7 @@ if (process.env.PLAYWRIGHT_REMOTE_DEBUGGING_PORT) {
 }
 
 const config = require('./config');
+const activeGameUrl = require('./active-game-url');
 const { registerIpcHandlers } = require('./ipc');
 const { getNavForCountry } = require('./nav');
 const { getTitleForPath } = require('./title-for-path');
@@ -46,6 +47,8 @@ const ErrorHandler = require('./error-handler');
 const ActionQueue = require('./action-queue');
 const siteApi = require('./site-api');
 const { normalizeClientNavManifest } = require('./nav-manifest');
+const { openGamePanelConfigWindow } = require('./game-panel-config-window');
+const { isLocalDevServerAllowed } = require('./game-server-dev');
 
 // --- Module singletons (initialized in createWindow) ---
 
@@ -96,6 +99,26 @@ const THEME_BACKGROUNDS = {
 /** @type {object} Current country nav (defaults to US until manifest arrives) */
 let currentNav = getNavForCountry(null);
 
+/** Session name shared by the main window and pop-outs. */
+const GAME_SESSION_PARTITION = 'persist:ahd';
+
+/**
+ * Avatar and asset CDNs often block or mishandle requests whose User-Agent
+ * includes "Electron", which breaks GIF (and other) profile images.
+ * Present as Chrome for this session; the app still exposes Electron via preload.
+ */
+function configureGamePartitionUserAgent() {
+  const ses = session.fromPartition(GAME_SESSION_PARTITION);
+  const ua = ses.getUserAgent();
+  if (!/\sElectron\//.test(ua)) return;
+  ses.setUserAgent(
+    ua
+      .replace(/\sElectron\/[\d.]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
+}
+
 // --- Window creation ---
 
 /**
@@ -103,8 +126,11 @@ let currentNav = getNavForCountry(null);
  */
 function createWindow() {
   cacheManager = new CacheManager();
+  activeGameUrl.bindCache(cacheManager);
   errorHandler = new ErrorHandler();
   actionQueue = new ActionQueue(cacheManager);
+
+  configureGamePartitionUserAgent();
 
   const savedTheme = cacheManager.getTheme();
   mainWindow = new BrowserWindow({
@@ -120,7 +146,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      partition: 'persist:ahd',
+      partition: GAME_SESSION_PARTITION,
     },
     show: false,
   });
@@ -130,14 +156,14 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.webContents.once('did-finish-load', async () => {
     const displayMode = cacheManager.getPreference('displayMode') || 'focused';
-    await session.fromPartition('persist:ahd').cookies.set({
-      url: config.GAME_URL,
+    await session.fromPartition(GAME_SESSION_PARTITION).cookies.set({
+      url: activeGameUrl.get(),
       name: 'ahd-display-mode',
       value: displayMode,
       path: '/',
       sameSite: 'lax',
     });
-    mainWindow.loadURL(config.GAME_URL);
+    mainWindow.loadURL(activeGameUrl.get());
   });
 
   // Mirror page title into window title bar
@@ -187,13 +213,13 @@ function createWindow() {
  */
 function pushThemeToSite(themeId) {
   session
-    .fromPartition('persist:ahd')
-    .cookies.get({ url: config.GAME_URL })
+    .fromPartition(GAME_SESSION_PARTITION)
+    .cookies.get({ url: activeGameUrl.get() })
     .then((cookies) => {
       const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
       const body = JSON.stringify({ theme: themeId });
       const request = net.request({
-        url: `${config.GAME_URL}/api/settings/theme`,
+        url: `${activeGameUrl.get()}/api/settings/theme`,
         method: 'PATCH',
       });
       request.setHeader('Cookie', cookieStr);
@@ -223,9 +249,19 @@ let unreadPollTimer = null;
 async function enrichClientNavManifest(manifest) {
   if (!manifest.hasCharacter) return manifest;
   try {
-    const me = await siteApi.fetchCharacterMe(config.GAME_URL);
-    if (me?.corporation?.sequentialId != null) {
-      return { ...manifest, myCorporationId: me.corporation.sequentialId };
+    const me = await siteApi.fetchCharacterMe(activeGameUrl.get());
+    if (me?.corporation) {
+      const corp = me.corporation;
+      const isCeo =
+        manifest.isCeo === true ||
+        corp.isCeo === true ||
+        corp.role === 'CEO' ||
+        corp.role === 'ceo';
+      const out = { ...manifest, isCeo };
+      if (corp.sequentialId != null) {
+        out.myCorporationId = corp.sequentialId;
+      }
+      return out;
     }
   } catch {
     /* ignore */
@@ -238,7 +274,7 @@ async function enrichClientNavManifest(manifest) {
  * @returns {Promise<object|null>}
  */
 function fetchClientNav() {
-  return siteApi.fetchClientNav(config.GAME_URL);
+  return siteApi.fetchClientNav(activeGameUrl.get());
 }
 
 /**
@@ -275,6 +311,12 @@ function applyClientNavEffects(manifest) {
   if (manifest.funds != null) navState.funds = manifest.funds;
   if (manifest.actions != null) navState.actionPoints = manifest.actions;
   if (manifest.cashOnHand != null) navState.cashOnHand = manifest.cashOnHand;
+  if (manifest.portfolioValue != null)
+    navState.portfolioValue = manifest.portfolioValue;
+  if (manifest.portfolioChangePercent != null)
+    navState.portfolioChangePercent = manifest.portfolioChangePercent;
+  if (manifest.cashOnHandChangePercent != null)
+    navState.cashOnHandChangePercent = manifest.cashOnHandChangePercent;
   if (manifest.projectedIncome != null)
     navState.projectedIncome = manifest.projectedIncome;
   if (manifest.unreadMailCount != null)
@@ -369,9 +411,9 @@ function initModules() {
     const mode = enabled ? 'focused' : 'classic';
     cacheManager.setPreference('displayMode', mode);
     session
-      .fromPartition('persist:ahd')
+      .fromPartition(GAME_SESSION_PARTITION)
       .cookies.set({
-        url: config.GAME_URL,
+        url: activeGameUrl.get(),
         name: 'ahd-display-mode',
         value: mode,
         path: '/',
@@ -379,7 +421,7 @@ function initModules() {
       })
       .then(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(config.GAME_URL);
+          mainWindow.loadURL(activeGameUrl.get());
         }
       });
     if (menuManager) menuManager.setFocusedMode(enabled);
@@ -393,8 +435,8 @@ function initModules() {
   sseClient = new SSEClient();
   mainWindow.webContents.on('did-navigate', () => {
     session
-      .fromPartition('persist:ahd')
-      .cookies.get({ url: config.GAME_URL })
+      .fromPartition(GAME_SESSION_PARTITION)
+      .cookies.get({ url: activeGameUrl.get() })
       .then((cookies) => {
         const cookieStr = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
         sseClient.setCookie(cookieStr);
@@ -509,6 +551,7 @@ function initModules() {
 
   // Menu (#5)
   menuManager = new MenuManager(mainWindow, windowManager, {
+    cacheManager,
     isFocusedMode:
       (cacheManager.getPreference('displayMode') || 'focused') === 'focused',
     onThemeChange: (themeId) => {
@@ -519,10 +562,45 @@ function initModules() {
     onTogglePip: () => pipManager.toggle(),
     onOpenFeedback: () => feedbackManager.openFeedbackDialog(),
     onToggleFocusedMode: (enabled) => toggleFocusedMode(enabled),
+    onOpenGamePanelConfig: () =>
+      openGamePanelConfigWindow({ parent: mainWindow }),
+    gameServer: {
+      get envOverride() {
+        return config.isEnvGameUrlOverride();
+      },
+      get showDevToggle() {
+        return isLocalDevServerAllowed(menuManager?.isAdmin === true);
+      },
+      get useDevServer() {
+        return cacheManager.getPreference('useDevServer') === true;
+      },
+      get useSandbox() {
+        return cacheManager.getPreference('useSandboxServer') === true;
+      },
+      onSwitchDev(useDev) {
+        cacheManager.setPreference('useDevServer', useDev);
+        if (useDev) cacheManager.setPreference('useSandboxServer', false);
+        if (sseClient) sseClient.disconnect();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(activeGameUrl.get());
+        }
+        if (menuManager) menuManager.build();
+      },
+      onSwitch(useSandbox) {
+        cacheManager.setPreference('useSandboxServer', useSandbox);
+        if (useSandbox) cacheManager.setPreference('useDevServer', false);
+        if (sseClient) sseClient.disconnect();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(activeGameUrl.get());
+        }
+        if (menuManager) menuManager.build();
+      },
+    },
   });
   if (process.env.NODE_ENV === 'development') {
     menuManager.onOpenEventLog = () => devToolsManager.openPanel();
   }
+  activeGameUrl.setAdminProvider(() => menuManager?.isAdmin === true);
   menuManager.build();
 
   if (trayManager) {
@@ -602,7 +680,6 @@ function initModules() {
     syncNativeTheme,
     handleGameStateEvent,
     pushThemeToSite,
-    config,
     fetchClientNav,
     enrichClientNavManifest,
     isGameUrl,
@@ -687,7 +764,7 @@ function initModules() {
 
     items.push({
       label: 'Reload',
-      click: () => mainWindow.loadURL(config.GAME_URL),
+      click: () => mainWindow.loadURL(activeGameUrl.get()),
     });
 
     Menu.buildFromTemplate(items).popup({ window: mainWindow });
@@ -721,6 +798,9 @@ function handleGameStateEvent(event) {
     // Funds & income
     'funds',
     'cashOnHand',
+    'portfolioValue',
+    'portfolioChangePercent',
+    'cashOnHandChangePercent',
     'projectedIncome',
     'incomeBreakdown',
     // Unread mail (from client-nav hydration)
@@ -728,13 +808,18 @@ function handleGameStateEvent(event) {
     // Decay stats
     'politicalInfluence',
     'politicalInfluenceDecayWarning',
+    'politicalInfluenceProjected',
+    'politicalInfluenceDecaying',
     'favorability',
     'favorabilityDecayWarning',
+    'favorabilityProjected',
+    'favorabilityDecaying',
     'infamy',
     'infamyDecayWarning',
     // Election countdown
     'electionDate',
     'electionName',
+    'electionIsCandidate',
     // Per-action AP costs
     'actionCosts',
   ];
@@ -772,13 +857,7 @@ function syncNativeTheme(themeId) {
  * @returns {boolean}
  */
 function isGameUrl(url) {
-  try {
-    const gameHost = new URL(config.GAME_URL).hostname; // 'ahousedividedgame.com'
-    const urlHost = new URL(url).hostname;
-    return urlHost === gameHost || urlHost === `www.${gameHost}`;
-  } catch {
-    return false;
-  }
+  return config.isTrustedGameUrl(url);
 }
 
 /**

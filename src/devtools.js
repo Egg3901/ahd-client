@@ -156,6 +156,7 @@ class DevToolsManager {
    */
   registerDevIpc(cacheManager) {
     const config = require('./config');
+    const activeGameUrl = require('./active-game-url');
 
     ipcMain.handle('dev-get-state', () => ({
       gameState: cacheManager.getGameState(),
@@ -170,7 +171,12 @@ class DevToolsManager {
     }));
 
     ipcMain.handle('dev-get-config', () => ({
-      GAME_URL: config.GAME_URL,
+      GAME_URL: activeGameUrl.get(),
+      MAIN_GAME_URL: config.MAIN_GAME_URL,
+      SANDBOX_GAME_URL: config.SANDBOX_GAME_URL,
+      DEV_GAME_URL: config.DEV_GAME_URL,
+      useSandboxServer: cacheManager.getPreference('useSandboxServer') === true,
+      useDevServer: cacheManager.getPreference('useDevServer') === true,
       WINDOW_WIDTH: config.WINDOW_WIDTH,
       WINDOW_HEIGHT: config.WINDOW_HEIGHT,
       NODE_ENV: process.env.NODE_ENV,

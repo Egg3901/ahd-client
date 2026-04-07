@@ -1,5 +1,5 @@
 const { Menu, session, shell } = require('electron');
-const config = require('./config');
+const activeGameUrl = require('./active-game-url');
 const siteApi = require('./site-api');
 const urls = require('./urls');
 const {
@@ -7,6 +7,7 @@ const {
   getStatePartyLinkAdjective,
 } = require('./uk-state-labels');
 const { getNavForCountry } = require('./nav');
+const { buildGamePanelMenuTemplate } = require('./game-panel-links');
 
 /**
  * Custom application menu replacing the default Electron menu.
@@ -29,7 +30,7 @@ class MenuManager {
   /**
    * @param {Electron.BrowserWindow} mainWindow
    * @param {import('./windows')} windowManager - For pop-out window presets
-   * @param {{onThemeChange?: (id: string) => void, onTogglePip?: () => void, onOpenFeedback?: () => void, onToggleFocusedMode?: (enabled: boolean) => void, isAdmin?: boolean, isFocusedMode?: boolean}} [options]
+   * @param {{onThemeChange?: (id: string) => void, onTogglePip?: () => void, onOpenFeedback?: () => void, onToggleFocusedMode?: (enabled: boolean) => void, onOpenGamePanelConfig?: () => void, isAdmin?: boolean, isFocusedMode?: boolean, cacheManager?: import('./cache')}} [options]
    */
   constructor(mainWindow, windowManager, options = {}) {
     /** @type {Electron.BrowserWindow} */
@@ -50,10 +51,16 @@ class MenuManager {
     this.onToggleFocusedMode = options.onToggleFocusedMode || null;
     /** @type {(() => void)|null} Set externally by main.js for dev event log */
     this.onOpenEventLog = null;
+    /** @type {(() => void)|null} */
+    this.onOpenGamePanelConfig = options.onOpenGamePanelConfig || null;
+    /** @type {import('./cache')|null} */
+    this.cacheManager = options.cacheManager || null;
     /** @type {object} Current country nav config */
     this.nav = getNavForCountry(null);
     /** @type {object|null} Latest client-nav manifest */
     this.manifest = null;
+    /** @type {{ envOverride: boolean, useSandbox: boolean, onSwitch: (useSandbox: boolean) => void }|undefined} */
+    this.gameServer = options.gameServer;
   }
 
   /**
@@ -79,51 +86,48 @@ class MenuManager {
   }
 
   gameMenu() {
+    const manifest = this.manifest || {};
+    const stored = this.cacheManager
+      ? this.cacheManager.getPreference('gamePanelEntries')
+      : null;
+    const quickLinks = buildGamePanelMenuTemplate(manifest, stored, (route) =>
+      this.navigate(route),
+    );
+    /** @type {Electron.MenuItemConstructorOptions[]} */
+    const submenu = [...quickLinks];
+    if (this.onOpenGamePanelConfig) {
+      submenu.push({
+        label: 'Customize Game Panel…',
+        click: () => this.onOpenGamePanelConfig(),
+      });
+    }
+    submenu.push({ type: 'separator' });
+    submenu.push(
+      {
+        label: 'Reload',
+        accelerator: 'CmdOrCtrl+R',
+        click: () => this.mainWindow.loadURL(activeGameUrl.get()),
+      },
+      {
+        label: 'Go Home',
+        accelerator: 'CmdOrCtrl+H',
+        click: () => this.mainWindow.loadURL(activeGameUrl.get()),
+      },
+      { type: 'separator' },
+      {
+        label: 'Clear Cache & Reload',
+        click: async () => {
+          const ses = session.fromPartition('persist:ahd');
+          await ses.clearCache();
+          this.mainWindow.loadURL(activeGameUrl.get());
+        },
+      },
+      { type: 'separator' },
+      { role: 'quit' },
+    );
     return {
       label: 'Game',
-      submenu: [
-        {
-          label: 'Profile',
-          accelerator: 'CmdOrCtrl+P',
-          click: () => this.navigate('/profile'),
-        },
-        {
-          label: 'Campaign HQ',
-          accelerator: 'CmdOrCtrl+Shift+C',
-          click: () => this.navigate('/campaign'),
-        },
-        {
-          label: 'Notifications',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => this.navigate('/notifications'),
-        },
-        {
-          label: 'Portfolio',
-          click: () => this.navigate('/portfolio'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Reload',
-          accelerator: 'CmdOrCtrl+R',
-          click: () => this.mainWindow.loadURL(config.GAME_URL),
-        },
-        {
-          label: 'Go Home',
-          accelerator: 'CmdOrCtrl+H',
-          click: () => this.mainWindow.loadURL(config.GAME_URL),
-        },
-        { type: 'separator' },
-        {
-          label: 'Clear Cache & Reload',
-          click: async () => {
-            const ses = session.fromPartition('persist:ahd');
-            await ses.clearCache();
-            this.mainWindow.loadURL(config.GAME_URL);
-          },
-        },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
+      submenu,
     };
   }
 
@@ -149,12 +153,12 @@ class MenuManager {
         label: 'Sign Out',
         click: async () => {
           await siteApi.postJsonAuthed(
-            config.GAME_URL,
+            activeGameUrl.get(),
             '/api/auth/logout',
             null,
           );
           if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.loadURL(`${config.GAME_URL}/`);
+            this.mainWindow.loadURL(`${activeGameUrl.get()}/`);
           }
         },
       },
@@ -189,12 +193,12 @@ class MenuManager {
               label: ch.name,
               click: async () => {
                 await siteApi.postJsonAuthed(
-                  config.GAME_URL,
+                  activeGameUrl.get(),
                   '/api/auth/active-character',
                   { characterId: ch.id },
                 );
                 if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-                  this.mainWindow.loadURL(config.GAME_URL);
+                  this.mainWindow.loadURL(activeGameUrl.get());
                 }
               },
             });
@@ -426,6 +430,40 @@ class MenuManager {
             }
           },
         },
+        ...(this.gameServer?.envOverride
+          ? [
+              {
+                label: 'Game server: custom (AHD_GAME_URL)',
+                enabled: false,
+              },
+            ]
+          : [
+              ...(this.gameServer?.showDevToggle
+                ? [
+                    {
+                      label:
+                        'Local dev server (localhost:3000) — dev build or admin',
+                      type: 'checkbox',
+                      checked: this.gameServer?.useDevServer ?? false,
+                      click: (menuItem) => {
+                        if (this.gameServer?.onSwitchDev) {
+                          this.gameServer.onSwitchDev(menuItem.checked);
+                        }
+                      },
+                    },
+                  ]
+                : []),
+              {
+                label: 'Use sandbox / test server (Supporter+)',
+                type: 'checkbox',
+                checked: this.gameServer?.useSandbox ?? false,
+                click: (menuItem) => {
+                  if (this.gameServer?.onSwitch) {
+                    this.gameServer.onSwitch(menuItem.checked);
+                  }
+                },
+              },
+            ]),
         { type: 'separator' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
@@ -490,7 +528,7 @@ class MenuManager {
    */
   navigate(route) {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.loadURL(`${config.GAME_URL}${route}`);
+      this.mainWindow.loadURL(`${activeGameUrl.get()}${route}`);
     }
   }
 

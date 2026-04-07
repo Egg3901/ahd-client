@@ -1,6 +1,6 @@
 const { net } = require('electron');
 const { EventEmitter } = require('events');
-const config = require('./config');
+const activeGameUrl = require('./active-game-url');
 
 /**
  * SSE client that connects to the game server's /api/events endpoint
@@ -47,7 +47,7 @@ class SSEClient extends EventEmitter {
       this.disconnect();
     }
 
-    const url = `${config.GAME_URL}/api/events`;
+    const url = `${activeGameUrl.get()}/api/events`;
 
     try {
       this.request = net.request({

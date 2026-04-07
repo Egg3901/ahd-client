@@ -26,6 +26,12 @@ const schema = {
       notificationsEnabled: { type: 'boolean', default: true },
       miniModeEnabled: { type: 'boolean', default: false },
       displayMode: { type: 'string', default: 'focused' },
+      /** @see game-panel-links.js — null means use automatic defaults */
+      gamePanelEntries: { default: null },
+      /** Supporter+ test server; toggled from View menu */
+      useSandboxServer: { type: 'boolean', default: false },
+      /** Local Next dev server; only honored when NODE_ENV=development */
+      useDevServer: { type: 'boolean', default: false },
     },
   },
   gameState: {
@@ -44,6 +50,9 @@ const schema = {
       incomeBreakdown: null,
       // Funds (extended)
       cashOnHand: null,
+      portfolioValue: null,
+      portfolioChangePercent: null,
+      cashOnHandChangePercent: null,
       // Decay stats
       politicalInfluence: null,
       politicalInfluenceDecayWarning: false,

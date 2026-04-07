@@ -10,11 +10,11 @@ const path = require('path');
  *   - Nearest election countdown
  *   - Expandable detail panel (income breakdown, stat detail, election name)
  *
- * Compact size: 310×175  Expanded size: 340×340
+ * Compact size: 328×256  Expanded size: 392×460
  */
 
-const COMPACT = { width: 310, height: 175, minW: 260, maxW: 460, maxH: 200 };
-const EXPANDED = { width: 340, height: 340, minW: 290, maxW: 520, maxH: 440 };
+const COMPACT = { width: 328, height: 256, minW: 280, maxW: 480, maxH: 340 };
+const EXPANDED = { width: 392, height: 460, minW: 320, maxW: 560, maxH: 560 };
 
 class PipManager {
   /** @param {Electron.BrowserWindow} mainWindow */
@@ -40,6 +40,10 @@ class PipManager {
       maxActionPoints: 15,
       // (*) Funds & income
       funds: null,
+      cashOnHand: null,
+      portfolioValue: null,
+      portfolioChangePercent: null,
+      cashOnHandChangePercent: null,
       projectedIncome: null,
       incomeBreakdown: null, // { base, donorBonus, officeSalary, partyTax }
       // (*) Decay stats
@@ -52,8 +56,21 @@ class PipManager {
       // (*) Election countdown
       electionDate: null,
       electionName: null,
+      electionIsCandidate: false,
+      turnsUntilElection: null,
+      unreadMailCount: null,
+      politicalInfluenceProjected: null,
+      politicalInfluenceDecaying: false,
+      favorabilityProjected: null,
+      favorabilityDecaying: false,
       // (*) Per-action AP costs (server may override)
-      actionCosts: { fundraise: 1, advertise: 2, donorBuild: 3, poll: 1 },
+      actionCosts: {
+        fundraise: 1,
+        advertise: 2,
+        donorBuild: 3,
+        poll: 1,
+        campaign: 2,
+      },
     };
 
     this.updateInterval = null;
@@ -111,7 +128,8 @@ class PipManager {
       maxHeight: COMPACT.maxH,
       alwaysOnTop: true,
       frame: false,
-      transparent: false,
+      transparent: true,
+      backgroundColor: '#00000000',
       resizable: true,
       skipTaskbar: true,
       title: 'AHD Dashboard',

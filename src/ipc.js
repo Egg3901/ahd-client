@@ -1,7 +1,14 @@
 const { ipcMain, shell } = require('electron');
 const siteApi = require('./site-api');
+const activeGameUrl = require('./active-game-url');
 const { normalizeClientNavManifest } = require('./nav-manifest');
 const { resolveGamePath } = require('./game-paths');
+const {
+  normalizeStoredEntries,
+  getGamePanelCatalog,
+  buildDefaultEntries,
+} = require('./game-panel-links');
+const { closeGamePanelConfigWindow } = require('./game-panel-config-window');
 
 /** Preferences the renderer may change via set-preference (theme uses set-theme). */
 const ALLOWED_PREFERENCE_KEYS /** @type {ReadonlySet<string>} */ = new Set([
@@ -46,11 +53,48 @@ function registerIpcHandlers(deps) {
     syncNativeTheme,
     handleGameStateEvent,
     pushThemeToSite,
-    config,
     fetchClientNav,
     enrichClientNavManifest,
     isGameUrl,
   } = deps;
+
+  ipcMain.handle('get-game-panel-config', () => {
+    if (!cacheManager) {
+      return { stored: null, catalog: [], defaults: [] };
+    }
+    return {
+      stored: cacheManager.getPreference('gamePanelEntries') ?? null,
+      catalog: getGamePanelCatalog(),
+      defaults: buildDefaultEntries(menuManager?.manifest || {}),
+    };
+  });
+
+  ipcMain.handle('set-game-panel-entries', (_event, entries) => {
+    if (!cacheManager) return { ok: false, error: 'Unavailable' };
+    const raw = Array.isArray(entries) ? entries : [];
+    const filtered = raw.filter((e) => {
+      if (e && e.kind === 'custom') {
+        return (
+          String(e.label || '').trim().length > 0 &&
+          String(e.path || '').trim().length > 0
+        );
+      }
+      return true;
+    });
+    const normalized = normalizeStoredEntries(filtered);
+    if (normalized === null) return { ok: false, error: 'Invalid shortcuts' };
+    cacheManager.setPreference('gamePanelEntries', normalized);
+    if (menuManager) menuManager.build();
+    closeGamePanelConfigWindow();
+    return { ok: true };
+  });
+
+  ipcMain.handle('reset-game-panel-entries', () => {
+    if (!cacheManager) return { ok: false };
+    cacheManager.setPreference('gamePanelEntries', null);
+    if (menuManager) menuManager.build();
+    return { ok: true };
+  });
 
   ipcMain.handle('get-game-state', () => {
     return cacheManager ? cacheManager.getGameState() : {};
@@ -171,7 +215,7 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('go-home', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(config.GAME_URL);
+      mainWindow.loadURL(activeGameUrl.get());
     }
   });
 
@@ -194,7 +238,7 @@ function registerIpcHandlers(deps) {
       return;
     }
     const path = resolveGamePath(u);
-    mainWindow.loadURL(`${config.GAME_URL}${path}`);
+    mainWindow.loadURL(`${activeGameUrl.get()}${path}`);
   });
 
   ipcMain.handle('open-external', (_event, url) => {
@@ -204,21 +248,21 @@ function registerIpcHandlers(deps) {
 
   ipcMain.handle('switch-character', async (_event, characterId) => {
     await siteApi.postJsonAuthed(
-      config.GAME_URL,
+      activeGameUrl.get(),
       '/api/auth/active-character',
       {
         characterId,
       },
     );
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(config.GAME_URL);
+      mainWindow.loadURL(activeGameUrl.get());
     }
   });
 
   ipcMain.handle('sign-out', async () => {
-    await siteApi.postJsonAuthed(config.GAME_URL, '/api/auth/logout', null);
+    await siteApi.postJsonAuthed(activeGameUrl.get(), '/api/auth/logout', null);
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(config.GAME_URL);
+      mainWindow.loadURL(activeGameUrl.get());
     }
   });
 }

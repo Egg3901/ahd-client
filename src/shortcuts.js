@@ -1,5 +1,5 @@
 const { globalShortcut } = require('electron');
-const config = require('./config');
+const activeGameUrl = require('./active-game-url');
 
 /**
  * Global keyboard shortcuts for the core action loop.
@@ -100,7 +100,7 @@ class ShortcutManager {
 
     switch (shortcut.action) {
       case 'navigate':
-        this.mainWindow.loadURL(`${config.GAME_URL}${shortcut.route}`);
+        this.mainWindow.loadURL(`${activeGameUrl.get()}${shortcut.route}`);
         break;
       case 'custom':
         if (this.customHandlers[shortcut.handler]) {

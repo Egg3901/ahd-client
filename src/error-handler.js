@@ -1,5 +1,5 @@
 const { net } = require('electron');
-const config = require('./config');
+const activeGameUrl = require('./active-game-url');
 
 /**
  * Client-side overlay defaults — used for network/navigation failures.
@@ -36,7 +36,7 @@ class ErrorHandler {
   loadErrorCodes() {
     return new Promise((resolve) => {
       const req = net.request({
-        url: `${config.GAME_URL}/api/error-codes`,
+        url: `${activeGameUrl.get()}/api/error-codes`,
         method: 'GET',
         partition: 'persist:ahd',
         useSessionCookies: true,

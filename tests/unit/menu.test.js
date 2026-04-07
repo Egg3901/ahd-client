@@ -2,7 +2,7 @@
 
 const { Menu } = require('electron');
 const MenuManager = require('../../src/menu');
-const config = require('../../src/config');
+const { MAIN_GAME_URL } = require('../../src/config');
 
 function makeMockWindow() {
   return {
@@ -153,7 +153,7 @@ describe('MenuManager', () => {
       const wm = makeMockWindowManager();
       const mm = new MenuManager(win, wm, {});
       mm.navigate('/elections');
-      expect(win.loadURL).toHaveBeenCalledWith(`${config.GAME_URL}/elections`);
+      expect(win.loadURL).toHaveBeenCalledWith(`${MAIN_GAME_URL}/elections`);
     });
 
     it('is a no-op when the window is destroyed', () => {

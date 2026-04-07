@@ -34,4 +34,29 @@ describe('config', () => {
     const config = require('../../src/config');
     expect(config.UPDATE_CHECK_INTERVAL).toBe(3600000);
   });
+
+  test('default SANDBOX_GAME_URL is test.ahousedividedgame.com', () => {
+    delete process.env.AHD_SANDBOX_GAME_URL;
+    const config = require('../../src/config');
+    expect(config.SANDBOX_GAME_URL).toBe('https://test.ahousedividedgame.com');
+  });
+
+  test('getActiveGameUrl(true) returns sandbox URL', () => {
+    delete process.env.AHD_GAME_URL;
+    const config = require('../../src/config');
+    expect(config.getActiveGameUrl(true)).toBe(config.SANDBOX_GAME_URL);
+  });
+
+  test('DEV_GAME_URL defaults to localhost:3000', () => {
+    delete process.env.AHD_DEV_GAME_URL;
+    const config = require('../../src/config');
+    expect(config.DEV_GAME_URL).toBe('http://localhost:3000');
+  });
+
+  test('isTrustedGameUrl allows localhost', () => {
+    delete process.env.AHD_GAME_URL;
+    const config = require('../../src/config');
+    expect(config.isTrustedGameUrl('http://localhost:3000/foo')).toBe(true);
+    expect(config.isTrustedGameUrl('http://127.0.0.1:3000/')).toBe(true);
+  });
 });

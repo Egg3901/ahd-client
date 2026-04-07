@@ -2,6 +2,7 @@
 
 const { ipcMain, BrowserWindow } = require('electron');
 const { registerIpcHandlers } = require('../../src/ipc');
+const activeGameUrl = require('../../src/active-game-url');
 const CacheManager = require('../../src/cache');
 const ActionQueue = require('../../src/action-queue');
 const NotificationManager = require('../../src/notifications');
@@ -33,6 +34,7 @@ describe('IPC Handlers Integration', () => {
     mockWindow = new BrowserWindow();
 
     cache = new CacheManager();
+    activeGameUrl.bindCache(cache);
     actionQueue = new ActionQueue(cache);
     notifications = new NotificationManager(mockWindow);
 
@@ -53,7 +55,6 @@ describe('IPC Handlers Integration', () => {
       syncNativeTheme: jest.fn(),
       handleGameStateEvent: jest.fn(),
       pushThemeToSite: jest.fn(),
-      config: { GAME_URL: 'https://ahousedividedgame.com' },
       fetchClientNav: jest.fn().mockResolvedValue(null),
       enrichClientNavManifest: jest.fn(async (m) => m),
       isGameUrl: jest.fn().mockReturnValue(true),

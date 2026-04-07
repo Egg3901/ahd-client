@@ -7,40 +7,87 @@
         margin: 0;
         padding: 0;
         box-sizing: border-box;
-        -webkit-app-region: drag;
       }
 
       :root {
-        --bg: #1a1a2e;
-        --border: #2a2a4e;
+        --bg-top: #222238;
+        --bg-bottom: #12121f;
+        --border: rgba(255, 255, 255, 0.1);
+        --border-strong: rgba(201, 169, 89, 0.22);
         --gold: #c9a959;
-        --dim: #6666aa;
-        --text: #e0e0e0;
-        --green: #4caf50;
-        --amber: #ff9800;
-        --red: #e44;
-        --warn: #ff6b35;
+        --dim: #8b8bb8;
+        --text: #e8e8f0;
+        --green: #5cbf63;
+        --amber: #ffb04a;
+        --red: #f05a5a;
+        --warn: #ff7a45;
+        --radius-shell: 14px;
+        --radius-card: 10px;
+        --radius-pill: 999px;
+        --radius-sm: 6px;
+        --shadow-shell:
+          0 12px 40px rgba(0, 0, 0, 0.55),
+          0 0 0 1px rgba(201, 169, 89, 0.07) inset;
+      }
+
+      html {
+        background: transparent;
+        height: 100%;
+        overflow: hidden;
       }
 
       body {
-        background: var(--bg);
+        height: 100%;
+        margin: 0;
+        background: transparent;
         color: var(--text);
-        font-family: 'Segoe UI', 'SF Pro', system-ui, sans-serif;
+        font-family: 'Segoe UI', 'SF Pro Text', system-ui, sans-serif;
         font-size: 11px;
         overflow: hidden;
-        border: 1px solid var(--border);
-        border-radius: 8px;
         display: flex;
         flex-direction: column;
-        padding: 8px 10px 5px;
-        gap: 5px;
         user-select: none;
         cursor: default;
       }
 
-      /* ── Drag override ── */
-      button,
-      .no-drag {
+      .pip-shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 10px 12px 8px;
+        gap: 0;
+        border-radius: var(--radius-shell);
+        border: 1px solid var(--border);
+        background: linear-gradient(
+          165deg,
+          var(--bg-top) 0%,
+          var(--bg-bottom) 100%
+        );
+        box-shadow: var(--shadow-shell);
+        overflow: hidden;
+      }
+
+      .pip-header {
+        flex-shrink: 0;
+        -webkit-app-region: drag;
+      }
+
+      .pip-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+        padding-right: 2px;
+        -webkit-app-region: no-drag;
+      }
+
+      .no-drag,
+      button {
         -webkit-app-region: no-drag;
       }
 
@@ -55,31 +102,45 @@
         font-size: 9px;
         color: var(--gold);
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 0.18em;
         font-weight: 600;
       }
 
       .header-btns {
         display: flex;
-        gap: 4px;
+        gap: 2px;
         -webkit-app-region: no-drag;
       }
 
       .icon-btn {
-        background: none;
-        border: none;
-        color: #555;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-sm);
+        color: var(--dim);
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1;
-        padding: 0 2px;
+        padding: 0;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease,
+          border-color 0.15s ease;
       }
 
       .icon-btn:hover {
+        background: rgba(201, 169, 89, 0.12);
+        border-color: rgba(201, 169, 89, 0.25);
         color: var(--gold);
       }
 
       .icon-btn.close:hover {
+        background: rgba(240, 90, 90, 0.15);
+        border-color: rgba(240, 90, 90, 0.35);
         color: var(--red);
       }
 
@@ -87,7 +148,7 @@
       .ap-section {
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 6px;
       }
 
       .ap-header {
@@ -100,104 +161,217 @@
         font-size: 9px;
         color: var(--dim);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.08em;
       }
 
       .ap-value {
         font-size: 11px;
         font-weight: 700;
         color: var(--gold);
+        font-variant-numeric: tabular-nums;
       }
 
       .ap-track {
-        height: 6px;
-        background: #22223a;
-        border-radius: 3px;
+        height: 7px;
+        background: rgba(0, 0, 0, 0.35);
+        border-radius: var(--radius-pill);
         overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.06);
       }
 
       .ap-fill {
         height: 100%;
         background: linear-gradient(90deg, var(--green), var(--gold));
-        border-radius: 3px;
+        border-radius: var(--radius-pill);
         transition: width 0.4s ease;
       }
 
       .ap-tiers {
         display: flex;
-        gap: 3px;
+        gap: 4px;
         flex-wrap: wrap;
-        -webkit-app-region: no-drag;
       }
 
       .ap-tier {
         display: flex;
         align-items: center;
-        gap: 2px;
-        padding: 1px 5px;
-        border-radius: 3px;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: var(--radius-pill);
         font-size: 9px;
         font-weight: 600;
+        font-variant-numeric: tabular-nums;
       }
 
       .ap-tier.t1 {
-        background: rgba(76, 175, 80, 0.15);
+        background: rgba(92, 191, 99, 0.14);
         color: var(--green);
-        border: 1px solid rgba(76, 175, 80, 0.3);
+        border: 1px solid rgba(92, 191, 99, 0.35);
       }
 
       .ap-tier.t2 {
-        background: rgba(255, 152, 0, 0.15);
+        background: rgba(255, 176, 74, 0.14);
         color: var(--amber);
-        border: 1px solid rgba(255, 152, 0, 0.3);
+        border: 1px solid rgba(255, 176, 74, 0.35);
       }
 
       .ap-tier.t3 {
-        background: rgba(238, 68, 68, 0.15);
+        background: rgba(240, 90, 90, 0.14);
         color: var(--red);
-        border: 1px solid rgba(238, 68, 68, 0.3);
+        border: 1px solid rgba(240, 90, 90, 0.35);
       }
 
       .ap-tier.zero {
-        opacity: 0.35;
+        opacity: 0.4;
       }
 
       /* ── Stats Row ── */
-      .stats-row {
+      .stats-strip {
         display: flex;
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: var(--radius-card);
+        padding: 6px 4px;
+        gap: 2px;
       }
 
       .stat {
         flex: 1;
         text-align: center;
-        -webkit-app-region: no-drag;
         cursor: pointer;
-        padding: 2px 0;
-        border-radius: 3px;
+        padding: 4px 2px;
+        border-radius: var(--radius-sm);
+        transition: background 0.15s ease;
       }
 
       .stat:hover {
-        background: rgba(255, 255, 255, 0.04);
+        background: rgba(255, 255, 255, 0.06);
       }
 
       .stat-value {
         font-size: 13px;
         font-weight: 700;
         color: var(--gold);
-        line-height: 1.2;
+        line-height: 1.25;
+        font-variant-numeric: tabular-nums;
       }
 
       .stat-label {
         font-size: 8px;
         color: var(--dim);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.06em;
+        margin-top: 1px;
       }
 
       .income-badge {
         font-size: 8px;
         display: block;
-        line-height: 1;
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ── Portfolio + cash (compact) ── */
+      .fin-strip {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+
+      .fin-card {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: var(--radius-card);
+        padding: 6px 8px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .fin-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .fin-title {
+        font-size: 8px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 3px;
+      }
+
+      .fin-val {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--gold);
+        font-variant-numeric: tabular-nums;
+        line-height: 1.2;
+      }
+
+      .fin-pct {
+        font-size: 9px;
+        font-weight: 600;
+        margin-top: 3px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .fin-pct.muted {
+        color: rgba(139, 139, 184, 0.55);
+      }
+
+      .fin-pct.up {
+        color: var(--green);
+      }
+
+      .fin-pct.down {
+        color: var(--red);
+      }
+
+      .fin-pct.flat {
+        color: var(--dim);
+      }
+
+      /* ── Info strip (mail, election ETA, candidate) ── */
+      .info-strip {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 4px;
+      }
+
+      .info-cell {
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: var(--radius-sm);
+        padding: 5px 6px;
+        text-align: center;
+      }
+
+      .info-label {
+        font-size: 7px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 2px;
+      }
+
+      .info-val {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+        line-height: 1.2;
+      }
+
+      .info-val.muted {
+        color: rgba(139, 139, 184, 0.65);
+        font-weight: 600;
+      }
+
+      .info-val.hot {
+        color: var(--gold);
+      }
+
+      .info-val.mail-unread {
+        color: var(--amber);
       }
 
       /* ── Decay Row ── */
@@ -205,11 +379,14 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 8px;
+        flex-shrink: 0;
       }
 
       .decay-stats {
         display: flex;
-        gap: 8px;
+        gap: 10px;
+        flex-wrap: wrap;
       }
 
       .decay-stat {
@@ -217,7 +394,8 @@
         color: var(--dim);
         display: flex;
         align-items: center;
-        gap: 2px;
+        gap: 3px;
+        font-variant-numeric: tabular-nums;
       }
 
       .decay-stat .val {
@@ -240,18 +418,29 @@
       .election-chip {
         font-size: 9px;
         color: var(--gold);
-        background: rgba(201, 169, 89, 0.1);
-        border: 1px solid rgba(201, 169, 89, 0.25);
-        border-radius: 3px;
-        padding: 1px 5px;
+        background: rgba(201, 169, 89, 0.12);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-pill);
+        padding: 3px 9px;
         white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+        max-width: 52%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .election-chip.candidate {
+        border-color: rgba(92, 191, 99, 0.45);
+        background: rgba(92, 191, 99, 0.1);
       }
 
       /* ── Expanded Content ── */
       .expanded-content {
         display: none;
         flex-direction: column;
-        gap: 4px;
+        gap: 8px;
+        min-height: 0;
       }
 
       .expanded-content.visible {
@@ -260,30 +449,80 @@
 
       .divider {
         height: 1px;
-        background: var(--border);
-        margin: 0 -10px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--border) 12%,
+          var(--border) 88%,
+          transparent
+        );
+        margin: 0 -2px;
       }
 
       .section {
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 5px 7px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--radius-card);
+        background: rgba(0, 0, 0, 0.18);
+        padding: 8px 10px;
       }
 
       .section-title {
         font-size: 8px;
         color: var(--dim);
         text-transform: uppercase;
-        letter-spacing: 0.8px;
-        margin-bottom: 4px;
+        letter-spacing: 0.12em;
+        margin-bottom: 6px;
         font-weight: 600;
+      }
+
+      .wallet-grid {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 4px 10px;
+        font-size: 10px;
+        align-items: baseline;
+      }
+
+      .wallet-grid .wk-label {
+        color: var(--dim);
+      }
+
+      .wallet-grid .wk-val {
+        font-weight: 700;
+        color: var(--gold);
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+      }
+
+      .wk-pct {
+        font-size: 9px;
+        font-weight: 600;
+        text-align: right;
+        min-width: 3.25rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .wk-pct.muted {
+        color: rgba(139, 139, 184, 0.55);
+      }
+
+      .wk-pct.up {
+        color: var(--green);
+      }
+
+      .wk-pct.down {
+        color: var(--red);
+      }
+
+      .wk-pct.flat {
+        color: var(--dim);
       }
 
       /* Income grid */
       .income-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 2px 8px;
+        gap: 4px 10px;
         font-size: 9px;
       }
 
@@ -291,10 +530,12 @@
         color: var(--dim);
         display: flex;
         justify-content: space-between;
+        gap: 6px;
       }
 
       .ival {
         font-weight: 600;
+        font-variant-numeric: tabular-nums;
       }
 
       .pos {
@@ -309,19 +550,49 @@
         font-size: 10px;
         font-weight: 700;
         color: var(--gold);
-        margin-top: 4px;
-        border-top: 1px solid var(--border);
-        padding-top: 3px;
+        margin-top: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 5px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .action-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 8px;
+        font-size: 9px;
+      }
+
+      .action-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 6px;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .action-item .an {
+        color: var(--dim);
+      }
+
+      .action-item .ac {
+        font-weight: 700;
+        color: var(--gold);
+        font-variant-numeric: tabular-nums;
       }
 
       /* Decay detail */
       .decay-detail {
         display: flex;
         justify-content: space-around;
+        gap: 4px;
       }
 
       .dd-item {
         text-align: center;
+        flex: 1;
       }
 
       .dd-val {
@@ -329,26 +600,37 @@
         font-weight: 700;
         color: var(--gold);
         display: block;
-        line-height: 1.2;
+        line-height: 1.25;
+        font-variant-numeric: tabular-nums;
       }
 
       .dd-label {
         font-size: 8px;
         color: var(--dim);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.06em;
+      }
+
+      .dd-next {
+        font-size: 8px;
+        color: rgba(139, 139, 184, 0.9);
+        margin-top: 2px;
+        min-height: 14px;
+        font-variant-numeric: tabular-nums;
       }
 
       .dd-warning {
         font-size: 8px;
-        margin-top: 1px;
-        min-height: 10px;
+        margin-top: 2px;
+        min-height: 12px;
       }
 
       /* Election detail */
       .election-detail .edate {
         font-weight: 700;
         color: var(--gold);
+        display: block;
+        margin-bottom: 2px;
       }
 
       .election-detail .ecountdown {
@@ -356,143 +638,233 @@
         color: var(--dim);
       }
 
+      .election-detail .ecand {
+        font-size: 8px;
+        color: var(--green);
+        margin-top: 4px;
+        font-weight: 600;
+      }
+
       /* ── Toggle hint ── */
       .toggle-hint {
         text-align: center;
         font-size: 8px;
-        color: #3a3a5a;
+        color: rgba(139, 139, 184, 0.55);
         cursor: pointer;
         -webkit-app-region: no-drag;
-        padding: 0;
-        line-height: 1.2;
+        padding: 6px 0 0;
+        line-height: 1.3;
+        letter-spacing: 0.04em;
+        border-radius: var(--radius-sm);
+        transition:
+          color 0.15s ease,
+          background 0.15s ease;
+        flex-shrink: 0;
+        margin-top: 2px;
       }
 
       .toggle-hint:hover {
         color: var(--dim);
+        background: rgba(255, 255, 255, 0.04);
       }
     </style>
   </head>
   <body>
-    <!-- Header -->
-    <div class="header">
-      <span class="title">A House Divided</span>
-      <div class="header-btns">
-        <button class="icon-btn" onclick="openMain()" title="Open full app">
-          ⊞
-        </button>
-        <button class="icon-btn close" onclick="window.close()" title="Close">
-          ×
-        </button>
-      </div>
-    </div>
-
-    <!-- AP Section -->
-    <div class="ap-section">
-      <div class="ap-header">
-        <span class="ap-label">Action Points</span>
-        <span class="ap-value" id="ap-value">— AP</span>
-      </div>
-      <div class="ap-track">
-        <div class="ap-fill" id="ap-fill" style="width: 0%"></div>
-      </div>
-      <div class="ap-tiers" id="ap-tiers"></div>
-    </div>
-
-    <!-- Core Stats Row -->
-    <div class="stats-row">
-      <div class="stat" onclick="openMain()">
-        <div class="stat-value" id="date">—</div>
-        <div class="stat-label">Date</div>
-      </div>
-      <div class="stat" onclick="openMain()">
-        <div class="stat-value" id="timer">—</div>
-        <div class="stat-label">Next Turn</div>
-      </div>
-      <div class="stat no-drag" onclick="toggleExpanded()">
-        <div class="stat-value" id="funds">—</div>
-        <span class="income-badge" id="income-badge"></span>
-        <div class="stat-label">Funds</div>
-      </div>
-    </div>
-
-    <!-- Decay + Election Row -->
-    <div class="decay-row">
-      <div class="decay-stats">
-        <div class="decay-stat">
-          PI <span class="val" id="pi-val">—</span>
-          <span id="pi-ind"></span>
-        </div>
-        <div class="decay-stat">
-          FAV <span class="val" id="fav-val">—</span>
-          <span id="fav-ind"></span>
-        </div>
-        <div class="decay-stat">
-          INF <span class="val" id="inf-val">—</span>
-          <span id="inf-ind"></span>
-        </div>
-      </div>
-      <div class="election-chip" id="election-chip">—</div>
-    </div>
-
-    <!-- Expanded Content -->
-    <div class="expanded-content" id="expanded-content">
-      <div class="divider"></div>
-
-      <!-- Income Breakdown -->
-      <div class="section">
-        <div class="section-title">Income / hr</div>
-        <div class="income-grid">
-          <div class="income-item">
-            Base <span class="ival pos" id="inc-base">—</span>
-          </div>
-          <div class="income-item">
-            Donors <span class="ival pos" id="inc-donors">—</span>
-          </div>
-          <div class="income-item">
-            Salary <span class="ival pos" id="inc-salary">—</span>
-          </div>
-          <div class="income-item">
-            Party Tax <span class="ival neg" id="inc-tax">—</span>
-          </div>
-        </div>
-        <div class="income-net" id="income-net">Net: —</div>
-      </div>
-
-      <!-- Stat Detail with Decay Warnings -->
-      <div class="section">
-        <div class="section-title">Stats</div>
-        <div class="decay-detail">
-          <div class="dd-item">
-            <span class="dd-val" id="pi-detail">—</span>
-            <span class="dd-label">Pol. Influence</span>
-            <div class="dd-warning" id="pi-warning"></div>
-          </div>
-          <div class="dd-item">
-            <span class="dd-val" id="fav-detail">—</span>
-            <span class="dd-label">Favorability</span>
-            <div class="dd-warning" id="fav-warning"></div>
-          </div>
-          <div class="dd-item">
-            <span class="dd-val" id="inf-detail">—</span>
-            <span class="dd-label">Infamy</span>
-            <div class="dd-warning" id="inf-warning"></div>
+    <div class="pip-shell">
+      <div class="pip-header">
+        <div class="header">
+          <span class="title">A House Divided</span>
+          <div class="header-btns">
+            <button class="icon-btn" onclick="openMain()" title="Open full app">
+              ⊞
+            </button>
+            <button
+              class="icon-btn close"
+              onclick="window.close()"
+              title="Close"
+            >
+              ×
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Election Detail -->
-      <div class="section" id="election-section">
-        <div class="section-title">Next Election</div>
-        <div class="election-detail">
-          <span class="edate" id="election-name">—</span>
-          <span class="ecountdown" id="election-countdown"></span>
+      <div class="pip-scroll">
+        <!-- AP Section -->
+        <div class="ap-section">
+          <div class="ap-header">
+            <span class="ap-label">Action Points</span>
+            <span class="ap-value" id="ap-value">— AP</span>
+          </div>
+          <div class="ap-track">
+            <div class="ap-fill" id="ap-fill" style="width: 0%"></div>
+          </div>
+          <div class="ap-tiers" id="ap-tiers"></div>
+        </div>
+
+        <!-- Core Stats Row -->
+        <div class="stats-strip">
+          <div class="stat" onclick="openMain()">
+            <div class="stat-value" id="date">—</div>
+            <div class="stat-label">Date</div>
+          </div>
+          <div class="stat" onclick="openMain()">
+            <div class="stat-value" id="timer">—</div>
+            <div class="stat-label">Next Turn</div>
+          </div>
+          <div class="stat no-drag" onclick="toggleExpanded()">
+            <div class="stat-value" id="funds">—</div>
+            <span class="income-badge" id="income-badge"></span>
+            <div class="stat-label">Funds</div>
+          </div>
+        </div>
+
+        <!-- Portfolio + cash (values & % chg) -->
+        <div class="fin-strip">
+          <div class="fin-card" onclick="openMain()">
+            <div class="fin-title">Portfolio</div>
+            <div class="fin-val" id="fin-portfolio-val">—</div>
+            <div class="fin-pct muted" id="fin-portfolio-pct">—</div>
+          </div>
+          <div class="fin-card" onclick="openMain()">
+            <div class="fin-title">Cash on hand</div>
+            <div class="fin-val" id="fin-cash-val">—</div>
+            <div class="fin-pct muted" id="fin-cash-pct">—</div>
+          </div>
+        </div>
+
+        <!-- Mail / election clock / running -->
+        <div class="info-strip">
+          <div class="info-cell">
+            <div class="info-label">Unread mail</div>
+            <div class="info-val muted" id="info-mail">—</div>
+          </div>
+          <div class="info-cell">
+            <div class="info-label">Election (~h)</div>
+            <div class="info-val muted" id="info-eta">—</div>
+          </div>
+          <div class="info-cell">
+            <div class="info-label">Running</div>
+            <div class="info-val muted" id="info-candidate">—</div>
+          </div>
+        </div>
+
+        <!-- Decay + Election Row -->
+        <div class="decay-row">
+          <div class="decay-stats">
+            <div class="decay-stat">
+              PI <span class="val" id="pi-val">—</span>
+              <span id="pi-ind"></span>
+            </div>
+            <div class="decay-stat">
+              FAV <span class="val" id="fav-val">—</span>
+              <span id="fav-ind"></span>
+            </div>
+            <div class="decay-stat">
+              INF <span class="val" id="inf-val">—</span>
+              <span id="inf-ind"></span>
+            </div>
+          </div>
+          <div class="election-chip" id="election-chip">—</div>
+        </div>
+
+        <!-- Expanded Content -->
+        <div class="expanded-content" id="expanded-content">
+          <div class="divider"></div>
+
+          <!-- Wallet -->
+          <div class="section" id="wallet-section">
+            <div class="section-title">Wallet</div>
+            <div class="wallet-grid">
+              <span class="wk-label">Funds</span>
+              <span class="wk-val" id="wallet-funds">—</span>
+              <span class="wk-pct muted" id="wallet-funds-pct">—</span>
+              <span class="wk-label" id="wallet-cash-label">Cash on hand</span>
+              <span class="wk-val" id="wallet-cash">—</span>
+              <span class="wk-pct muted" id="wallet-cash-pct">—</span>
+              <span class="wk-label">Portfolio</span>
+              <span class="wk-val" id="wallet-portfolio">—</span>
+              <span class="wk-pct muted" id="wallet-portfolio-pct">—</span>
+            </div>
+          </div>
+
+          <!-- Income Breakdown -->
+          <div class="section">
+            <div class="section-title">Income / hr</div>
+            <div class="income-grid">
+              <div class="income-item">
+                Base <span class="ival pos" id="inc-base">—</span>
+              </div>
+              <div class="income-item">
+                Donors <span class="ival pos" id="inc-donors">—</span>
+              </div>
+              <div class="income-item">
+                Salary <span class="ival pos" id="inc-salary">—</span>
+              </div>
+              <div class="income-item" id="row-party-combined">
+                Party tax <span class="ival neg" id="inc-tax">—</span>
+              </div>
+              <div class="income-item" id="row-state-tax" style="display: none">
+                State tax <span class="ival neg" id="inc-state-tax">—</span>
+              </div>
+              <div class="income-item" id="row-nat-tax" style="display: none">
+                National tax <span class="ival neg" id="inc-nat-tax">—</span>
+              </div>
+            </div>
+            <div class="income-net" id="income-net">Net: —</div>
+          </div>
+
+          <!-- Action costs -->
+          <div class="section">
+            <div class="section-title">Action costs (AP)</div>
+            <div class="action-grid" id="action-cost-grid"></div>
+          </div>
+
+          <!-- Stat Detail with Decay Warnings -->
+          <div class="section">
+            <div class="section-title">Stats</div>
+            <div class="decay-detail">
+              <div class="dd-item">
+                <span class="dd-val" id="pi-detail">—</span>
+                <span class="dd-label">Pol. Influence</span>
+                <div class="dd-next" id="pi-next"></div>
+                <div class="dd-warning" id="pi-warning"></div>
+              </div>
+              <div class="dd-item">
+                <span class="dd-val" id="fav-detail">—</span>
+                <span class="dd-label">Favorability</span>
+                <div class="dd-next" id="fav-next"></div>
+                <div class="dd-warning" id="fav-warning"></div>
+              </div>
+              <div class="dd-item">
+                <span class="dd-val" id="inf-detail">—</span>
+                <span class="dd-label">Infamy</span>
+                <div class="dd-next" id="inf-next"></div>
+                <div class="dd-warning" id="inf-warning"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Election Detail -->
+          <div class="section" id="election-section">
+            <div class="section-title">Next Election</div>
+            <div class="election-detail">
+              <span class="edate" id="election-name">—</span>
+              <span class="ecountdown" id="election-countdown"></span>
+              <div
+                class="ecand"
+                id="election-cand-line"
+                style="display: none"
+              ></div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Toggle Hint -->
-    <div class="toggle-hint" id="toggle-hint" onclick="toggleExpanded()">
-      ▼ details
+      <!-- Toggle Hint -->
+      <div class="toggle-hint" id="toggle-hint" onclick="toggleExpanded()">
+        ▼ details
+      </div>
     </div>
 
     <script>
@@ -504,18 +876,158 @@
         actionPoints: null,
         maxActionPoints: 15,
         funds: null,
+        cashOnHand: null,
+        portfolioValue: null,
+        portfolioChangePercent: null,
+        cashOnHandChangePercent: null,
         projectedIncome: null,
         incomeBreakdown: null,
         politicalInfluence: null,
         politicalInfluenceDecayWarning: false,
+        politicalInfluenceProjected: null,
+        politicalInfluenceDecaying: false,
         favorability: null,
         favorabilityDecayWarning: false,
+        favorabilityProjected: null,
+        favorabilityDecaying: false,
         infamy: null,
         infamyDecayWarning: false,
         electionDate: null,
         electionName: null,
-        actionCosts: { fundraise: 1, advertise: 2, donorBuild: 3, poll: 1 },
+        electionIsCandidate: false,
+        turnsUntilElection: null,
+        unreadMailCount: null,
+        actionCosts: {
+          fundraise: 1,
+          advertise: 2,
+          donorBuild: 3,
+          poll: 1,
+          campaign: 2,
+        },
       };
+
+      const ACTION_ORDER = [
+        ['fundraise', 'Fundraise'],
+        ['advertise', 'Advertise'],
+        ['donorBuild', 'Donor build'],
+        ['poll', 'Poll'],
+        ['campaign', 'Campaign'],
+      ];
+
+      /** Previous snapshot for session % delta when the API omits change fields. */
+      let _prevPortfolioVal = null;
+      let _prevCashOnHand = null;
+
+      /** Effective % after computeFinancePct() — used by compact strip + expanded wallet. */
+      let lastFinancePct = { port: null, cash: null };
+
+      function toFiniteNum(v) {
+        if (v == null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function computeFinancePct() {
+        const pv = state.portfolioValue;
+        const cash = state.cashOnHand;
+        const sp = toFiniteNum(state.portfolioChangePercent);
+        const sc = toFiniteNum(state.cashOnHandChangePercent);
+
+        let portPct = null;
+        let cashPct = null;
+
+        if (sp != null) portPct = sp;
+        else if (
+          pv != null &&
+          _prevPortfolioVal != null &&
+          _prevPortfolioVal !== 0
+        ) {
+          portPct = ((pv - _prevPortfolioVal) / _prevPortfolioVal) * 100;
+        }
+
+        if (sc != null) cashPct = sc;
+        else if (
+          cash != null &&
+          _prevCashOnHand != null &&
+          _prevCashOnHand !== 0
+        ) {
+          cashPct = ((cash - _prevCashOnHand) / _prevCashOnHand) * 100;
+        }
+
+        _prevPortfolioVal = pv;
+        _prevCashOnHand = cash;
+
+        lastFinancePct = { port: portPct, cash: cashPct };
+        return lastFinancePct;
+      }
+
+      /**
+       * @param {string} id
+       * @param {number|null} pct
+       * @param {string} baseClass - 'fin-pct' or 'wk-pct'
+       */
+      function paintPct(id, pct, baseClass) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (pct == null || Number.isNaN(pct)) {
+          el.textContent = '—';
+          el.className = baseClass + ' muted';
+          return;
+        }
+        const r = Math.round(pct * 100) / 100;
+        const sign = r > 0 ? '+' : '';
+        el.textContent = sign + r + '%';
+        let tier = 'flat';
+        if (r > 0) tier = 'up';
+        else if (r < 0) tier = 'down';
+        el.className = baseClass + ' ' + tier;
+      }
+
+      function renderFinanceStrip() {
+        document.getElementById('fin-portfolio-val').textContent =
+          state.portfolioValue != null ? fmtMoney(state.portfolioValue) : '—';
+        document.getElementById('fin-cash-val').textContent =
+          state.cashOnHand != null ? fmtMoney(state.cashOnHand) : '—';
+        paintPct('fin-portfolio-pct', lastFinancePct.port, 'fin-pct');
+        paintPct('fin-cash-pct', lastFinancePct.cash, 'fin-pct');
+      }
+
+      function rnd(n) {
+        if (n == null || Number.isNaN(Number(n))) return null;
+        return Math.round(Number(n));
+      }
+
+      function fmtMoney(n) {
+        const r = rnd(n);
+        return r == null ? '—' : '$' + r.toLocaleString();
+      }
+
+      function fmtSignedMoney(n) {
+        const r = rnd(n);
+        if (r == null) return '—';
+        const sign = r >= 0 ? '+' : '−';
+        return sign + '$' + Math.abs(r).toLocaleString();
+      }
+
+      function fmtMoneyNeg(n) {
+        const r = rnd(n);
+        if (r == null) return '—';
+        return '−$' + Math.abs(r).toLocaleString();
+      }
+
+      function fmtStat(n) {
+        const r = rnd(n);
+        return r == null ? '—' : String(r);
+      }
+
+      function fmtProj(current, projected) {
+        if (projected == null) return '';
+        const pc = rnd(projected);
+        const c = rnd(current);
+        if (pc == null) return '';
+        if (c != null && pc === c) return '';
+        return '→ ' + pc;
+      }
 
       // ── Actions ──
 
@@ -544,8 +1056,11 @@
       // ── Render ──
 
       function render() {
+        computeFinancePct();
         renderAP();
         renderStats();
+        renderFinanceStrip();
+        renderInfoStrip();
         renderDecayRow();
         renderElectionChip();
         renderExpanded();
@@ -554,9 +1069,12 @@
       function renderAP() {
         const ap = state.actionPoints ?? 0;
         const maxAp = state.maxActionPoints ?? 15;
-        const pct = maxAp > 0 ? Math.min(100, (ap / maxAp) * 100) : 0;
+        const apN = state.actionPoints != null ? rnd(state.actionPoints) : 0;
+        const maxN = rnd(maxAp) ?? 15;
+        const pct = maxN > 0 ? Math.min(100, (apN / maxN) * 100) : 0;
 
-        document.getElementById('ap-value').textContent = `${ap} / ${maxAp} AP`;
+        document.getElementById('ap-value').textContent =
+          `${fmtStat(ap)} / ${fmtStat(maxAp)} AP`;
         document.getElementById('ap-fill').style.width = `${pct}%`;
 
         const costs = state.actionCosts || {};
@@ -565,15 +1083,17 @@
           { name: 'Advertise', cost: costs.advertise ?? 2, tier: 2 },
           { name: 'Donor Build', cost: costs.donorBuild ?? 3, tier: 3 },
           { name: 'Poll', cost: costs.poll ?? 1, tier: 1 },
+          { name: 'Campaign', cost: costs.campaign ?? 2, tier: 2 },
         ];
 
         const tiersEl = document.getElementById('ap-tiers');
         tiersEl.innerHTML = '';
         ACTIONS.forEach(({ name, cost, tier }) => {
-          const count = cost > 0 ? Math.floor(ap / cost) : 0;
+          const c = rnd(cost) ?? 1;
+          const count = c > 0 ? Math.floor(apN / c) : 0;
           const el = document.createElement('div');
           el.className = `ap-tier t${tier}${count === 0 ? ' zero' : ''}`;
-          el.title = `${cost} AP each`;
+          el.title = `${c} AP each`;
           el.textContent = `×${count} ${name}`;
           tiersEl.appendChild(el);
         });
@@ -587,15 +1107,50 @@
 
         const fundsEl = document.getElementById('funds');
         if (state.funds != null) {
-          fundsEl.textContent = '$' + Number(state.funds).toLocaleString();
+          fundsEl.textContent = fmtMoney(state.funds);
         }
 
         const badge = document.getElementById('income-badge');
         if (state.projectedIncome != null) {
           const n = Number(state.projectedIncome);
-          badge.textContent =
-            (n >= 0 ? '+' : '-') + '$' + Math.abs(n).toLocaleString() + '/hr';
-          badge.style.color = n >= 0 ? '#4caf50' : '#e44';
+          badge.textContent = fmtSignedMoney(n) + '/hr';
+          badge.style.color = n >= 0 ? '#5cbf63' : '#f05a5a';
+        } else {
+          badge.textContent = '';
+        }
+      }
+
+      function renderInfoStrip() {
+        const mailEl = document.getElementById('info-mail');
+        if (state.unreadMailCount != null) {
+          const u = rnd(state.unreadMailCount);
+          mailEl.textContent = u != null ? String(u) : '—';
+          mailEl.className = 'info-val' + (u > 0 ? ' mail-unread' : ' muted');
+        } else {
+          mailEl.textContent = '—';
+          mailEl.className = 'info-val muted';
+        }
+
+        const etaEl = document.getElementById('info-eta');
+        if (state.turnsUntilElection != null) {
+          const h = rnd(state.turnsUntilElection);
+          etaEl.textContent = h != null ? '~' + h + 'h' : '—';
+          etaEl.className = 'info-val hot';
+        } else {
+          etaEl.textContent = '—';
+          etaEl.className = 'info-val muted';
+        }
+
+        const candEl = document.getElementById('info-candidate');
+        if (state.electionIsCandidate === true) {
+          candEl.textContent = 'Yes';
+          candEl.className = 'info-val hot';
+        } else if (state.electionIsCandidate === false) {
+          candEl.textContent = 'No';
+          candEl.className = 'info-val muted';
+        } else {
+          candEl.textContent = '—';
+          candEl.className = 'info-val muted';
         }
       }
 
@@ -618,12 +1173,13 @@
       function setDecayStat(key, value, warn, highIsBad) {
         const valEl = document.getElementById(`${key}-val`);
         const indEl = document.getElementById(`${key}-ind`);
-        if (value != null) valEl.textContent = value;
+        valEl.textContent = value != null ? fmtStat(value) : '—';
         if (warn == null) {
           indEl.textContent = '';
           return;
         }
-        const isDanger = highIsBad ? value > 88 : value < 10;
+        const v = rnd(value);
+        const isDanger = v != null && (highIsBad ? v > 88 : v < 10);
         if (isDanger) {
           indEl.textContent = highIsBad ? '▲!' : '▼!';
           indEl.className = 'd-danger';
@@ -638,74 +1194,215 @@
 
       function renderElectionChip() {
         const chip = document.getElementById('election-chip');
+        chip.classList.remove('candidate');
         if (state.electionDate) {
           const cd = getCountdown(state.electionDate);
-          chip.textContent = cd ? `⚑ ${cd}` : '—';
+          let t = cd ? '⚑ ' + cd : '—';
+          if (state.electionIsCandidate === true) {
+            chip.classList.add('candidate');
+            t += ' · ★';
+          }
+          chip.textContent = t;
+        } else {
+          chip.textContent = '—';
         }
       }
 
+      function renderActionCosts() {
+        const grid = document.getElementById('action-cost-grid');
+        grid.innerHTML = '';
+        const costs = state.actionCosts || {};
+        ACTION_ORDER.forEach(([key, label]) => {
+          if (costs[key] === undefined) return;
+          const c = rnd(costs[key]);
+          if (c == null) return;
+          const row = document.createElement('div');
+          row.className = 'action-item';
+          row.innerHTML =
+            '<span class="an">' +
+            label +
+            '</span><span class="ac">' +
+            c +
+            '</span>';
+          grid.appendChild(row);
+        });
+      }
+
       function renderExpanded() {
+        const wf = document.getElementById('wallet-funds');
+        const wc = document.getElementById('wallet-cash');
+        const wcl = document.getElementById('wallet-cash-label');
+        const wp = document.getElementById('wallet-portfolio');
+        const ws = document.getElementById('wallet-section');
+
+        wf.textContent = state.funds != null ? fmtMoney(state.funds) : '—';
+        paintPct('wallet-funds-pct', null, 'wk-pct');
+
+        wp.textContent =
+          state.portfolioValue != null ? fmtMoney(state.portfolioValue) : '—';
+        paintPct('wallet-portfolio-pct', lastFinancePct.port, 'wk-pct');
+
+        wcl.style.display = '';
+        wc.textContent =
+          state.cashOnHand != null ? fmtMoney(state.cashOnHand) : '—';
+        paintPct('wallet-cash-pct', lastFinancePct.cash, 'wk-pct');
+
+        ws.style.display =
+          state.funds != null ||
+          state.cashOnHand != null ||
+          state.portfolioValue != null
+            ? ''
+            : 'none';
+
         const ib = state.incomeBreakdown;
-        if (ib) {
-          setText('inc-base', ib.base != null ? '$' + ib.base : '—');
-          setText(
-            'inc-donors',
-            ib.donorBonus != null ? '+$' + ib.donorBonus : '—',
-          );
-          setText(
-            'inc-salary',
-            ib.officeSalary != null ? '+$' + ib.officeSalary : '—',
-          );
-          setText('inc-tax', ib.partyTax != null ? '-$' + ib.partyTax : '—');
+        const rowCombined = document.getElementById('row-party-combined');
+        const rowSt = document.getElementById('row-state-tax');
+        const rowNt = document.getElementById('row-nat-tax');
+
+        if (!ib) {
+          setText('inc-base', '—');
+          setText('inc-donors', '—');
+          setText('inc-salary', '—');
+          rowCombined.style.display = '';
+          setText('inc-tax', '—');
+          rowSt.style.display = 'none';
+          rowNt.style.display = 'none';
+        } else {
+          if (ib.base != null) {
+            document.getElementById('inc-base').textContent = fmtMoney(ib.base);
+            document.getElementById('inc-base').className = 'ival pos';
+          } else setText('inc-base', '—');
+
+          if (ib.donorBonus != null) {
+            document.getElementById('inc-donors').textContent = fmtSignedMoney(
+              ib.donorBonus,
+            );
+            document.getElementById('inc-donors').className = 'ival pos';
+          } else setText('inc-donors', '—');
+
+          if (ib.officeSalary != null) {
+            document.getElementById('inc-salary').textContent = fmtSignedMoney(
+              ib.officeSalary,
+            );
+            document.getElementById('inc-salary').className = 'ival pos';
+          } else setText('inc-salary', '—');
+
+          const hasSplit =
+            ib.statePartyTax != null || ib.nationalPartyTax != null;
+          if (hasSplit) {
+            rowCombined.style.display = 'none';
+            if (ib.statePartyTax != null) {
+              rowSt.style.display = '';
+              document.getElementById('inc-state-tax').textContent =
+                fmtMoneyNeg(ib.statePartyTax);
+              document.getElementById('inc-state-tax').className = 'ival neg';
+            } else rowSt.style.display = 'none';
+
+            if (ib.nationalPartyTax != null) {
+              rowNt.style.display = '';
+              document.getElementById('inc-nat-tax').textContent = fmtMoneyNeg(
+                ib.nationalPartyTax,
+              );
+              document.getElementById('inc-nat-tax').className = 'ival neg';
+            } else rowNt.style.display = 'none';
+          } else {
+            rowSt.style.display = 'none';
+            rowNt.style.display = 'none';
+            rowCombined.style.display = '';
+            const taxEl = document.getElementById('inc-tax');
+            if (ib.partyTax != null) {
+              taxEl.textContent = fmtMoneyNeg(ib.partyTax);
+              taxEl.className = 'ival neg';
+            } else {
+              taxEl.textContent = '—';
+              taxEl.className = 'ival neg';
+            }
+          }
         }
 
         const net = state.projectedIncome;
+        const netEl = document.getElementById('income-net');
         if (net != null) {
           const n = Number(net);
-          const netEl = document.getElementById('income-net');
-          netEl.textContent =
-            'Net: ' +
-            (n >= 0 ? '+' : '-') +
-            '$' +
-            Math.abs(n).toLocaleString() +
-            '/hr';
-          netEl.style.color = n >= 0 ? '#c9a959' : '#e44';
+          netEl.textContent = 'Net ' + fmtSignedMoney(n) + '/hr';
+          netEl.style.color = n >= 0 ? '#c9a959' : '#f05a5a';
+        } else {
+          netEl.textContent = 'Net —';
+          netEl.style.color = '';
         }
 
         setDetailStat(
           'pi',
           state.politicalInfluence,
+          state.politicalInfluenceProjected,
           state.politicalInfluenceDecayWarning,
           false,
         );
         setDetailStat(
           'fav',
           state.favorability,
+          state.favorabilityProjected,
           state.favorabilityDecayWarning,
           false,
         );
-        setDetailStat('inf', state.infamy, state.infamyDecayWarning, true);
+        setDetailStat(
+          'inf',
+          state.infamy,
+          null,
+          state.infamyDecayWarning,
+          true,
+        );
 
+        renderActionCosts();
+
+        const candLine = document.getElementById('election-cand-line');
+        const nameEl = document.getElementById('election-name');
+        const countEl = document.getElementById('election-countdown');
         if (state.electionDate) {
-          const nameEl = document.getElementById('election-name');
-          const countEl = document.getElementById('election-countdown');
           nameEl.textContent =
             state.electionName || fmtDate(state.electionDate);
           const cd = getCountdown(state.electionDate);
           countEl.textContent = cd ? ' · ' + cd : '';
+          if (state.electionIsCandidate === true) {
+            candLine.style.display = '';
+            candLine.textContent = 'You are on the ballot';
+          } else {
+            candLine.style.display = 'none';
+            candLine.textContent = '';
+          }
+        } else {
+          nameEl.textContent = '—';
+          countEl.textContent = '';
+          candLine.style.display = 'none';
+          candLine.textContent = '';
         }
       }
 
-      function setDetailStat(key, value, warn, highIsBad) {
-        if (value != null)
-          document.getElementById(`${key}-detail`).textContent = value;
+      function setDetailStat(key, value, projected, warn, highIsBad) {
+        const dEl = document.getElementById(`${key}-detail`);
+        const nEl = document.getElementById(`${key}-next`);
+        dEl.textContent = value != null ? fmtStat(value) : '—';
+
+        if (key === 'inf') {
+          nEl.textContent = '';
+        } else {
+          const decayKey =
+            key === 'pi'
+              ? 'politicalInfluenceDecaying'
+              : 'favorabilityDecaying';
+          let line = fmtProj(value, projected);
+          if (line && state[decayKey] === true) line += ' · decay';
+          else if (!line && state[decayKey] === true) line = 'Decay active';
+          nEl.textContent = line || '';
+        }
+
         const wEl = document.getElementById(`${key}-warning`);
         if (!warn) {
           wEl.textContent = '';
           wEl.style.color = '';
           return;
         }
-        wEl.style.color = '#ff6b35';
+        wEl.style.color = '#ff7a45';
         wEl.textContent = highIsBad ? '▲ approaching limit' : '▼ decay warning';
       }
 

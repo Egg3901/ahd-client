@@ -1,6 +1,6 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
-const appConfig = require('./config');
+const activeGameUrl = require('./active-game-url');
 
 /**
  * Multi-window support. Lets users pop out election maps,
@@ -91,7 +91,7 @@ class WindowManager {
       },
     });
 
-    win.loadURL(`${appConfig.GAME_URL}${presetConfig.route}`);
+    win.loadURL(`${activeGameUrl.get()}${presetConfig.route}`);
     win.setMenuBarVisibility(false);
 
     win.on('closed', () => {
@@ -125,7 +125,7 @@ class WindowManager {
       },
     });
 
-    win.loadURL(url.startsWith('http') ? url : `${appConfig.GAME_URL}${url}`);
+    win.loadURL(url.startsWith('http') ? url : `${activeGameUrl.get()}${url}`);
     win.setMenuBarVisibility(false);
 
     const id = `custom-${Date.now()}`;

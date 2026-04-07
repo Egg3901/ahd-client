@@ -2,7 +2,8 @@
 
 const { Tray, Menu } = require('electron');
 const TrayManager = require('../../src/tray');
-const config = require('../../src/config');
+const activeGameUrl = require('../../src/active-game-url');
+const { MAIN_GAME_URL } = require('../../src/config');
 
 function makeMockWindow() {
   return {
@@ -21,6 +22,9 @@ function makeMockNotificationManager() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  activeGameUrl.bindCache({
+    getPreference: () => false,
+  });
 });
 
 describe('TrayManager', () => {
@@ -166,7 +170,7 @@ describe('TrayManager', () => {
       const nm = makeMockNotificationManager();
       const tm = new TrayManager(win, nm);
       tm.navigateTo('/campaign');
-      expect(win.loadURL).toHaveBeenCalledWith(`${config.GAME_URL}/campaign`);
+      expect(win.loadURL).toHaveBeenCalledWith(`${MAIN_GAME_URL}/campaign`);
     });
 
     it('calls show on mainWindow', () => {

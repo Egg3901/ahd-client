@@ -1,5 +1,5 @@
 const { net } = require('electron');
-const config = require('./config');
+const activeGameUrl = require('./active-game-url');
 
 /**
  * Polls /api/game/turn/dashboard and maps the rich server response into the
@@ -80,7 +80,7 @@ class DashboardPoller {
   _fetch() {
     return new Promise((resolve, reject) => {
       const req = net.request({
-        url: `${config.GAME_URL}/api/game/turn/dashboard`,
+        url: `${activeGameUrl.get()}/api/game/turn/dashboard`,
         method: 'GET',
         partition: 'persist:ahd',
         useSessionCookies: true,
@@ -131,7 +131,16 @@ class DashboardPoller {
    * character.political…    → politicalInfluence / favorability / infamy
    * decayProjections.*      → *DecayWarning booleans
    * actionCosts.*           → actionCosts (key rename: buildDonorBase→donorBuild)
-   * nearestElection.*       → electionDate / electionName / turnsUntilElection
+   * nearestElection.*       → electionDate / electionName / turnsUntilElection / electionIsCandidate
+   * decayProjections.*      → *Projected, *Decaying (PI / favorability)
+   * fundIncome.state/nationalTax → incomeBreakdown.statePartyTax / nationalPartyTax
+   *
+   * Portfolio / cash (optional — website should add to /api/game/turn/dashboard):
+   *   character.portfolioValue          → portfolioValue
+   *   character.portfolioChangePercent  → portfolioChangePercent (number, e.g. 1.25 = +1.25%)
+   *   character.cashOnHand              → cashOnHand
+   *   character.cashOnHandChangePercent → cashOnHandChangePercent
+   * If omitted, the PiP derives % vs the previous poll in-session when possible.
    *
    * @private
    * @param {object} d - Raw API response
@@ -162,7 +171,15 @@ class DashboardPoller {
     if (apt.total != null) out.maxActionPoints = apt.total;
 
     // ── Funds & income ───────────────────────────────────────────────────
-    if (ch) out.funds = ch.funds ?? null;
+    if (ch) {
+      out.funds = ch.funds ?? null;
+      if (ch.cashOnHand != null) out.cashOnHand = ch.cashOnHand;
+      if (ch.portfolioValue != null) out.portfolioValue = ch.portfolioValue;
+      if (ch.portfolioChangePercent != null)
+        out.portfolioChangePercent = ch.portfolioChangePercent;
+      if (ch.cashOnHandChangePercent != null)
+        out.cashOnHandChangePercent = ch.cashOnHandChangePercent;
+    }
     if (fi.netPerTurn != null) out.projectedIncome = fi.netPerTurn;
     if (Object.keys(fi).length > 0) {
       out.incomeBreakdown = {
@@ -171,6 +188,8 @@ class DashboardPoller {
         officeSalary: fi.officeBonus ?? null,
         // Combine state + national party taxes into a single deduction
         partyTax: (fi.stateTax ?? 0) + (fi.nationalTax ?? 0) || null,
+        statePartyTax: fi.stateTax ?? null,
+        nationalPartyTax: fi.nationalTax ?? null,
       };
     }
 
@@ -185,6 +204,10 @@ class DashboardPoller {
     if (piDp) {
       out.politicalInfluenceDecayWarning =
         piDp.isDecaying && (piDp.projected ?? piDp.current) < PI_WARN_THRESHOLD;
+      if (piDp.projected != null)
+        out.politicalInfluenceProjected = piDp.projected;
+      if (piDp.isDecaying != null)
+        out.politicalInfluenceDecaying = piDp.isDecaying;
     }
 
     const favDp = dp.favorability;
@@ -194,6 +217,8 @@ class DashboardPoller {
       out.favorabilityDecayWarning =
         favDp.isDecaying &&
         (favDp.projected ?? favDp.current) < FAV_WARN_THRESHOLD;
+      if (favDp.projected != null) out.favorabilityProjected = favDp.projected;
+      if (favDp.isDecaying != null) out.favorabilityDecaying = favDp.isDecaying;
     }
 
     // Infamy: high is bad — warn when above threshold regardless of decay

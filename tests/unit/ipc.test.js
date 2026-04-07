@@ -6,7 +6,9 @@ jest.mock('../../src/site-api', () => ({
 
 const { ipcMain, shell } = require('electron');
 const siteApi = require('../../src/site-api');
+const activeGameUrl = require('../../src/active-game-url');
 const { registerIpcHandlers } = require('../../src/ipc');
+const { MAIN_GAME_URL } = require('../../src/config');
 
 describe('registerIpcHandlers', () => {
   let handlers;
@@ -25,7 +27,11 @@ describe('registerIpcHandlers', () => {
         getCachedTurnData: jest.fn().mockReturnValue({ cached: true }),
         getTheme: jest.fn().mockReturnValue('default'),
         setTheme: jest.fn(),
-        getPreference: jest.fn().mockReturnValue(true),
+        getPreference: jest.fn((key) => {
+          if (key === 'useSandboxServer' || key === 'useDevServer')
+            return false;
+          return true;
+        }),
         setPreference: jest.fn(),
         updateGameState: jest.fn(),
       },
@@ -68,7 +74,6 @@ describe('registerIpcHandlers', () => {
           getZoomFactor: jest.fn().mockReturnValue(1),
         },
       },
-      config: { GAME_URL: 'https://ahousedividedgame.com' },
       syncNativeTheme: jest.fn(),
       handleGameStateEvent: jest.fn(),
       pushThemeToSite: jest.fn(),
@@ -77,6 +82,7 @@ describe('registerIpcHandlers', () => {
       isGameUrl: jest.fn().mockReturnValue(true),
     };
 
+    activeGameUrl.bindCache(deps.cacheManager);
     registerIpcHandlers(deps);
   });
 
@@ -320,9 +326,9 @@ describe('registerIpcHandlers', () => {
 
   // --- go-home ---
 
-  test('go-home calls mainWindow.loadURL with GAME_URL', async () => {
+  test('go-home calls mainWindow.loadURL with active game origin', async () => {
     await handlers['go-home']();
-    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(deps.config.GAME_URL);
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(MAIN_GAME_URL);
   });
 
   // --- fetch-nav-data ---
@@ -353,7 +359,7 @@ describe('registerIpcHandlers', () => {
     deps.mainWindow.loadURL.mockClear();
     await handlers['navigate-to']({}, '/campaign');
     expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(
-      `${deps.config.GAME_URL}/campaign`,
+      `${MAIN_GAME_URL}/campaign`,
     );
   });
 
@@ -361,7 +367,7 @@ describe('registerIpcHandlers', () => {
     deps.mainWindow.loadURL.mockClear();
     await handlers['navigate-to']({}, '/profile');
     expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(
-      `${deps.config.GAME_URL}/profile`,
+      `${MAIN_GAME_URL}/profile`,
     );
   });
 
@@ -369,7 +375,7 @@ describe('registerIpcHandlers', () => {
     deps.mainWindow.loadURL.mockClear();
     await handlers['navigate-to']({}, 'wiki');
     expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(
-      `${deps.config.GAME_URL}/wiki`,
+      `${MAIN_GAME_URL}/wiki`,
     );
   });
 
@@ -406,21 +412,21 @@ describe('registerIpcHandlers', () => {
     deps.mainWindow.loadURL.mockClear();
     await handlers['switch-character']({}, 'char-uuid');
     expect(siteApi.postJsonAuthed).toHaveBeenCalledWith(
-      deps.config.GAME_URL,
+      MAIN_GAME_URL,
       '/api/auth/active-character',
       { characterId: 'char-uuid' },
     );
-    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(deps.config.GAME_URL);
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(MAIN_GAME_URL);
   });
 
   test('sign-out posts logout and reloads home', async () => {
     deps.mainWindow.loadURL.mockClear();
     await handlers['sign-out']();
     expect(siteApi.postJsonAuthed).toHaveBeenCalledWith(
-      deps.config.GAME_URL,
+      MAIN_GAME_URL,
       '/api/auth/logout',
       null,
     );
-    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(deps.config.GAME_URL);
+    expect(deps.mainWindow.loadURL).toHaveBeenCalledWith(MAIN_GAME_URL);
   });
 });

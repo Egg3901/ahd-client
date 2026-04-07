@@ -2,11 +2,15 @@
 
 const { BrowserWindow } = require('electron');
 const WindowManager = require('../../src/windows');
-const appConfig = require('../../src/config');
+const activeGameUrl = require('../../src/active-game-url');
+const { MAIN_GAME_URL } = require('../../src/config');
 
 beforeEach(() => {
   jest.clearAllMocks();
   BrowserWindow._reset();
+  activeGameUrl.bindCache({
+    getPreference: () => false,
+  });
 });
 
 describe('WindowManager', () => {
@@ -56,7 +60,7 @@ describe('WindowManager', () => {
       const wm = new WindowManager();
       wm.openWindow('elections');
       expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
-        `${appConfig.GAME_URL}/elections`,
+        `${MAIN_GAME_URL}/elections`,
       );
     });
 
@@ -105,7 +109,7 @@ describe('WindowManager', () => {
       const relativePath = '/some/path';
       wm.openCustom(relativePath);
       expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
-        `${appConfig.GAME_URL}${relativePath}`,
+        `${MAIN_GAME_URL}${relativePath}`,
       );
     });
 
@@ -182,7 +186,7 @@ describe('WindowManager', () => {
       });
       wm.openWindow('congress');
       expect(BrowserWindow.prototype.loadURL).toHaveBeenCalledWith(
-        `${appConfig.GAME_URL}/parliament`,
+        `${MAIN_GAME_URL}/parliament`,
       );
     });
   });

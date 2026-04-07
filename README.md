@@ -5,7 +5,7 @@
 ---
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.1-blue" alt="version 1.0.1" />
+  <img src="https://img.shields.io/badge/version-1.0.3-blue" alt="version 1.0.3" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
   <img src="https://img.shields.io/badge/license-proprietary-red" alt="license proprietary" />
 </p>
@@ -108,11 +108,13 @@ npm start
 
 ### Configuration
 
-Set the game server URL via environment variable (defaults to `https://ahousedividedgame.com`):
+**Override the loaded origin** (disables View menu server toggles):
 
 ```bash
 AHD_GAME_URL=https://your-server.com npm start
 ```
+
+**Defaults:** main game `https://www.ahousedividedgame.com` (`AHD_MAIN_GAME_URL`), test/sandbox `https://test.ahousedividedgame.com` (`AHD_SANDBOX_GAME_URL`). **Localhost** (`AHD_DEV_GAME_URL`, default `http://localhost:3000`) is available from the View menu when you run a **development build** (`npm run dev`, `NODE_ENV=development`) **or** when signed in as a **game admin**.
 
 ---
 
@@ -142,8 +144,8 @@ Releases are automated via GitHub Actions. To publish a new version:
 2. Tag and push:
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.0.3
+git push origin v1.0.3
 ```
 
 The workflow in [`.github/workflows/release.yml`](.github/workflows/release.yml) will build the Windows installer and attach it to a GitHub Release automatically.

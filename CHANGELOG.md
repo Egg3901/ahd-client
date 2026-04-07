@@ -4,10 +4,31 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
+## [1.0.3] - 2026-04-06
+
+### Added
+
+- **Game menu — customizable quick links** — The Game menu opens with shortcuts (Profile, Campaign HQ, Notifications, Portfolio, corporation). **Customize Game Panel…** opens a small window to enable or disable built-in links and add custom paths; the layout is stored in `userPreferences.gamePanelEntries`.
+- **CEO / Create a corporation** — The corporation shortcut is included by default. The menu label is **CEO** (navigates to `/corporation/{id}/ceo`) when the character is a CEO with a corporation id; otherwise it reads **Create a corporation** and navigates to `/corporation/create`. Client-nav enrichment merges `isCeo` and `myCorporationId` from `/api/character/me`.
+- **IPC** — `get-game-panel-config`, `set-game-panel-entries`, and `reset-game-panel-entries` support the config window (`game-panel-config.html` + preload).
+- **Active game URL** — `src/active-game-url.js` resolves the current game origin; works with environment-driven config and dev/sandbox toggles (`src/game-server-dev.js`).
+- **PiP / turn dashboard** — Richer floating dashboard (AP bar with per-action counts, funds and income, decay stats, election chip, expandable income and stat detail).
+
+### Changed
+
+- **Main process URL loading** — Components that previously used a fixed `config.GAME_URL` now use `activeGameUrl.get()` where appropriate so dev, sandbox, and production origins stay consistent (menus, tray, shortcuts, windows, SSE, dashboard, devtools, error handler, etc.).
+
+### Tests
+
+- Unit coverage for `game-panel-links`, `active-game-url`, and `game-server-dev`.
+
+---
+
 ## [1.0.2] - 2026-04-04
 
 ### Added
 
+- **Game server selection (View menu)** — **Use sandbox / test server (Supporter+)** points at `https://test.ahousedividedgame.com` by default (`AHD_SANDBOX_GAME_URL` overrides). With **`npm run dev`** (`NODE_ENV=development`), **Use local dev server (localhost:3000)** loads `http://localhost:3000` (`AHD_DEV_GAME_URL` overrides); it is mutually exclusive with the test-server toggle. Preferences: `useSandboxServer`, `useDevServer`.
 - **Focused view & website navbar parity (main process)** — country config and URL helpers (`src/countries.js`, `src/urls.js`) align executive, legislature, budget, metrics, and related paths with the web app (e.g. `/white-house`, `/congress`, `/national-metrics?country=`).
 - **`src/site-api.js`** — shared authenticated GET/POST against the game origin (`fetchClientNav`, `fetchCharacterMe`, `postJsonAuthed`) using the `persist:ahd` session.
 - **`src/nav-manifest.js`** — normalizes `character_countryId` vs `characterCountryId` from `/api/client-nav` for a single internal shape.

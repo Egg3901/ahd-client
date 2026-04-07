@@ -1,6 +1,6 @@
 const { Tray, Menu, nativeImage, app } = require('electron');
 const path = require('path');
-const config = require('./config');
+const activeGameUrl = require('./active-game-url');
 
 /**
  * System tray icon with live game status.
@@ -190,7 +190,7 @@ class TrayManager {
     if (this.mainWindow) {
       this.mainWindow.show();
       this.mainWindow.focus();
-      this.mainWindow.loadURL(`${config.GAME_URL}${route}`);
+      this.mainWindow.loadURL(`${activeGameUrl.get()}${route}`);
     }
   }
 

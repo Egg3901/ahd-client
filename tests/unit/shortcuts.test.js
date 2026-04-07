@@ -2,7 +2,8 @@
 
 const { globalShortcut } = require('electron');
 const ShortcutManager = require('../../src/shortcuts');
-const config = require('../../src/config');
+const activeGameUrl = require('../../src/active-game-url');
+const { MAIN_GAME_URL } = require('../../src/config');
 
 function makeMockWindow(destroyed = false) {
   return {
@@ -15,6 +16,9 @@ function makeMockWindow(destroyed = false) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  activeGameUrl.bindCache({
+    getPreference: () => false,
+  });
 });
 
 describe('ShortcutManager', () => {
@@ -69,7 +73,7 @@ describe('ShortcutManager', () => {
       sm.handleShortcut({ action: 'navigate', route: '/campaign' });
       expect(win.show).toHaveBeenCalledTimes(1);
       expect(win.focus).toHaveBeenCalledTimes(1);
-      expect(win.loadURL).toHaveBeenCalledWith(`${config.GAME_URL}/campaign`);
+      expect(win.loadURL).toHaveBeenCalledWith(`${MAIN_GAME_URL}/campaign`);
     });
 
     it('calls the registered custom handler for action=custom', () => {
@@ -122,7 +126,7 @@ describe('ShortcutManager', () => {
       const sm = new ShortcutManager(win1);
       sm.setWindow(win2);
       sm.handleShortcut({ action: 'navigate', route: '/poll' });
-      expect(win2.loadURL).toHaveBeenCalledWith(`${config.GAME_URL}/poll`);
+      expect(win2.loadURL).toHaveBeenCalledWith(`${MAIN_GAME_URL}/poll`);
       expect(win1.loadURL).not.toHaveBeenCalled();
     });
   });
