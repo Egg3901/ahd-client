@@ -521,6 +521,15 @@ class MenuManager {
         { role: 'zoomOut' },
         { role: 'resetZoom' },
         { type: 'separator' },
+        {
+          label: 'Copy Page URL',
+          click: () => {
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+              clipboard.writeText(this.mainWindow.webContents.getURL());
+            }
+          },
+        },
+        { type: 'separator' },
         { role: 'togglefullscreen' },
         { type: 'separator' },
         {

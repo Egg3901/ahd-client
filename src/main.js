@@ -6,6 +6,7 @@ const {
   nativeTheme,
   net,
   Menu,
+  clipboard,
 } = require('electron');
 const path = require('path');
 
@@ -804,6 +805,16 @@ function initModules() {
     items.push({
       label: 'Reload',
       click: () => mainWindow.loadURL(activeGameUrl.get()),
+    });
+
+    items.push({ type: 'separator' });
+    items.push({
+      label: 'Copy Page URL',
+      click: () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          clipboard.writeText(mainWindow.webContents.getURL());
+        }
+      },
     });
 
     Menu.buildFromTemplate(items).popup({ window: mainWindow });
