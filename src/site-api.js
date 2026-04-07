@@ -1,6 +1,7 @@
 'use strict';
 
 const { session, net } = require('electron');
+const { version: CLIENT_VERSION } = require('../package.json');
 
 const PARTITION = 'persist:ahd';
 const MAX_JSON_BYTES = 512 * 1024;
@@ -40,6 +41,7 @@ function getJsonAuthed(gameUrl, path) {
         const req = net.request({ url: fullUrl, method: 'GET' });
         req.setHeader('Cookie', cookieStr);
         req.setHeader('Accept', 'application/json');
+        req.setHeader('X-AHD-Client-Version', CLIENT_VERSION);
 
         let body = '';
         req.on('response', (res) => {
@@ -88,12 +90,26 @@ function fetchClientNav(gameUrl) {
 }
 
 /**
- * Fetch GET /api/character/me for corporation sequentialId (World → My Corporation).
+ * Fetch GET /api/character/me (corporation `pathId`, CEO, etc. for desktop menus).
  * @param {string} gameUrl
  * @returns {Promise<object|null>}
  */
 function fetchCharacterMe(gameUrl) {
   return getJsonAuthed(gameUrl, '/api/character/me');
+}
+
+/**
+ * Fetch GET /api/countries for dynamic country configuration.
+ * @param {string} gameUrl
+ * @returns {Promise<Array<{id: string, executivePath: string, executiveLabel: string, legislaturePath: string, legislatureLabel: string, centralBankName: string, executiveFormation: string, mapPath: string}>|null>}
+ */
+function fetchCountries(gameUrl) {
+  return getJsonAuthed(gameUrl, '/api/countries').then((data) => {
+    if (data && Array.isArray(data.countries)) {
+      return data.countries;
+    }
+    return null;
+  });
 }
 
 /**
@@ -112,6 +128,7 @@ function postJsonAuthed(gameUrl, path, body) {
         req.setHeader('Cookie', cookieStr);
         req.setHeader('Content-Type', 'application/json');
         req.setHeader('Accept', 'application/json');
+        req.setHeader('X-AHD-Client-Version', CLIENT_VERSION);
         req.on('response', (res) => {
           res.on('data', () => {});
           res.on('end', () => {
@@ -135,5 +152,6 @@ function postJsonAuthed(gameUrl, path, body) {
 module.exports = {
   fetchClientNav,
   fetchCharacterMe,
+  fetchCountries,
   postJsonAuthed,
 };

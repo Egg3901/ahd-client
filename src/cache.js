@@ -18,6 +18,13 @@ const schema = {
       type: 'object',
     },
   },
+  countries: {
+    type: 'array',
+    default: null,
+    items: {
+      type: 'object',
+    },
+  },
   userPreferences: {
     type: 'object',
     default: {},
@@ -205,6 +212,24 @@ class CacheManager {
   /** @returns {object} Full cached game state */
   getGameState() {
     return this.store.get('gameState', {});
+  }
+
+  // --- Countries ---
+
+  /**
+   * Get cached countries list (null if not cached).
+   * @returns {Array<object>|null}
+   */
+  getCountries() {
+    return this.store.get('countries', null);
+  }
+
+  /**
+   * Cache the countries list from the server.
+   * @param {Array<object>} countries
+   */
+  setCountries(countries) {
+    this.store.set('countries', countries);
   }
 
   // --- General ---

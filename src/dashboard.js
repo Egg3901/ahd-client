@@ -27,8 +27,8 @@ class DashboardPoller {
     this._callback = null;
     /** @type {NodeJS.Timeout|null} */
     this._interval = null;
-    /** @type {number} Fallback poll period in ms (spec: 10s for dashboard bar) */
-    this._POLL_MS = 10_000;
+    /** @type {number} Fallback poll period in ms (spec: 60s for dashboard bar) */
+    this._POLL_MS = 60_000;
   }
 
   // ── Lifecycle ──

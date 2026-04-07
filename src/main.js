@@ -29,6 +29,7 @@ const config = require('./config');
 const activeGameUrl = require('./active-game-url');
 const { registerIpcHandlers } = require('./ipc');
 const { getNavForCountry } = require('./nav');
+const { setCountriesCache } = require('./countries');
 const { getTitleForPath } = require('./title-for-path');
 
 // Module classes
@@ -48,6 +49,10 @@ const ErrorHandler = require('./error-handler');
 const ActionQueue = require('./action-queue');
 const siteApi = require('./site-api');
 const { normalizeClientNavManifest } = require('./nav-manifest');
+const {
+  stripCorporationEnrichment,
+  mergeCharacterMeIntoManifest,
+} = require('./corporation-enrich');
 const { openGamePanelConfigWindow } = require('./game-panel-config-window');
 const { isLocalDevServerAllowed } = require('./game-server-dev');
 
@@ -130,6 +135,12 @@ function createWindow() {
   activeGameUrl.bindCache(cacheManager);
   errorHandler = new ErrorHandler();
   actionQueue = new ActionQueue(cacheManager);
+
+  // Load cached countries immediately (fallback to hardcoded in countries.js)
+  const cachedCountries = cacheManager.getCountries();
+  if (cachedCountries && cachedCountries.length > 0) {
+    setCountriesCache(cachedCountries);
+  }
 
   configureGamePartitionUserAgent();
 
@@ -252,109 +263,28 @@ function pushThemeToSite(themeId) {
 /** @type {NodeJS.Timeout|null} */
 let unreadPollTimer = null;
 
+/** @type {NodeJS.Timeout|null} SSE fallback polling timer when disconnected. */
+let sseFallbackTimer = null;
+
 /** Bumped on each pull so stale retries stop after a new navigation/load. */
 let clientNavPullGeneration = 0;
 
 /**
- * @param {unknown} v
- * @returns {number|null}
- */
-function coerceFiniteNumber(v) {
-  if (v == null) return null;
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  if (typeof v === 'string' && v.trim() !== '') {
-    const n = Number(v);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
-}
-
-/**
- * Public corporation id for `/corporation/{id}` URLs from an API corporation object.
- * @param {object|null|undefined} corp
- * @returns {string|number|null}
- */
-function corporationUrlKeyFromObject(corp) {
-  if (!corp || typeof corp !== 'object') return null;
-  const n =
-    coerceFiniteNumber(corp.sequentialId) ??
-    coerceFiniteNumber(corp.sequential_id) ??
-    coerceFiniteNumber(corp.sequentialID) ??
-    coerceFiniteNumber(corp.id);
-  if (n != null) return n;
-  if (typeof corp.id === 'string' && corp.id.trim()) return corp.id.trim();
-  return null;
-}
-
-/**
- * Merge /api/character/me (corporation id, CEO flag) for Game panel + World → My Corporation.
+ * Merge /api/character/me (`pathId`, CEO via `ceoId`, etc.) into client-nav.
+ * Clears corp fields when the request fails or `corporation` is absent.
  * @param {object} manifest
  * @returns {Promise<object>}
  */
 async function enrichClientNavManifest(manifest) {
-  if (!manifest.hasCharacter) return manifest;
   try {
+    if (!manifest.hasCharacter) {
+      return stripCorporationEnrichment(manifest);
+    }
     const me = await siteApi.fetchCharacterMe(activeGameUrl.get());
-    if (!me || typeof me !== 'object') return manifest;
-
-    /** @type {object|null} */
-    let corpObj = null;
-    /** @type {string|number|null} */
-    let urlKey = null;
-
-    const rootCorp = me.corporation;
-    if (rootCorp != null) {
-      if (typeof rootCorp === 'number' || typeof rootCorp === 'string') {
-        urlKey =
-          coerceFiniteNumber(rootCorp) ??
-          (typeof rootCorp === 'string' && rootCorp.trim()
-            ? rootCorp.trim()
-            : null);
-      } else if (typeof rootCorp === 'object') {
-        corpObj = rootCorp;
-        urlKey = corporationUrlKeyFromObject(rootCorp);
-      }
-    }
-
-    const ch = me.character;
-    if (ch && typeof ch === 'object') {
-      if (urlKey == null) {
-        urlKey =
-          coerceFiniteNumber(ch.corporationSequentialId) ??
-          coerceFiniteNumber(ch.corporation_sequential_id) ??
-          coerceFiniteNumber(ch.corporationId) ??
-          coerceFiniteNumber(ch.corporation_id);
-      }
-      if (ch.corporation && typeof ch.corporation === 'object') {
-        corpObj = ch.corporation;
-        if (urlKey == null) {
-          urlKey = corporationUrlKeyFromObject(ch.corporation);
-        }
-      }
-    }
-
-    if (urlKey == null) {
-      urlKey =
-        coerceFiniteNumber(me.corporationSequentialId) ??
-        coerceFiniteNumber(me.corporation_sequential_id);
-    }
-
-    if (urlKey == null && corpObj == null) return manifest;
-
-    const corp = corpObj && typeof corpObj === 'object' ? corpObj : {};
-    const isCeo =
-      manifest.isCeo === true ||
-      corp.isCeo === true ||
-      corp.role === 'CEO' ||
-      corp.role === 'ceo';
-
-    const out = { ...manifest, isCeo };
-    if (urlKey != null) out.myCorporationId = urlKey;
-    return out;
+    return mergeCharacterMeIntoManifest(manifest, me);
   } catch {
-    /* ignore */
+    return stripCorporationEnrichment(manifest);
   }
-  return manifest;
 }
 
 /**
@@ -423,7 +353,7 @@ function handleClientNav(manifest) {
   const normalized = normalizeClientNavManifest(manifest);
   enrichClientNavManifest(normalized)
     .then((data) => applyClientNavEffects(data))
-    .catch(() => applyClientNavEffects(normalized));
+    .catch(() => applyClientNavEffects(stripCorporationEnrichment(normalized)));
 }
 
 /**
@@ -453,6 +383,36 @@ function pullClientNav(options = {}) {
   }
 
   tryFetch();
+}
+
+// --- Countries fetch ---
+
+/**
+ * Fetch countries from /api/countries and update cache.
+ * Rebuilds nav/menu if the country list has changed.
+ */
+function fetchCountriesAndCache() {
+  siteApi.fetchCountries(activeGameUrl.get()).then((countries) => {
+    if (!countries || countries.length === 0) return;
+
+    const cached = cacheManager ? cacheManager.getCountries() : null;
+    const hasChanged =
+      !cached ||
+      cached.length !== countries.length ||
+      countries.some((c, i) => c.id !== (cached[i] && cached[i].id));
+
+    if (hasChanged) {
+      if (cacheManager) cacheManager.setCountries(countries);
+      setCountriesCache(countries);
+
+      // Rebuild menu with new country data
+      if (menuManager) {
+        const manifest = menuManager.manifest || null;
+        const countryId = manifest?.characterCountryId || null;
+        menuManager.setNavConfig(getNavForCountry(countryId), manifest);
+      }
+    }
+  });
 }
 
 // --- Theme observer ---
@@ -545,7 +505,12 @@ function initModules() {
     sendToRenderer('toggle-focused-view', enabled);
   }
 
-  mainWindow.on('focus', () => scheduleClientNavPollInterval());
+  function refreshClientNavOnWindowVisible() {
+    scheduleClientNavPollInterval();
+    pullClientNav({ retryOnNull: false });
+  }
+  mainWindow.on('focus', refreshClientNavOnWindowVisible);
+  mainWindow.on('show', refreshClientNavOnWindowVisible);
   mainWindow.on('blur', () => scheduleClientNavPollInterval());
 
   // SSE Client (#1)
@@ -585,6 +550,9 @@ function initModules() {
 
     // Fetch client-nav manifest and apply (retry if session not ready yet)
     pullClientNav({ retryOnNull: true });
+
+    // Fetch countries from server in background
+    fetchCountriesAndCache();
   });
 
   // Notifications (#1)
@@ -782,6 +750,16 @@ function initModules() {
   sseClient.on('connected', () => {
     console.log('SSE connected');
     sendToRenderer('sse-status', { connected: true });
+
+    // Stop SSE fallback polling if active
+    if (sseFallbackTimer) {
+      clearInterval(sseFallbackTimer);
+      sseFallbackTimer = null;
+    }
+
+    // Do one final client-nav sync after reconnecting
+    pullClientNav({ retryOnNull: false });
+
     // Flush queued actions to renderer for replay (with retry tracking)
     actionQueue.flush(sendToRenderer);
     broadcastQueueStatus();
@@ -809,6 +787,15 @@ function initModules() {
     console.log('SSE disconnected');
     sendToRenderer('sse-status', { connected: false });
     scheduleClientNavPollInterval();
+
+    // Start SSE fallback polling at 30s intervals when disconnected
+    // This keeps the UI in sync when SSE is unreliable (e.g., Vercel multi-instance)
+    if (sseFallbackTimer) clearInterval(sseFallbackTimer);
+    sseFallbackTimer = setInterval(() => {
+      fetchClientNav().then((nav) => {
+        if (nav) handleClientNav(nav);
+      });
+    }, 30_000);
   });
   sseClient.on('reconnecting', ({ delay, attempt }) => {
     console.log(`SSE reconnecting in ${delay}ms (attempt ${attempt})`);
@@ -859,6 +846,14 @@ function initModules() {
         notificationManager.clearUnread();
         sendToRenderer('unread-count', { count: 0 });
         if (trayManager) trayManager.updateMenu();
+      }
+
+      // Re-sync /api/character/me + client-nav after corp flows or stock market
+      if (
+        pathname.includes('/stockmarket') ||
+        pathname.startsWith('/corporation')
+      ) {
+        pullClientNav({ retryOnNull: false });
       }
     } catch {
       // url may be file:// during loading screen — ignore
@@ -941,6 +936,7 @@ function initModules() {
   // via the connected/disconnected handlers above.
   sseClient.once('connected', () => {
     pullClientNav({ retryOnNull: true });
+    fetchCountriesAndCache();
     if (errorHandler) errorHandler.loadErrorCodes();
   });
 }
@@ -1362,6 +1358,10 @@ function cleanup() {
   if (unreadPollTimer) {
     clearInterval(unreadPollTimer);
     unreadPollTimer = null;
+  }
+  if (sseFallbackTimer) {
+    clearInterval(sseFallbackTimer);
+    sseFallbackTimer = null;
   }
   if (sseClient) sseClient.disconnect();
   if (actionQueue) actionQueue.destroy();
