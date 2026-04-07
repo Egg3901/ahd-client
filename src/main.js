@@ -518,6 +518,9 @@ function initModules() {
       (cacheManager.getPreference('displayMode') || 'focused') === 'focused';
     toggleFocusedMode(!focused);
   });
+  shortcutManager.onCustom('openCommandPalette', () => {
+    injectCommandPalette(currentNav);
+  });
   shortcutManager.registerAll();
 
   // PiP (#8)
@@ -1035,6 +1038,109 @@ function dismissErrorOverlay() {
       `(function() { const el = document.getElementById('ahd-error-overlay'); if (el) el.remove(); })();`,
     )
     .catch(() => {});
+}
+
+/**
+ * Inject the Cmd+K command palette overlay into the renderer.
+ * @param {object|null} currentNav - The current navigation config
+ */
+function injectCommandPalette(currentNav) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  // Build route list from currentNav + static routes
+  const staticRoutes = [
+    { label: 'Notifications', route: '/notifications' },
+    { label: 'Campaign HQ', route: '/campaign' },
+    { label: 'Fundraise', route: '/campaign/fundraise' },
+    { label: 'Advertise', route: '/campaign/advertise' },
+    { label: 'Poll', route: '/poll' },
+    { label: 'Profile', route: '/profile' },
+    { label: 'Settings', route: '/settings' },
+  ];
+
+  const navRoutes = [];
+  if (currentNav?.executive) navRoutes.push({ label: 'Executive', route: currentNav.executive });
+  if (currentNav?.legislature) navRoutes.push({ label: 'Legislature', route: currentNav.legislature });
+  if (currentNav?.elections) navRoutes.push({ label: 'Elections', route: currentNav.elections });
+  if (currentNav?.map) navRoutes.push({ label: 'Map', route: currentNav.map });
+  if (currentNav?.whiteHouse) navRoutes.push({ label: 'White House', route: currentNav.whiteHouse });
+  if (currentNav?.congress) navRoutes.push({ label: 'Congress', route: currentNav.congress });
+
+  const allRoutes = [...navRoutes, ...staticRoutes];
+  const routesJson = JSON.stringify(allRoutes);
+
+  const script = `
+    (function() {
+      // Remove existing palette if present
+      const existing = document.getElementById('cmdk-palette');
+      if (existing) existing.remove();
+
+      const routes = ${routesJson};
+
+      const container = document.createElement('div');
+      container.id = 'cmdk-palette';
+      container.innerHTML = \`
+        <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 999997; display: flex; align-items: flex-start; justify-content: center; padding-top: 100px;">
+          <div style="background: var(--theme-bg, #1a1a1a); border: 1px solid var(--theme-border, #333); border-radius: 8px; width: 500px; max-height: 400px; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+            <input type="text" id="cmdk-input" placeholder="Type to search..." style="width: 100%; padding: 12px; border: none; border-bottom: 1px solid var(--theme-border, #333); background: transparent; color: var(--theme-text, #fff); font-size: 14px; outline: none;" />
+            <div id="cmdk-results" style="overflow-y: auto; flex: 1; padding: 8px 0;"></div>
+          </div>
+        </div>
+      \`;
+      document.body.appendChild(container);
+
+      const input = document.getElementById('cmdk-input');
+      const results = document.getElementById('cmdk-results');
+      let selectedIndex = -1;
+      let filtered = routes;
+
+      function render() {
+        results.innerHTML = filtered.slice(0, 8).map((r, i) =>
+          \`<div style="padding: 8px 12px; cursor: pointer; background: \${i === selectedIndex ? 'var(--theme-accent, #3b82f6)' : 'transparent'}; color: \${i === selectedIndex ? '#fff' : 'var(--theme-text, #fff)'};" data-index="\${i}" data-route="\${r.route}">\${r.label}</div>\`
+        ).join('');
+      }
+
+      input.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        filtered = routes.filter(r => r.label.toLowerCase().includes(q) || r.route.toLowerCase().includes(q));
+        selectedIndex = filtered.length > 0 ? 0 : -1;
+        render();
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
+          render();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          selectedIndex = Math.max(selectedIndex - 1, 0);
+          render();
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+          window.ahdClient.invoke('navigate', filtered[selectedIndex].route);
+          container.remove();
+        } else if (e.key === 'Escape') {
+          container.remove();
+        }
+      });
+
+      results.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-route]');
+        if (item) {
+          window.ahdClient.invoke('navigate', item.dataset.route);
+          container.remove();
+        }
+      });
+
+      container.addEventListener('click', (e) => {
+        if (e.target === container) container.remove();
+      });
+
+      input.focus();
+    })();
+  `;
+
+  mainWindow.webContents.executeJavaScript(script);
 }
 
 /**
