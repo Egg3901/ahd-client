@@ -5,7 +5,7 @@ Thin Electron wrapper for the [A House Divided](https://github.com/Egg3901/a-hou
 ---
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="version 1.1.0" />
+  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="version 1.2.0" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license MIT" />
 </p>
