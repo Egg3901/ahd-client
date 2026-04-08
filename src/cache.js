@@ -20,7 +20,7 @@ const schema = {
   },
   countries: {
     type: 'array',
-    default: null,
+    default: [],
     items: {
       type: 'object',
     },
@@ -221,7 +221,8 @@ class CacheManager {
    * @returns {Array<object>|null}
    */
   getCountries() {
-    return this.store.get('countries', null);
+    const countries = this.store.get('countries');
+    return countries && countries.length > 0 ? countries : null;
   }
 
   /**
