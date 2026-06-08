@@ -4,6 +4,31 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
+## [1.2.0] - 2026-06-01
+
+### Added
+
+- **Dynamic countries** — Fetches `/api/countries` on SSE connect and caches the result in `src/cache.js` (new `countries` schema entry) and `src/countries.js`. The client now falls back to hardcoded defaults only when the server is unreachable; country-scoped menu items, paths, and labels update live when the server list changes.
+- **SSE fallback polling** — When SSE disconnects (e.g., Vercel multi-instance), the main process starts a 30-second `fetchClientNav` poll loop (`sseFallbackTimer`) so the Navigate menu and tray stay in sync. The timer stops automatically when SSE reconnects.
+- **`X-AHD-Client-Version` header** — All `net.request()` calls to the game origin (`site-api.js`) now send `X-AHD-Client-Version: <package.json version>` so the server can detect outdated clients.
+- **`corporation-enrich.js`** — Corporation-path logic extracted from `main.js` into a dedicated module. `corporationPathIdForUrl` prefers API `pathId`, falls back to `sequentialId` (including 0), `sequential_id`, `_id`, and `id`. `mergeCharacterMeIntoManifest` and `stripCorporationEnrichment` handle the full `/api/character/me` → manifest merge lifecycle.
+- **Corporation path encoding** — `encodeURIComponent` applied to corporation IDs in `menu.js`, `game-panel-links.js`, and `pip.html` so slug-based `pathId` values are safe in URLs.
+- **Tests** — New `tests/unit/corporation-enrich.test.js` covering `corporationPathIdForUrl`, `stripCorporationEnrichment`, and `mergeCharacterMeIntoManifest` edge cases.
+
+### Changed
+
+- **Dashboard poll interval** — `DashboardPoller` default poll period increased from 10s to 60s to match the spec for dashboard bar updates.
+- **Window focus/show** — Both `focus` and `show` events on the main window now trigger `pullClientNav`, so the Navigate menu refreshes when the window is restored from minimize as well as when it gains focus.
+- **Corporation/stockmarket re-sync** — Navigating to `/corporation` or `/stockmarket` paths triggers a `pullClientNav` so corporation menu items and CEO state update after in-app actions.
+- **Cache schema** — `cache.js` schema extended with a `countries` entry (type `array`, default `[]`).
+
+### Fixed
+
+- **Corporation enrichment on error** — `enrichClientNavManifest` now calls `stripCorporationEnrichment` on catch, so stale `myCorporationId` / `isCeo` values are cleared when `/api/character/me` fails (401, network error, etc.) instead of persisting old data.
+- **Countries cache default** — Cache schema `countries` default is `[]` (array) to prevent `getCountries()` returning `undefined` on first launch.
+
+---
+
 ## [1.1.0] - 2026-04-07
 
 ### Added

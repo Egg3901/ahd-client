@@ -87,6 +87,7 @@ ahd-client/
 │   ├── ipc.js           # IPC handler registration
 │   ├── menu.js          # Application menu
 │   ├── config.js        # URLs, trusted hosts
+│   ├── corporation-enrich.js # pathId/ceoId merge logic
 │   ├── active-game-url.js
 │   ├── pip.js / pip.html / pip-view-poller.js
 │   ├── dashboard.js
