@@ -9,17 +9,17 @@
 
 ## Key modules
 
-| Area                     | Files                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| App menu, Navigate, View | `menu.js`, `nav.js`, `countries.js`, `urls.js`                                 |
+| Area                     | Files                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| App menu, Navigate, View | `menu.js`, `nav.js`, `countries.js`, `urls.js`                                             |
 | Client manifest          | `site-api.js` (`GET /api/client-nav`, `/api/countries`), `nav-manifest.js` (normalization) |
-| Corporation enrichment   | `corporation-enrich.js` (pathId, ceoId, strip/merge)                           |
-| Game menu quick links    | `game-panel-links.js`, `game-panel-config.html`, `game-panel-config-window.js` |
-| PiP / mini mode          | `pip.js`, `pip.html`, `pip-view-poller.js`, `dashboard.js`                     |
-| Tray & notifications     | `tray.js`, `notifications.js`                                                  |
-| Pop-out presets          | `windows.js`                                                                   |
-| Global shortcuts         | `shortcuts.js` (defaults + `customShortcuts` preference)                       |
-| Theme / cache / queue    | `cache.js`, `action-queue.js`, `sse.js`                                        |
+| Corporation enrichment   | `corporation-enrich.js` (pathId, ceoId, strip/merge)                                       |
+| Game menu quick links    | `game-panel-links.js`, `game-panel-config.html`, `game-panel-config-window.js`             |
+| PiP / mini mode          | `pip.js`, `pip.html`, `pip-view-poller.js`, `dashboard.js`                                 |
+| Tray & notifications     | `tray.js`, `notifications.js`                                                              |
+| Pop-out presets          | `windows.js`                                                                               |
+| Global shortcuts         | `shortcuts.js` (defaults + `customShortcuts` preference)                                   |
+| Theme / cache / queue    | `cache.js`, `action-queue.js`, `sse.js`                                                    |
 
 ## Client-nav pipeline
 
