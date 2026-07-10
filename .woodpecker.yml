@@ -1,0 +1,36 @@
+# Lean self-hosted CI (Woodpecker on Hetzner, workflows.ahousedividedgame.com).
+# Matches the a-house-divided repo's pipeline: local/exec backend, no
+# host-path `volumes:` mounts (those need repo "trust" and were flaky here in
+# practice — see a-house-divided's .woodpecker.yml for the incident), no
+# packaging step (electron-builder output isn't a CI concern).
+
+when:
+  - event: pull_request
+  - event: push
+    branch: [master]
+
+clone:
+  git:
+    image: docker.io/woodpeckerci/plugin-git
+    settings:
+      lfs: false
+
+steps:
+  install:
+    image: sh
+    commands: [npm ci --no-audit --no-fund]
+
+  lint:
+    image: sh
+    commands: [npm run lint]
+    depends_on: [install]
+
+  format:
+    image: sh
+    commands: [npm run format:check]
+    depends_on: [install]
+
+  test:
+    image: sh
+    commands: [npm run test:unit]
+    depends_on: [install]
