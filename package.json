@@ -15,8 +15,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
-    "test:unit": "jest --testPathPattern=tests/unit",
-    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:unit": "jest --testPathPatterns=tests/unit",
+    "test:integration": "jest --testPathPatterns=tests/integration",
     "test:e2e": "npx playwright test --config=tests/e2e/playwright.config.js",
     "test:coverage": "jest --coverage"
   },
