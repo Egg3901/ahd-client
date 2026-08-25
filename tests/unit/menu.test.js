@@ -5,10 +5,17 @@ const MenuManager = require('../../src/menu');
 const { MAIN_GAME_URL } = require('../../src/config');
 
 function makeMockWindow() {
+  // Navigation now goes through safeLoadURL(webContents, …), so loadURL and
+  // isDestroyed must exist on webContents. Share the same jest fns with the
+  // window so assertions on win.loadURL / win.isDestroyed still hold.
+  const loadURL = jest.fn().mockResolvedValue(undefined);
+  const isDestroyed = jest.fn().mockReturnValue(false);
   return {
-    loadURL: jest.fn().mockResolvedValue(undefined),
-    isDestroyed: jest.fn().mockReturnValue(false),
+    loadURL,
+    isDestroyed,
     webContents: {
+      loadURL,
+      isDestroyed,
       executeJavaScript: jest.fn().mockResolvedValue(undefined),
     },
   };

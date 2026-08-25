@@ -8,6 +8,7 @@ const {
 } = require('./uk-state-labels');
 const { getNavForCountry } = require('./nav');
 const { buildGamePanelMenuTemplate } = require('./game-panel-links');
+const { safeLoadURL } = require('./safe-load-url');
 
 /**
  * Custom application menu replacing the default Electron menu.
@@ -126,20 +127,27 @@ class MenuManager {
       {
         label: 'Reload',
         accelerator: 'CmdOrCtrl+R',
-        click: () => this.mainWindow.loadURL(activeGameUrl.get()),
+        click: () => this.reloadMainWindow(),
       },
       {
         label: 'Go Home',
         accelerator: 'CmdOrCtrl+H',
-        click: () => this.mainWindow.loadURL(activeGameUrl.get()),
+        click: () => this.navigate('/'),
       },
       { type: 'separator' },
       {
         label: 'Clear Cache & Reload',
         click: async () => {
+          if (!this.canNavigate()) return;
           const ses = session.fromPartition('persist:ahd');
-          await ses.clearCache();
-          this.mainWindow.loadURL(activeGameUrl.get());
+          try {
+            await ses.clearCache();
+          } catch (err) {
+            console.error('Failed to clear cache:', err?.message || err);
+          }
+          // The window may have been closed while clearing the cache
+          if (!this.canNavigate()) return;
+          safeLoadURL(this.mainWindow.webContents, activeGameUrl.get());
         },
       },
       { type: 'separator' },
@@ -177,8 +185,8 @@ class MenuManager {
             '/api/auth/logout',
             null,
           );
-          if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-            this.mainWindow.loadURL(`${activeGameUrl.get()}/`);
+          if (this.canNavigate()) {
+            safeLoadURL(this.mainWindow.webContents, `${activeGameUrl.get()}/`);
           }
         },
       },
@@ -217,8 +225,8 @@ class MenuManager {
                   '/api/auth/active-character',
                   { characterId: ch.id },
                 );
-                if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-                  this.mainWindow.loadURL(activeGameUrl.get());
+                if (this.canNavigate()) {
+                  safeLoadURL(this.mainWindow.webContents, activeGameUrl.get());
                 }
               },
             });
@@ -434,10 +442,13 @@ class MenuManager {
               if (this.onThemeChange) {
                 this.onThemeChange(theme.id);
               }
-              this.mainWindow.webContents.executeJavaScript(
-                `document.documentElement.setAttribute('data-theme', '${theme.id}');
+              if (!this.canNavigate()) return;
+              this.mainWindow.webContents
+                .executeJavaScript(
+                  `document.documentElement.setAttribute('data-theme', '${theme.id}');
                  document.dispatchEvent(new CustomEvent('ahd-theme-change', { detail: '${theme.id}' }))`,
-              );
+                )
+                .catch(() => {});
             },
           })),
         },
@@ -602,13 +613,29 @@ class MenuManager {
   }
 
   /**
+   * Whether the main window can still be navigated. Menu items can be
+   * clicked after the window is closed/destroyed (e.g. on macOS while the
+   * app stays alive with no windows) — touching a destroyed webContents
+   * throws and shows the crash dialog.
+   * @returns {boolean}
+   */
+  canNavigate() {
+    return !!(this.mainWindow && !this.mainWindow.isDestroyed());
+  }
+
+  /** Reload the game page in the main window (no-op when it is gone). */
+  reloadMainWindow() {
+    if (!this.canNavigate()) return;
+    safeLoadURL(this.mainWindow.webContents, activeGameUrl.get());
+  }
+
+  /**
    * Navigate the main window to a game route.
    * @param {string} route - Path relative to GAME_URL
    */
   navigate(route) {
-    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.loadURL(`${activeGameUrl.get()}${route}`);
-    }
+    if (!this.canNavigate()) return;
+    safeLoadURL(this.mainWindow.webContents, `${activeGameUrl.get()}${route}`);
   }
 
   /**

@@ -165,10 +165,19 @@ class PipViewPoller {
 
       return new Promise((resolve, reject) => {
         let settled = false;
+        /** @type {NodeJS.Timeout|null} */
+        let timer = null;
         const done = (val) => {
           if (settled) return;
           settled = true;
+          if (timer) clearTimeout(timer);
           resolve(val);
+        };
+        const fail = (err) => {
+          if (settled) return;
+          settled = true;
+          if (timer) clearTimeout(timer);
+          reject(err);
         };
 
         const req = net.request({
@@ -181,16 +190,14 @@ class PipViewPoller {
 
         let body = '';
 
-        const timer = setTimeout(() => {
+        // The deadline stays armed for the whole response (headers + body):
+        // clearing it on 'response' would let a stalled body hang forever.
+        timer = setTimeout(() => {
           req.abort();
-          if (!settled) {
-            settled = true;
-            reject(new Error('Request timeout'));
-          }
+          fail(new Error('Request timeout'));
         }, 15_000);
 
         req.on('response', (res) => {
-          clearTimeout(timer);
           // Log response status for debugging
           console.log(`[PiP] ${path} → ${res.statusCode}`);
 
@@ -202,7 +209,7 @@ class PipViewPoller {
           if (res.statusCode !== 200) {
             const error = new Error(`HTTP ${res.statusCode}`);
             console.error(`[PiP] ${path} failed:`, error.message);
-            reject(error);
+            fail(error);
             return;
           }
 
@@ -222,22 +229,19 @@ class PipViewPoller {
               done(parsed);
             } catch (e) {
               console.error(`[PiP] ${path} JSON parse error:`, e.message);
-              reject(e);
+              fail(e);
             }
           });
 
           res.on('error', (err) => {
             console.error(`[PiP] ${path} response error:`, err.message);
-            if (!settled) reject(err);
+            fail(err);
           });
         });
 
         req.on('error', (err) => {
-          clearTimeout(timer);
-          if (!settled) {
-            console.error(`[PiP] ${path} request error:`, err.message);
-            reject(err);
-          }
+          console.error(`[PiP] ${path} request error:`, err.message);
+          fail(err);
         });
 
         req.end();
