@@ -1,4 +1,5 @@
 const SSEClient = require('../../src/sse');
+const { EventEmitter } = require('events');
 
 describe('SSEClient', () => {
   let client;
@@ -10,6 +11,120 @@ describe('SSEClient', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  // --- Non-200 responses (ticket #1182: SSE 404 crashed the main process) ---
+
+  /**
+   * Fake an Electron response object with the given status code.
+   * @param {number} statusCode
+   * @returns {EventEmitter & { statusCode: number }}
+   */
+  function mockResponse(statusCode) {
+    const res = new EventEmitter();
+    res.statusCode = statusCode;
+    return res;
+  }
+
+  describe('non-200 responses', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('connect() opens a GET request to /api/events', () => {
+      const { net } = require('electron');
+      client.connect();
+      expect(net.request).toHaveBeenCalledWith(
+        expect.objectContaining({ method: 'GET' }),
+      );
+      const url = net.request.mock.calls[0][0].url;
+      expect(url).toMatch(/\/api\/events$/);
+      client.disconnect();
+    });
+
+    test('404 with no error listener does not throw (uncaught exception regression)', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      client.connect();
+      const req = client.request;
+      // Before the fix this threw "Error: SSE status 404" in the main
+      // process because 'error' was emitted with no listener attached.
+      expect(() => req._emit('response', mockResponse(404))).not.toThrow();
+      expect(warnSpy).toHaveBeenCalled();
+      client.disconnect();
+    });
+
+    test('404 emits "disconnected" and does not schedule a reconnect', () => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const disconnected = jest.fn();
+      client.on('disconnected', disconnected);
+
+      client.connect();
+      client.request._emit('response', mockResponse(404));
+
+      expect(disconnected).toHaveBeenCalledTimes(1);
+      expect(client.isConnected()).toBe(false);
+      expect(client.retryTimeout).toBeNull();
+      client.disconnect();
+    });
+
+    test('410 is treated as a gone endpoint: no reconnect', () => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      client.connect();
+      client.request._emit('response', mockResponse(410));
+      expect(client.retryTimeout).toBeNull();
+      client.disconnect();
+    });
+
+    test('500 emits a safe error and schedules a reconnect', () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const errorHandler = jest.fn();
+      client.on('error', errorHandler);
+
+      client.connect();
+      const req = client.request;
+      const connectSpy = jest
+        .spyOn(client, 'connect')
+        .mockImplementation(() => {});
+
+      req._emit('response', mockResponse(500));
+
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(errorHandler.mock.calls[0][0].message).toBe('SSE status 500');
+      expect(client.retryTimeout).not.toBeNull();
+      jest.advanceTimersByTime(2000);
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+
+      connectSpy.mockRestore();
+      client.disconnect();
+    });
+
+    test('500 with no error listener does not throw either', () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      client.connect();
+      expect(() =>
+        client.request._emit('response', mockResponse(503)),
+      ).not.toThrow();
+      client.disconnect();
+    });
+
+    test('request-level network error with no listener does not throw', () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      client.connect();
+      const req = client.request;
+      expect(() => req._emit('error', new Error('network down'))).not.toThrow();
+      expect(client.isConnected()).toBe(false);
+      client.disconnect();
+    });
+
+    test('request-level network error with a listener is emitted', () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const errorHandler = jest.fn();
+      client.on('error', errorHandler);
+      client.connect();
+      client.request._emit('error', new Error('network down'));
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      client.disconnect();
+    });
   });
 
   // --- Initial state ---
