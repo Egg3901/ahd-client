@@ -7,10 +7,11 @@ const activeGameUrl = require('./active-game-url');
  *
  * Polling strategy:
  *  - Immediate fetch when start() is called (first load)
- *  - On-demand via poll() — call this after turn_complete,
+ *  - On-demand via poll() - call this after turn_complete,
  *    action_points_refreshed, and campaign_update SSE events
- *  - Fallback every 10 s so the turn-countdown timer stays accurate
- *    even if SSE events are missed
+ *  - Fallback every 30 s while the window is focused / every 60 s in the
+ *    background (see setPollInterval) so funds, AP, and the turn-countdown
+ *    timer stay accurate even if SSE events are missed
  *
  * Authentication: uses the persist:ahd session partition so the game's
  * existing login cookies are sent automatically — no manual cookie plumbing.
@@ -27,20 +28,36 @@ class DashboardPoller {
     this._callback = null;
     /** @type {NodeJS.Timeout|null} */
     this._interval = null;
-    /** @type {number} Fallback poll period in ms (spec: 60s for dashboard bar) */
-    this._POLL_MS = 60_000;
+    /**
+     * Fallback poll period in ms. 30 s while the app is focused (funds and AP
+     * feel live without hammering the API), 60 s in the background.
+     */
+    this._POLL_MS = 30_000;
   }
 
-  // ── Lifecycle ──
-
   /**
-   * Start polling. Fires immediately, then every 10 s.
+   * Start polling. Fires immediately, then at the current interval.
    * @param {function(object): void} callback - receives mapped gameState object
    */
   start(callback) {
     this._callback = callback;
     this._poll();
     this._interval = setInterval(() => this._poll(), this._POLL_MS);
+  }
+
+  /**
+   * Change the fallback poll interval and restart the timer. Does not fire
+   * an immediate poll — call poll() separately when one is wanted.
+   * @param {number} ms
+   */
+  setPollInterval(ms) {
+    const clamped = Number.isFinite(ms) && ms >= 5_000 ? ms : this._POLL_MS;
+    if (clamped === this._POLL_MS && this._interval) return;
+    this._POLL_MS = clamped;
+    if (this._interval) {
+      clearInterval(this._interval);
+      this._interval = setInterval(() => this._poll(), this._POLL_MS);
+    }
   }
 
   /** Stop the fallback interval. On-demand poll() calls still work. */

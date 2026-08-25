@@ -15,9 +15,14 @@ const OVERLAY_DEFAULTS = {
   },
   certificate: {
     message:
-      "Couldn't connect securely — the game server's security certificate " +
+      "Couldn't connect securely - the game server's security certificate " +
       "is invalid or expired. If your computer's date or time is wrong, " +
       'correct it and retry; otherwise the site owner must renew the certificate.',
+  },
+  'server-error': {
+    message:
+      "The game server is having trouble right now - it's most likely " +
+      'processing a turn. Give it a minute, then hit Retry.',
   },
 };
 
@@ -80,7 +85,7 @@ class ErrorHandler {
 
   /**
    * Get the overlay message for a given error type.
-   * @param {'not-found'|'connection'|'certificate'} type
+   * @param {'not-found'|'connection'|'certificate'|'server-error'} type
    * @returns {string}
    */
   getOverlayMessage(type) {
