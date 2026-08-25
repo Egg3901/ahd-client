@@ -801,6 +801,15 @@ function initModules() {
     console.log(`SSE reconnecting in ${delay}ms (attempt ${attempt})`);
     sendToRenderer('sse-status', { connected: false, reconnecting: true });
   });
+  // Surface SSE errors (bad status, network failure) without letting them
+  // become uncaught exceptions in the main process (ticket #1182).
+  sseClient.on('error', (err) => {
+    console.error('SSE error:', err?.message || err);
+    sendToRenderer('sse-status', {
+      connected: false,
+      error: String(err?.message || err),
+    });
+  });
 
   // IPC handlers (extracted to src/ipc.js for modularity)
   registerIpcHandlers({

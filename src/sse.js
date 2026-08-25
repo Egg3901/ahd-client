@@ -39,6 +39,21 @@ class SSEClient extends EventEmitter {
   }
 
   /**
+   * Emit an error without crashing the main process. Node throws on an
+   * 'error' event emitted with no listener, which would take the whole
+   * app down with an uncaught-exception dialog (ticket #1182).
+   * @private
+   * @param {Error} err
+   */
+  emitError(err) {
+    if (this.listenerCount('error') > 0) {
+      this.emit('error', err);
+    } else {
+      console.error('SSE error:', err?.message || err);
+    }
+  }
+
+  /**
    * Open the SSE connection to /api/events.
    * Automatically disconnects any existing connection first.
    */
@@ -63,7 +78,17 @@ class SSEClient extends EventEmitter {
 
       this.request.on('response', (response) => {
         if (response.statusCode !== 200) {
-          this.emit('error', new Error(`SSE status ${response.statusCode}`));
+          const err = new Error(`SSE status ${response.statusCode}`);
+          // 404/410: the endpoint no longer exists (the web app removed
+          // /api/events in favour of polling). Reconnecting is pointless;
+          // degrade to the disconnected state so fallback polling engages.
+          if (response.statusCode === 404 || response.statusCode === 410) {
+            console.warn('SSE endpoint unavailable:', err.message);
+            this.connected = false;
+            this.emit('disconnected');
+            return;
+          }
+          this.emitError(err);
           this.scheduleReconnect();
           return;
         }
@@ -93,20 +118,20 @@ class SSEClient extends EventEmitter {
 
         response.on('error', (err) => {
           this.connected = false;
-          this.emit('error', err);
+          this.emitError(err);
           this.scheduleReconnect();
         });
       });
 
       this.request.on('error', (err) => {
         this.connected = false;
-        this.emit('error', err);
+        this.emitError(err);
         this.scheduleReconnect();
       });
 
       this.request.end();
     } catch (err) {
-      this.emit('error', err);
+      this.emitError(err);
       this.scheduleReconnect();
     }
   }
