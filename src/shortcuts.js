@@ -1,5 +1,6 @@
 const { globalShortcut } = require('electron');
 const activeGameUrl = require('./active-game-url');
+const { safeLoadURL } = require('./safe-load-url');
 
 // cacheManager is optional - may be undefined in tests
 let cacheManager = null;
@@ -129,9 +130,16 @@ class ShortcutManager {
       shortcutsToUse,
     )) {
       try {
-        globalShortcut.register(accelerator, () => {
+        // globalShortcut.register signals failure via its return value, not
+        // by throwing — e.g. when another app already claimed the combo.
+        const ok = globalShortcut.register(accelerator, () => {
           this.handleShortcut(shortcutConfig);
         });
+        if (!ok) {
+          console.warn(
+            `Failed to register shortcut ${accelerator} (already in use?)`,
+          );
+        }
       } catch (err) {
         console.warn(`Failed to register shortcut ${accelerator}:`, err);
       }
@@ -161,7 +169,10 @@ class ShortcutManager {
 
     switch (shortcut.action) {
       case 'navigate':
-        this.mainWindow.loadURL(`${activeGameUrl.get()}${shortcut.route}`);
+        safeLoadURL(
+          this.mainWindow.webContents,
+          `${activeGameUrl.get()}${shortcut.route}`,
+        );
         break;
       case 'custom':
         if (this.customHandlers[shortcut.handler]) {
