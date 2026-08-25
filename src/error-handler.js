@@ -13,6 +13,12 @@ const OVERLAY_DEFAULTS = {
   connection: {
     message: "Couldn't connect — check your internet connection",
   },
+  certificate: {
+    message:
+      "Couldn't connect securely — the game server's security certificate " +
+      "is invalid or expired. If your computer's date or time is wrong, " +
+      'correct it and retry; otherwise the site owner must renew the certificate.',
+  },
 };
 
 /**
@@ -43,16 +49,19 @@ class ErrorHandler {
       });
       req.setHeader('Accept', 'application/json');
 
-      let body = '';
+      // Accumulate raw Buffers and decode once at the end so multi-byte
+      // UTF-8 sequences split across chunk boundaries are not corrupted.
+      /** @type {Buffer[]} */
+      const chunks = [];
       req.on('response', (res) => {
         if (res.statusCode !== 200) {
           resolve();
           return;
         }
-        res.on('data', (chunk) => (body += chunk.toString()));
+        res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => {
           try {
-            const parsed = JSON.parse(body);
+            const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
             if (Array.isArray(parsed.errors)) {
               this._catalog = parsed.errors;
               this._catalogVersion = parsed.version ?? null;
@@ -71,11 +80,26 @@ class ErrorHandler {
 
   /**
    * Get the overlay message for a given error type.
-   * @param {'not-found'|'connection'} type
+   * @param {'not-found'|'connection'|'certificate'} type
    * @returns {string}
    */
   getOverlayMessage(type) {
     return (
+      OVERLAY_DEFAULTS[type]?.message ?? OVERLAY_DEFAULTS.connection.message
+    );
+  }
+
+  /**
+   * Look up a server error entry by machine code (e.g. 'NOT_FOUND').
+   * @param {string} code
+   * @returns {object|null}
+   */
+  findByCode(code) {
+    return this._catalog.find((e) => e.code === code) ?? null;
+  }
+}
+
+module.exports = ErrorHandler;
       OVERLAY_DEFAULTS[type]?.message ?? OVERLAY_DEFAULTS.connection.message
     );
   }
