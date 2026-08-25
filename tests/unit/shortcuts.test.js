@@ -9,8 +9,8 @@ function makeMockWindow(destroyed = false) {
   return {
     show: jest.fn(),
     focus: jest.fn(),
-    loadURL: jest.fn(),
     isDestroyed: jest.fn().mockReturnValue(destroyed),
+    webContents: { loadURL: jest.fn() },
   };
 }
 
@@ -45,6 +45,22 @@ describe('ShortcutManager', () => {
       sm.registerAll();
       expect(sm.registered).toBe(true);
     });
+
+    it('logs a warning when the OS rejects a registration (returns false)', () => {
+      // globalShortcut.register signals failure via its return value, not by
+      // throwing — the warning must not depend on the throw path.
+      globalShortcut.register.mockReturnValueOnce(false);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const win = makeMockWindow();
+      const sm = new ShortcutManager(win);
+
+      sm.registerAll();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to register shortcut'),
+      );
+      warnSpy.mockRestore();
+    });
   });
 
   describe('unregisterAll()', () => {
@@ -73,7 +89,9 @@ describe('ShortcutManager', () => {
       sm.handleShortcut({ action: 'navigate', route: '/campaign' });
       expect(win.show).toHaveBeenCalledTimes(1);
       expect(win.focus).toHaveBeenCalledTimes(1);
-      expect(win.loadURL).toHaveBeenCalledWith(`${MAIN_GAME_URL}/campaign`);
+      expect(win.webContents.loadURL).toHaveBeenCalledWith(
+        `${MAIN_GAME_URL}/campaign`,
+      );
     });
 
     it('calls the registered custom handler for action=custom', () => {
@@ -99,7 +117,7 @@ describe('ShortcutManager', () => {
       sm.handleShortcut({ action: 'navigate', route: '/campaign' });
       expect(win.show).not.toHaveBeenCalled();
       expect(win.focus).not.toHaveBeenCalled();
-      expect(win.loadURL).not.toHaveBeenCalled();
+      expect(win.webContents.loadURL).not.toHaveBeenCalled();
     });
 
     it('no-ops when mainWindow is null', () => {
@@ -126,8 +144,10 @@ describe('ShortcutManager', () => {
       const sm = new ShortcutManager(win1);
       sm.setWindow(win2);
       sm.handleShortcut({ action: 'navigate', route: '/poll' });
-      expect(win2.loadURL).toHaveBeenCalledWith(`${MAIN_GAME_URL}/poll`);
-      expect(win1.loadURL).not.toHaveBeenCalled();
+      expect(win2.webContents.loadURL).toHaveBeenCalledWith(
+        `${MAIN_GAME_URL}/poll`,
+      );
+      expect(win1.webContents.loadURL).not.toHaveBeenCalled();
     });
   });
 });
