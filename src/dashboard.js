@@ -95,10 +95,19 @@ class DashboardPoller {
 
       return new Promise((resolve, reject) => {
         let settled = false;
+        /** @type {NodeJS.Timeout|null} */
+        let timer = null;
         const done = (val) => {
           if (settled) return;
           settled = true;
+          if (timer) clearTimeout(timer);
           resolve(val);
+        };
+        const fail = (err) => {
+          if (settled) return;
+          settled = true;
+          if (timer) clearTimeout(timer);
+          reject(err);
         };
 
         const req = net.request({
@@ -111,16 +120,14 @@ class DashboardPoller {
 
         let body = '';
 
-        const timer = setTimeout(() => {
+        // The deadline stays armed for the whole response (headers + body):
+        // clearing it on 'response' would let a stalled body hang forever.
+        timer = setTimeout(() => {
           req.abort();
-          if (!settled) {
-            settled = true;
-            reject(new Error('Request timeout'));
-          }
+          fail(new Error('Request timeout'));
         }, 15_000);
 
         req.on('response', (res) => {
-          clearTimeout(timer);
           console.log(
             `[Dashboard] /api/game/turn/dashboard → ${res.statusCode}`,
           );
@@ -133,7 +140,7 @@ class DashboardPoller {
           if (res.statusCode !== 200) {
             const error = new Error(`HTTP ${res.statusCode}`);
             console.error('[Dashboard] Failed:', error.message);
-            reject(error);
+            fail(error);
             return;
           }
 
@@ -154,22 +161,19 @@ class DashboardPoller {
               done(mapped);
             } catch (e) {
               console.error('[Dashboard] JSON parse error:', e.message);
-              reject(e);
+              fail(e);
             }
           });
 
           res.on('error', (err) => {
             console.error('[Dashboard] Response error:', err.message);
-            if (!settled) reject(err);
+            fail(err);
           });
         });
 
         req.on('error', (err) => {
-          clearTimeout(timer);
-          if (!settled) {
-            console.error('[Dashboard] Request error:', err.message);
-            reject(err);
-          }
+          console.error('[Dashboard] Request error:', err.message);
+          fail(err);
         });
 
         req.end();
