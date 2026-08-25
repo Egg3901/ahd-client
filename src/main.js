@@ -27,6 +27,7 @@ if (process.env.PLAYWRIGHT_REMOTE_DEBUGGING_PORT) {
 
 const config = require('./config');
 const activeGameUrl = require('./active-game-url');
+const { safeLoadURL, CERT_ERROR_PATTERN } = require('./safe-load-url');
 const { registerIpcHandlers } = require('./ipc');
 const { getNavForCountry } = require('./nav');
 const { setCountriesCache } = require('./countries');
@@ -165,23 +166,33 @@ function createWindow() {
 
   // Show loading screen, then navigate to game server
   mainWindow.loadFile(path.join(__dirname, 'loading.html'));
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+  });
   mainWindow.webContents.once('did-finish-load', async () => {
+    const win = mainWindow;
     const displayMode = cacheManager.getPreference('displayMode') || 'focused';
-    await session.fromPartition(GAME_SESSION_PARTITION).cookies.set({
-      url: activeGameUrl.get(),
-      name: 'ahd-display-mode',
-      value: displayMode,
-      path: '/',
-      sameSite: 'lax',
-    });
+    try {
+      await session.fromPartition(GAME_SESSION_PARTITION).cookies.set({
+        url: activeGameUrl.get(),
+        name: 'ahd-display-mode',
+        value: displayMode,
+        path: '/',
+        sameSite: 'lax',
+      });
+    } catch (err) {
+      console.error('Failed to set display-mode cookie:', err?.message || err);
+    }
+    // The window may have been closed while the cookie write was in flight
+    if (!win || win.isDestroyed()) return;
     // Deep link takes priority, then session recovery, then default
     if (pendingDeepLinkUrl) {
-      mainWindow.loadURL(pendingDeepLinkUrl);
+      safeLoadURL(win.webContents, pendingDeepLinkUrl);
       pendingDeepLinkUrl = null;
     } else {
       const lastURL = cacheManager.getPreference('lastURL');
-      mainWindow.loadURL(
+      safeLoadURL(
+        win.webContents,
         lastURL && isGameUrl(lastURL) ? lastURL : activeGameUrl.get(),
       );
     }
@@ -498,8 +509,14 @@ function initModules() {
       })
       .then(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(activeGameUrl.get());
+          safeLoadURL(mainWindow.webContents, activeGameUrl.get());
         }
+      })
+      .catch((err) => {
+        console.error(
+          'Failed to set display-mode cookie:',
+          err?.message || err,
+        );
       });
     if (menuManager) menuManager.setFocusedMode(enabled);
     sendToRenderer('toggle-focused-view', enabled);
@@ -557,7 +574,7 @@ function initModules() {
 
   // Notifications (#1)
   notificationManager = new NotificationManager(mainWindow, (route) => {
-    mainWindow.loadURL(`${activeGameUrl.get()}${route}`);
+    safeLoadURL(mainWindow.webContents, `${activeGameUrl.get()}${route}`);
   });
   notificationManager.setEnabled(
     cacheManager.getPreference('notificationsEnabled') !== false,
@@ -582,9 +599,12 @@ function initModules() {
   // Shortcuts (#4)
   shortcutManager = new ShortcutManager(mainWindow);
   shortcutManager.onCustom('toggleStatusBar', () => {
-    mainWindow.webContents.executeJavaScript(
-      "document.dispatchEvent(new CustomEvent('ahd-toggle-statusbar'))",
-    );
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents
+      .executeJavaScript(
+        "document.dispatchEvent(new CustomEvent('ahd-toggle-statusbar'))",
+      )
+      .catch(() => {});
   });
   shortcutManager.onCustom('openFeedback', () => {
     if (feedbackManager) feedbackManager.openFeedbackDialog();
@@ -672,7 +692,7 @@ function initModules() {
         if (useDev) cacheManager.setPreference('useSandboxServer', false);
         if (sseClient) sseClient.disconnect();
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(activeGameUrl.get());
+          safeLoadURL(mainWindow.webContents, activeGameUrl.get());
         }
         if (menuManager) menuManager.build();
       },
@@ -681,7 +701,7 @@ function initModules() {
         if (useSandbox) cacheManager.setPreference('useDevServer', false);
         if (sseClient) sseClient.disconnect();
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(activeGameUrl.get());
+          safeLoadURL(mainWindow.webContents, activeGameUrl.get());
         }
         if (menuManager) menuManager.build();
       },
@@ -694,7 +714,7 @@ function initModules() {
         cacheManager.setPreference('useSandboxServer', false);
         if (sseClient) sseClient.disconnect();
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(activeGameUrl.get());
+          safeLoadURL(mainWindow.webContents, activeGameUrl.get());
         }
         if (menuManager) menuManager.build();
       },
@@ -890,13 +910,15 @@ function initModules() {
     },
   );
 
-  // Network failure overlay
+  // Network failure overlay (certificate problems get a dedicated message)
   mainWindow.webContents.on(
     'did-fail-load',
-    (_event, errorCode, _errorDescription, _validatedURL, isMainFrame) => {
-      if (isMainFrame && errorCode !== -3) {
-        injectErrorOverlay('connection');
-      }
+    (_event, errorCode, errorDescription, _validatedURL, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3) return;
+      const type = CERT_ERROR_PATTERN.test(errorDescription || '')
+        ? 'certificate'
+        : 'connection';
+      injectErrorOverlay(type, errorDescription);
     },
   );
 
@@ -924,7 +946,7 @@ function initModules() {
 
     items.push({
       label: 'Reload',
-      click: () => mainWindow.loadURL(activeGameUrl.get()),
+      click: () => safeLoadURL(mainWindow.webContents, activeGameUrl.get()),
     });
 
     items.push({ type: 'separator' });
@@ -1109,15 +1131,22 @@ function sendNavState() {
 
 /**
  * Inject a recovery overlay into the main window.
- * @param {'not-found'|'connection'} type
+ * @param {'not-found'|'connection'|'certificate'} type
+ * @param {string} [detail] - Optional Chromium error description shown small.
  */
-function injectErrorOverlay(type) {
+function injectErrorOverlay(type, detail) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const message = errorHandler
     ? errorHandler.getOverlayMessage(type)
-    : type === 'connection'
-      ? "Couldn't connect — check your internet connection"
-      : "This page isn't available yet";
+    : type === 'certificate'
+      ? "Couldn't connect securely — check the date/time settings"
+      : type === 'connection'
+        ? "Couldn't connect — check your internet connection"
+        : "This page isn't available yet";
+  const detailHtml =
+    detail && CERT_ERROR_PATTERN.test(detail)
+      ? `<p style="font-size:0.85rem;opacity:0.7;margin:0">${detail}</p>`
+      : '';
   mainWindow.webContents
     .executeJavaScript(
       `(function() {
@@ -1131,7 +1160,8 @@ function injectErrorOverlay(type) {
           zIndex: '999999', fontFamily: 'system-ui, sans-serif', gap: '16px',
         });
         el.innerHTML = \`
-          <p style="font-size:1.1rem;margin:0">${message}</p>
+          <p style="font-size:1.1rem;margin:0;text-align:center">${message}</p>
+          ${detailHtml}
           <div style="display:flex;gap:12px">
             <button onclick="window.history.back()"
               style="padding:8px 20px;cursor:pointer;border-radius:6px;border:1px solid #444;background:#1a1a2e;color:#e0e0e0">
@@ -1140,6 +1170,10 @@ function injectErrorOverlay(type) {
             <button onclick="window.ahdClient&&window.ahdClient.invoke('go-home')"
               style="padding:8px 20px;cursor:pointer;border-radius:6px;border:none;background:#4a6fa5;color:#fff">
               Go Home
+            </button>
+            <button onclick="window.location.reload()"
+              style="padding:8px 20px;cursor:pointer;border-radius:6px;border:none;background:#4a6fa5;color:#fff">
+              Retry
             </button>
           </div>
         \`;
@@ -1277,7 +1311,7 @@ function injectCommandPalette(currentNav) {
     })();
   `;
 
-  mainWindow.webContents.executeJavaScript(script);
+  mainWindow.webContents.executeJavaScript(script).catch(() => {});
 }
 
 /**
@@ -1416,7 +1450,7 @@ function navigateToArg(rawUrl) {
   }
 
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.loadURL(resolved);
+    safeLoadURL(mainWindow.webContents, resolved);
   } else {
     pendingDeepLinkUrl = resolved;
   }
@@ -1425,9 +1459,11 @@ function navigateToArg(rawUrl) {
 app.whenReady().then(() => {
   createWindow();
 
-  // Handle CLI args after window is created
+  // Handle CLI args after window is created.
+  // slice(1): in packaged builds user args start at index 1 (argv[0] is the
+  // executable); in dev runs the '.'/script entry simply never matches below.
   const urlArg = process.argv
-    .slice(2)
+    .slice(1)
     .find((a) => isGameUrl(a) || a.startsWith('ahd://'));
   if (urlArg) navigateToArg(urlArg);
 });
@@ -1440,11 +1476,12 @@ app.on('open-url', (event, url) => {
 
 // Handle Windows second-instance (when user clicks link while app is already running)
 app.on('second-instance', (_event, argv) => {
+  // slice(1): see the CLI-args note in app.whenReady() above
   const urlArg = argv
-    .slice(2)
+    .slice(1)
     .find((a) => isGameUrl(a) || a.startsWith('ahd://'));
   if (urlArg) navigateToArg(urlArg);
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.show();
     mainWindow.focus();
   }
