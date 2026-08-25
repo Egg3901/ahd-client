@@ -4,6 +4,20 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
+## [1.2.2] - 2026-08-25
+
+### Fixed
+
+- **Navigation can no longer crash the main process** — All `webContents.loadURL` calls now go through a `safeLoadURL` helper (`src/safe-load-url.js`) that guards a destroyed window and swallows the promise rejection Electron raises on aborted/failed navigations (e.g. `ERR_ABORTED` when a newer load supersedes one). Menu items, the Sign Out / character-switch flows, and global shortcuts route through it, and menu handlers gained `canNavigate()`/`isDestroyed()` guards so clicking after the window closes is a no-op instead of a crash.
+- **TLS/certificate failures get a dedicated overlay** — `did-fail-load` distinguishes certificate errors (`CERT_ERROR_PATTERN`) from generic connection failures and shows a specific recovery message (check your clock, or the site owner must renew the certificate) instead of the generic offline overlay.
+- **Dashboard & PiP pollers no longer hang on stalled responses** — The request timeout stays armed for the whole response (headers *and* body) instead of being cleared once headers arrive, and every resolve/reject path clears the timer through a single helper (`src/dashboard.js`, `src/pip-view-poller.js`).
+- **Corrupted non-ASCII API responses** — Response bodies are buffered and decoded as UTF-8 once at the end, so multi-byte characters split across chunk boundaries are no longer mangled (`src/site-api.js`, `src/error-handler.js`).
+- **Cookie-store failures no longer crash background polls** — Authenticated GET/POST helpers degrade to "no cookies" instead of rejecting into an unhandled-rejection crash (`src/site-api.js`).
+- **Silent shortcut registration failures** — `globalShortcut.register()` returning `false` (OS rejected the accelerator) is now logged instead of passing unnoticed (`src/shortcuts.js`).
+- **Feedback capture** — Guards the main window with `isDestroyed()` after the async screenshot/save-dialog steps, and the floating `executeJavaScript` feedback trigger now has explicit error handling (`src/feedback.js`).
+
+---
+
 ## [1.2.1] - 2026-08-25
 
 ### Fixed
