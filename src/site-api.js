@@ -28,50 +28,59 @@ function getCookieHeader(gameUrl) {
  */
 function getJsonAuthed(gameUrl, path) {
   const fullUrl = `${gameUrl}${path.startsWith('/') ? path : `/${path}`}`;
-  return getCookieHeader(gameUrl).then(
-    (cookieStr) =>
-      new Promise((resolve) => {
-        let settled = false;
-        const done = (val) => {
-          if (settled) return;
-          settled = true;
-          resolve(val);
-        };
-
-        const req = net.request({ url: fullUrl, method: 'GET' });
-        req.setHeader('Cookie', cookieStr);
-        req.setHeader('Accept', 'application/json');
-        req.setHeader('X-AHD-Client-Version', CLIENT_VERSION);
-
-        let body = '';
-        req.on('response', (res) => {
-          const statusCode = res.statusCode ?? 0;
-          res.on('data', (chunk) => {
+  // Never reject on cookie-store failure — callers treat null as "unavailable"
+  return getCookieHeader(gameUrl)
+    .catch(() => '')
+    .then(
+      (cookieStr) =>
+        new Promise((resolve) => {
+          let settled = false;
+          const done = (val) => {
             if (settled) return;
-            body += chunk.toString();
-            if (Buffer.byteLength(body, 'utf8') > MAX_JSON_BYTES) {
-              res.destroy();
-              done(null);
-            }
+            settled = true;
+            resolve(val);
+          };
+
+          const req = net.request({ url: fullUrl, method: 'GET' });
+          req.setHeader('Cookie', cookieStr);
+          req.setHeader('Accept', 'application/json');
+          req.setHeader('X-AHD-Client-Version', CLIENT_VERSION);
+
+          // Accumulate raw Buffers and decode once at the end so multi-byte
+          // UTF-8 sequences split across chunk boundaries are not corrupted.
+          /** @type {Buffer[]} */
+          const chunks = [];
+          let totalBytes = 0;
+          req.on('response', (res) => {
+            const statusCode = res.statusCode ?? 0;
+            res.on('data', (chunk) => {
+              if (settled) return;
+              chunks.push(chunk);
+              totalBytes += chunk.length;
+              if (totalBytes > MAX_JSON_BYTES) {
+                res.destroy();
+                done(null);
+              }
+            });
+            res.on('end', () => {
+              if (settled) return;
+              const body = Buffer.concat(chunks).toString('utf8');
+              if (statusCode < 200 || statusCode >= 300) {
+                done(null);
+                return;
+              }
+              try {
+                done(JSON.parse(body));
+              } catch {
+                done(null);
+              }
+            });
+            res.on('error', () => done(null));
           });
-          res.on('end', () => {
-            if (settled) return;
-            if (statusCode < 200 || statusCode >= 300) {
-              done(null);
-              return;
-            }
-            try {
-              done(JSON.parse(body));
-            } catch {
-              done(null);
-            }
-          });
-          res.on('error', () => done(null));
-        });
-        req.on('error', () => done(null));
-        req.end();
-      }),
-  );
+          req.on('error', () => done(null));
+          req.end();
+        }),
+    );
 }
 
 /**
@@ -121,32 +130,35 @@ function fetchCountries(gameUrl) {
  */
 function postJsonAuthed(gameUrl, path, body) {
   const fullUrl = `${gameUrl}${path.startsWith('/') ? path : `/${path}`}`;
-  return getCookieHeader(gameUrl).then(
-    (cookieStr) =>
-      new Promise((resolve) => {
-        const req = net.request({ url: fullUrl, method: 'POST' });
-        req.setHeader('Cookie', cookieStr);
-        req.setHeader('Content-Type', 'application/json');
-        req.setHeader('Accept', 'application/json');
-        req.setHeader('X-AHD-Client-Version', CLIENT_VERSION);
-        req.on('response', (res) => {
-          res.on('data', () => {});
-          res.on('end', () => {
-            resolve({
-              statusCode: res.statusCode || 0,
-              ok:
-                res.statusCode != null &&
-                res.statusCode >= 200 &&
-                res.statusCode < 300,
+  // Never reject on cookie-store failure — callers expect { statusCode, ok }
+  return getCookieHeader(gameUrl)
+    .catch(() => '')
+    .then(
+      (cookieStr) =>
+        new Promise((resolve) => {
+          const req = net.request({ url: fullUrl, method: 'POST' });
+          req.setHeader('Cookie', cookieStr);
+          req.setHeader('Content-Type', 'application/json');
+          req.setHeader('Accept', 'application/json');
+          req.setHeader('X-AHD-Client-Version', CLIENT_VERSION);
+          req.on('response', (res) => {
+            res.on('data', () => {});
+            res.on('end', () => {
+              resolve({
+                statusCode: res.statusCode || 0,
+                ok:
+                  res.statusCode != null &&
+                  res.statusCode >= 200 &&
+                  res.statusCode < 300,
+              });
             });
+            res.on('error', () => resolve({ statusCode: 0, ok: false }));
           });
-          res.on('error', () => resolve({ statusCode: 0, ok: false }));
-        });
-        req.on('error', () => resolve({ statusCode: 0, ok: false }));
-        if (body != null) req.write(JSON.stringify(body));
-        req.end();
-      }),
-  );
+          req.on('error', () => resolve({ statusCode: 0, ok: false }));
+          if (body != null) req.write(JSON.stringify(body));
+          req.end();
+        }),
+    );
 }
 
 module.exports = {
