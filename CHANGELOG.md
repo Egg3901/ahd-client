@@ -4,6 +4,14 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
+## [1.2.1] - 2026-08-25
+
+### Fixed
+
+- **SSE 404 no longer crashes the app** — The web app removed the `/api/events` SSE endpoint (replaced by polling), so the client's SSE connection received a permanent 404 on every page navigation. `src/sse.js` emitted a Node `'error'` event with no listener attached, which throws as an uncaught exception in the main process and showed the "A JavaScript error occurred in the main process" crash dialog (error spam after Login with Discord redirects). Errors are now emitted through a safe helper that logs instead of throwing, 404/410 responses are treated as endpoint-gone (the existing 30-second fallback polling engages, no pointless reconnect loop), and `src/main.js` forwards SSE errors to the renderer's connection status. Regression tests in `tests/unit/sse.test.js` reproduce the exact reported 404 scenario (ticket #1182).
+
+---
+
 ## [1.2.0] - 2026-06-01
 
 ### Added
