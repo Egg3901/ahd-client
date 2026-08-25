@@ -62,6 +62,7 @@ class FeedbackManager {
 
     // Capture screenshot first
     const screenshot = await this.captureScreenshot();
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
     const systemInfo = this.getSystemInfo();
 
     // Save screenshot to temp file so the web app can access it
@@ -78,11 +79,15 @@ class FeedbackManager {
     });
 
     // Also try to trigger the in-app feedback modal
-    this.mainWindow.webContents.executeJavaScript(`
-      document.dispatchEvent(new CustomEvent('ahd-open-feedback', {
-        detail: ${JSON.stringify({ systemInfo, hasScreenshot: !!screenshot })}
-      }));
-    `);
+    this.mainWindow.webContents
+      .executeJavaScript(
+        `
+        document.dispatchEvent(new CustomEvent('ahd-open-feedback', {
+          detail: ${JSON.stringify({ systemInfo, hasScreenshot: !!screenshot })}
+        }));
+      `,
+      )
+      .catch(() => {});
   }
 
   /**
@@ -94,6 +99,9 @@ class FeedbackManager {
       dialog.showErrorBox('Screenshot Failed', 'Could not capture screenshot.');
       return;
     }
+
+    // The window may have been closed while the capture was in flight
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
 
     const result = await dialog.showSaveDialog(this.mainWindow, {
       title: 'Save Screenshot',
