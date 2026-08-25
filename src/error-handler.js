@@ -100,18 +100,3 @@ class ErrorHandler {
 }
 
 module.exports = ErrorHandler;
-      OVERLAY_DEFAULTS[type]?.message ?? OVERLAY_DEFAULTS.connection.message
-    );
-  }
-
-  /**
-   * Look up a server error entry by machine code (e.g. 'NOT_FOUND').
-   * @param {string} code
-   * @returns {object|null}
-   */
-  findByCode(code) {
-    return this._catalog.find((e) => e.code === code) ?? null;
-  }
-}
-
-module.exports = ErrorHandler;

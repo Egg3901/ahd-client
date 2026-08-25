@@ -6,11 +6,16 @@ const activeGameUrl = require('../../src/active-game-url');
 const { MAIN_GAME_URL } = require('../../src/config');
 
 function makeMockWindow(destroyed = false) {
+  const isDestroyed = jest.fn().mockReturnValue(destroyed);
   return {
     show: jest.fn(),
     focus: jest.fn(),
-    isDestroyed: jest.fn().mockReturnValue(destroyed),
-    webContents: { loadURL: jest.fn() },
+    isDestroyed,
+    // safeLoadURL guards webContents.isDestroyed() before loadURL
+    webContents: {
+      loadURL: jest.fn().mockResolvedValue(undefined),
+      isDestroyed,
+    },
   };
 }
 
