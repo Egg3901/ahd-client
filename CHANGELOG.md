@@ -4,6 +4,13 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
+## [1.2.3] - 2026-08-26
+
+### Fixed
+
+- **Update download failures were completely silent** — `downloadUpdate()` was fire-and-forget: on any network error the promise rejected with no UI, the "Downloading…" taskbar progress vanished, and users were left waiting forever after clicking Download (looked like the app hung). Failures now show an error dialog with the reason and a hint to retry after restarting the app; repeated Download clicks are guarded against re-entry while a download is in flight (`src/updater.js`). Regression tests added.
+- **"Restart Now" left the app closed after installing** — `quitAndInstall()` defaults to _not_ relaunching: the installer ran silently and the app simply exited, reading as if the update ate the app. It now passes `isForceRunAfter` so the freshly installed build starts immediately (`src/updater.js`).
+
 ## [1.2.2] - 2026-08-25
 
 ### Fixed

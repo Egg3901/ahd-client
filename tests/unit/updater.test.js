@@ -95,6 +95,49 @@ describe('UpdateManager', () => {
     expect(mainWindow.webContents.send).not.toHaveBeenCalled();
   });
 
+  // --- Download flow ---
+
+  test("choosing 'Download' in the update dialog starts the download", async () => {
+    await manager.promptUpdate({ version: '1.2.3' });
+    expect(autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  test('a failed download surfaces an error dialog instead of hanging silently', async () => {
+    const { dialog } = require('electron');
+    autoUpdater.downloadUpdate.mockRejectedValueOnce(
+      new Error('ERR_INTERNET_DISCONNECTED'),
+    );
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await manager.promptUpdate({ version: '1.2.3' });
+    await Promise.resolve(); // let the rejection handler run
+    await Promise.resolve();
+
+    expect(dialog.showMessageBox).toHaveBeenCalledWith(
+      mainWindow,
+      expect.objectContaining({
+        type: 'error',
+        title: 'Update Failed',
+      }),
+    );
+    console.error.mockRestore();
+  });
+
+  test('download is not re-entered while one is already in flight', async () => {
+    autoUpdater.downloadUpdate.mockReturnValueOnce(new Promise(() => {})); // never settles
+
+    await manager.promptUpdate({ version: '1.2.3' });
+    await manager.startDownload();
+    expect(autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  // --- Install flow ---
+
+  test("choosing 'Restart Now' quits, installs, and relaunches the new build", async () => {
+    await manager.promptInstall({ version: '1.2.3' });
+    expect(autoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true);
+  });
+
   // --- setWindow ---
 
   test('setWindow updates the mainWindow reference', () => {
