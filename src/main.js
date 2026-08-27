@@ -233,6 +233,19 @@ function createWindow() {
     if (trayManager) trayManager.updateMenu();
   });
 
+  // Adaptive dashboard polling: refresh funds/AP quickly while the user is
+  // looking at the app, back off while it sits in the background. Returning
+  // to the window triggers an immediate poll so balances are never stale.
+  mainWindow.on('focus', () => {
+    if (dashboardPoller) {
+      dashboardPoller.setPollInterval(30_000);
+      dashboardPoller.poll();
+    }
+  });
+  mainWindow.on('blur', () => {
+    if (dashboardPoller) dashboardPoller.setPollInterval(60_000);
+  });
+
   initModules();
 }
 
@@ -597,7 +610,7 @@ function initModules() {
   windowManager = new WindowManager(cacheManager);
 
   // Shortcuts (#4)
-  shortcutManager = new ShortcutManager(mainWindow);
+  shortcutManager = new ShortcutManager(mainWindow, cacheManager);
   shortcutManager.onCustom('toggleStatusBar', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents
@@ -900,15 +913,39 @@ function initModules() {
     sendToRenderer('loading-state', { loading: false });
   });
 
-  // 404 recovery overlay
+  // 404 / server-error recovery overlays. During turn processing the server
+  // (or its proxy) can answer a manual refresh with a bare 5xx or a raw JSON
+  // error document — both used to render as an ugly wall of JSON.
   mainWindow.webContents.on(
     'did-navigate',
     (_event, _url, httpResponseCode, _statusText, isMainFrame) => {
-      if (isMainFrame && httpResponseCode === 404) {
+      if (!isMainFrame) return;
+      if (httpResponseCode === 404) {
         injectErrorOverlay('not-found');
+      } else if (httpResponseCode >= 500) {
+        injectErrorOverlay('server-error');
       }
     },
   );
+
+  // A main frame that finished loading as a JSON document is always an API
+  // error leaking through (the game itself serves HTML) — cover it too,
+  // including the 200-with-JSON-body case that has no HTTP error code.
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (!mainWindow.webContents.getURL().startsWith('http')) return;
+    mainWindow.webContents
+      .executeJavaScript('document.contentType')
+      .then((contentType) => {
+        if (
+          typeof contentType === 'string' &&
+          contentType.includes('application/json')
+        ) {
+          injectErrorOverlay('server-error');
+        }
+      })
+      .catch(() => {});
+  });
 
   // Network failure overlay (certificate problems get a dedicated message)
   mainWindow.webContents.on(
@@ -946,7 +983,17 @@ function initModules() {
 
     items.push({
       label: 'Reload',
-      click: () => safeLoadURL(mainWindow.webContents, activeGameUrl.get()),
+      click: () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        // Reload the page in place (loading the bare game URL here would
+        // abandon the current route and jump back to the home page).
+        const currentURL = mainWindow.webContents.getURL();
+        if (currentURL && currentURL.startsWith('http')) {
+          mainWindow.webContents.reload();
+          return;
+        }
+        safeLoadURL(mainWindow.webContents, activeGameUrl.get());
+      },
     });
 
     items.push({ type: 'separator' });
@@ -1288,7 +1335,7 @@ function injectCommandPalette(currentNav) {
           selectedIndex = Math.max(selectedIndex - 1, 0);
           render();
         } else if (e.key === 'Enter' && selectedIndex >= 0) {
-          window.ahdClient.invoke('navigate', filtered[selectedIndex].route);
+          window.ahdClient.invoke('navigate-to', filtered[selectedIndex].route);
           container.remove();
         } else if (e.key === 'Escape') {
           container.remove();
@@ -1298,7 +1345,7 @@ function injectCommandPalette(currentNav) {
       results.addEventListener('click', (e) => {
         const item = e.target.closest('[data-route]');
         if (item) {
-          window.ahdClient.invoke('navigate', item.dataset.route);
+          window.ahdClient.invoke('navigate-to', item.dataset.route);
           container.remove();
         }
       });

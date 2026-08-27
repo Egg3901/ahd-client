@@ -663,6 +663,13 @@ class MenuManager {
   /** Reload the game page in the main window (no-op when it is gone). */
   reloadMainWindow() {
     if (!this.canNavigate()) return;
+    // Re-load the current page in place. Loading the bare game URL here used
+    // to throw the user back to the home route from anywhere in the app.
+    const currentURL = this.mainWindow.webContents.getURL();
+    if (currentURL && currentURL.startsWith('http')) {
+      this.mainWindow.webContents.reload();
+      return;
+    }
     safeLoadURL(this.mainWindow.webContents, activeGameUrl.get());
   }
 
