@@ -1,4 +1,10 @@
-const Store = require('electron-store');
+// electron-store is ESM-only from v9. Under Node's require(esm) support this
+// resolves to the module namespace rather than the class, so `new Store()`
+// throws "Store is not a constructor" — unwrap the default export.
+// Requires Node >= 22.12 (Electron 42 bundles Node 22.x); the CI workflows
+// are pinned to 22 for the same reason.
+const electronStore = require('electron-store');
+const Store = electronStore.default || electronStore;
 
 /**
  * Offline caching and action queuing.
