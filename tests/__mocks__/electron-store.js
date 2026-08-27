@@ -61,4 +61,10 @@ class Store {
   }
 }
 
-module.exports = Store;
+// Mirror the real module's shape. electron-store is ESM-only from v9, so
+// require()ing it yields a module *namespace* — a plain, non-callable object
+// carrying the class on `.default`. The mock used to export the bare
+// constructor, so the unit suite stayed green while the packaged app died on
+// startup with "Store is not a constructor"; only the Electron e2e run caught
+// it. Exporting the namespace shape keeps src/cache.js's interop honest.
+module.exports = { __esModule: true, default: Store };
