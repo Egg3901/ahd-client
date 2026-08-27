@@ -30,6 +30,10 @@ All notable changes to the A House Divided desktop client are documented here.
 
 - **Reasonable balance updates** — Dashboard polling is now adaptive: every 30 s while the app window is focused (funds / AP / countdown feel live without hammering the API), every 60 s in the background. Returning focus to the window triggers an immediate poll plus an instant client-nav hydration so balances are never stale after playing elsewhere. Immediate re-polls after turn/action SSE events are unchanged (`src/dashboard.js`, `src/main.js`). New unit suite `tests/unit/dashboard.test.js`.
 
+- **Electron 33 → 42** — Nine major versions of Chromium and Node, bringing the accumulated browser security fixes with it. Also electron-builder 25 → 26, electron-store 8 → 11, electron-updater 6.8.3 → 6.8.9, and the whole dev toolchain. The client now requires Node 22 to build (Electron 42 bundles Node 22.x).
+
+- **Eight high-severity dependency advisories cleared** — `fast-uri` (host confusion and path traversal), `js-yaml`, `flatted`, and `brace-expansion`. `js-yaml` is the one that ships: `electron-updater` parses the update feed's `latest.yml` with it. `npm audit` reports zero vulnerabilities.
+
 ## [1.2.2] - 2026-08-25
 
 ### Fixed
