@@ -25,6 +25,10 @@ async function launchApp() {
     env: {
       ...process.env,
       NODE_ENV: 'development',
+      // Point the client at the stub server the Playwright config boots.
+      // Without this, config.js falls back to the live production origin and
+      // the suite's title assertion becomes a network test against prod.
+      AHD_GAME_URL: `http://127.0.0.1:${process.env.AHD_E2E_MOCK_PORT || 3210}`,
     },
   });
 }

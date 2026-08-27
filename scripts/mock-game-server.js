@@ -140,15 +140,23 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-  if (
-    req.method === 'GET' &&
-    (url.pathname === '/' ||
-      url.pathname === '/corporation/123' ||
-      url.pathname.startsWith('/corporation'))
-  ) {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
+  // Any non-API GET renders the stub page. The title deliberately contains
+  // "A House Divided" because the e2e suite asserts on it — pointing those
+  // tests here instead of production is the whole reason this serves HTML.
+  if (req.method === 'GET' && !url.pathname.startsWith('/api/')) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(
-      `<!doctype html><html data-theme="default"><head><meta charset="utf-8"><title>Mock Game — Wages Preview</title><style>body{font-family:system-ui;background:#0f0f1a;color:#e0e0e0;padding:40px}code{background:#1a1a2e;padding:2px 6px;border-radius:4px}</style></head><body><h1>Mock Game — Wages Preview</h1><p>This is a <code>http://localhost:${PORT}</code> stub for <code>ahd-client</code>.</p><p><b>Navigate &gt; World &gt; My Corporation &gt; Wages — Set all sectors</b> should be enabled (mock CEO, corp 123, 4 sectors).</p><p>Pick a preset → confirm dialog → watch console for <code>[mock] wage set</code>.</p><p>Close this and use the Electron menu.</p></body></html>`,
+      `<!doctype html><html data-theme="default"><head><meta charset="utf-8">` +
+        `<title>A House Divided — Mock Server</title>` +
+        `<style>body{font-family:system-ui;background:#0f0f1a;color:#e0e0e0;padding:40px}` +
+        `code{background:#1a1a2e;padding:2px 6px;border-radius:4px}</style></head><body>` +
+        `<h1>A House Divided — Mock Server</h1>` +
+        `<p>Local stub for <code>ahd-client</code> on <code>http://localhost:${PORT}</code>. ` +
+        `Serving <code>${url.pathname}</code>.</p>` +
+        `<p><b>Navigate &gt; World &gt; My Corporation &gt; Wages — Set all sectors</b> is enabled ` +
+        `(mock CEO, corp 123, ${SECTOR_COUNT} sector(s), limit ${MAX_PER_WINDOW}/window).</p>` +
+        `<p>Pick a preset, confirm, and watch the console for <code>[mock] wage set</code>.</p>` +
+        `</body></html>`,
     );
   }
   json(res, { error: 'not found' }, 404);
