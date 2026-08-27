@@ -1,17 +1,10 @@
 const { test, expect } = require('@playwright/test');
-const { _electron: electron } = require('playwright');
-const path = require('path');
+const { launchApp } = require('./launch-app');
 
 let app;
 
 test.beforeAll(async () => {
-  app = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.')],
-    env: {
-      ...process.env,
-      NODE_ENV: 'development',
-    },
-  });
+  app = await launchApp();
   await app.firstWindow();
 });
 
