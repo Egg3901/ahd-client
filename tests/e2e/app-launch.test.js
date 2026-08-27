@@ -1,17 +1,10 @@
 const { test, expect } = require('@playwright/test');
-const { _electron: electron } = require('playwright');
-const path = require('path');
+const { launchApp } = require('./launch-app');
 
 let app;
 
 test.beforeAll(async () => {
-  app = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.')],
-    env: {
-      ...process.env,
-      NODE_ENV: 'development',
-    },
-  });
+  app = await launchApp();
 });
 
 test.afterAll(async () => {
@@ -25,6 +18,8 @@ test('app launches and creates a window', async () => {
 
 test('window title contains A House Divided', async () => {
   const window = await app.firstWindow();
-  const title = await window.title();
-  expect(title).toContain('A House Divided');
+  // The title starts as "Loading <url>" while the game server page loads;
+  // toHaveTitle retries until the real title (which contains the site name
+  // via the page-title-updated handler) appears.
+  await expect(window).toHaveTitle(/A House Divided/, { timeout: 30_000 });
 });

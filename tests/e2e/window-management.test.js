@@ -1,17 +1,10 @@
 const { test, expect } = require('@playwright/test');
-const { _electron: electron } = require('playwright');
-const path = require('path');
+const { launchApp } = require('./launch-app');
 
 let app;
 
 test.beforeAll(async () => {
-  app = await electron.launch({
-    args: [path.join(__dirname, '..', '..', '.')],
-    env: {
-      ...process.env,
-      NODE_ENV: 'development',
-    },
-  });
+  app = await launchApp();
   await app.firstWindow();
 });
 
@@ -26,6 +19,18 @@ test('app starts with at least one window', async () => {
 
 test('main window is accessible', async () => {
   const window = await app.firstWindow();
-  const isCallable = await window.evaluate(() => true);
-  expect(isCallable).toBe(true);
+  // The app navigates from the local loading screen to the game server right
+  // after launch; evaluate() can hit a destroyed execution context mid-swap.
+  await expect
+    .poll(
+      async () => {
+        try {
+          return await window.evaluate(() => true);
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
 });

@@ -2,14 +2,6 @@ const { globalShortcut } = require('electron');
 const activeGameUrl = require('./active-game-url');
 const { safeLoadURL } = require('./safe-load-url');
 
-// cacheManager is optional - may be undefined in tests
-let cacheManager = null;
-try {
-  cacheManager = require('./cache');
-} catch {
-  // cacheManager not available (e.g., in tests)
-}
-
 /**
  * Global keyboard shortcuts for the core action loop.
  * Works even when the app isn't focused (configurable).
@@ -71,14 +63,18 @@ const DEFAULT_SHORTCUTS = {
 class ShortcutManager {
   /**
    * @param {Electron.BrowserWindow} mainWindow
+   * @param {import('./cache')|null} [cacheManager] - Live CacheManager
+   *   instance. Required for custom shortcut overrides to load.
    */
-  constructor(mainWindow) {
+  constructor(mainWindow, cacheManager = null) {
     /** @type {Electron.BrowserWindow} */
     this.mainWindow = mainWindow;
     /** @type {boolean} */
     this.registered = false;
     /** @type {Record<string, () => void>} */
     this.customHandlers = {};
+    /** @type {import('./cache')|null} */
+    this.cacheManager = cacheManager;
   }
 
   /**
@@ -87,11 +83,12 @@ class ShortcutManager {
    * @returns {Object}
    */
   getEffectiveShortcuts() {
-    if (!cacheManager || typeof cacheManager.getPreference !== 'function') {
-      return DEFAULT_SHORTCUTS;
+    const store = this.cacheManager || null;
+    if (!store || typeof store.getPreference !== 'function') {
+      return { ...DEFAULT_SHORTCUTS };
     }
-    const customShortcuts = cacheManager.getPreference('customShortcuts');
-    if (!customShortcuts) return DEFAULT_SHORTCUTS;
+    const customShortcuts = store.getPreference('customShortcuts');
+    if (!customShortcuts) return { ...DEFAULT_SHORTCUTS };
 
     // customShortcuts is a map of defaultAccel -> customAccel
     // We need to build a new DEFAULT_SHORTCUTS-like object with updated accelerators
