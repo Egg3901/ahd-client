@@ -28,6 +28,26 @@ class SSEClient extends EventEmitter {
     this.buffer = '';
     /** @type {number} Max buffer size before forced flush (1 MB) */
     this.maxBufferSize = 1024 * 1024;
+    /**
+     * Parse state for the frame currently being assembled. These persist
+     * across processBuffer() calls because a single SSE frame is routinely
+     * split over several TCP chunks — its `event:` line can arrive in one
+     * chunk and its `data:` line in the next.
+     * @type {string}
+     */
+    this.pendingEventType = 'message';
+    /** @type {string} */
+    this.pendingData = '';
+  }
+
+  /**
+   * Discard any half-assembled frame and reset parse state.
+   * @private
+   */
+  resetParseState() {
+    this.buffer = '';
+    this.pendingEventType = 'message';
+    this.pendingData = '';
   }
 
   /**
@@ -95,16 +115,18 @@ class SSEClient extends EventEmitter {
 
         this.connected = true;
         this.retryCount = 0;
-        this.buffer = '';
+        this.resetParseState();
         this.emit('connected');
 
         response.on('data', (chunk) => {
           this.buffer += chunk.toString();
 
-          // Guard against unbounded buffer growth
+          // Guard against unbounded buffer growth. Drop the half-assembled
+          // frame's parse state too, otherwise the truncated `data:` prefix
+          // would be glued onto the next frame and emitted as one event.
           if (this.buffer.length > this.maxBufferSize) {
             console.warn('SSE buffer exceeded max size, flushing');
-            this.buffer = '';
+            this.resetParseState();
           }
 
           this.processBuffer();
@@ -147,28 +169,27 @@ class SSEClient extends EventEmitter {
     // Keep the last incomplete line in the buffer
     this.buffer = lines.pop() || '';
 
-    let eventType = 'message';
-    let data = '';
-
     for (const line of lines) {
       if (line.startsWith('event:')) {
-        eventType = line.slice(6).trim();
+        this.pendingEventType = line.slice(6).trim();
       } else if (line.startsWith('data:')) {
-        data += (data ? '\n' : '') + line.slice(5).trim();
+        this.pendingData +=
+          (this.pendingData ? '\n' : '') + line.slice(5).trim();
       } else if (line === '') {
         // Empty line = end of event frame
-        if (data) {
+        if (this.pendingData) {
           let parsed;
           try {
-            parsed = JSON.parse(data);
+            parsed = JSON.parse(this.pendingData);
           } catch {
-            parsed = data;
+            parsed = this.pendingData;
           }
-          this.emit('event', { type: eventType, data: parsed });
-          this.emit(eventType, parsed);
+          const type = this.pendingEventType;
+          this.emit('event', { type, data: parsed });
+          this.emit(type, parsed);
         }
-        eventType = 'message';
-        data = '';
+        this.pendingEventType = 'message';
+        this.pendingData = '';
       }
     }
   }
@@ -212,7 +233,7 @@ class SSEClient extends EventEmitter {
       this.request = null;
     }
     this.connected = false;
-    this.buffer = '';
+    this.resetParseState();
   }
 
   /**
