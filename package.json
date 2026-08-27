@@ -10,15 +10,17 @@
     "build:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "build:mac": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
     "build:linux": "electron-builder --linux",
-    "lint": "eslint src tests",
-    "lint:fix": "eslint src tests --fix",
+    "lint": "eslint src tests scripts",
+    "lint:fix": "eslint src tests scripts --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "jest",
     "test:unit": "jest --testPathPatterns=tests/unit",
     "test:integration": "jest --testPathPatterns=tests/integration",
     "test:e2e": "npx playwright test --config=tests/e2e/playwright.config.js",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "mock": "node scripts/mock-game-server.js",
+    "mock:client": "cross-env AHD_GAME_URL=http://localhost:3000 NODE_ENV=development electron ."
   },
   "build": {
     "appId": "com.ahousedivided.client",
