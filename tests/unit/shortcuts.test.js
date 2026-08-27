@@ -156,3 +156,24 @@ describe('ShortcutManager', () => {
     });
   });
 });
+
+describe('ShortcutManager custom overrides', () => {
+  it('applies customShortcuts overrides when a live cacheManager is injected', () => {
+    const win = makeMockWindow();
+    const overrides = { 'CmdOrCtrl+Shift+C': 'CmdOrCtrl+Alt+9' };
+    const sm = new ShortcutManager(win, {
+      getPreference: (key) =>
+        key === 'customShortcuts' ? overrides : undefined,
+    });
+    const effective = sm.getEffectiveShortcuts();
+    expect(effective['CmdOrCtrl+Alt+9']).toBeDefined();
+    expect(effective['CmdOrCtrl+Alt+9'].route).toBe('/campaign');
+    expect(effective['CmdOrCtrl+Shift+C']).toBeUndefined();
+  });
+
+  it('falls back to defaults without a cacheManager', () => {
+    const win = makeMockWindow();
+    const sm = new ShortcutManager(win);
+    expect(sm.getEffectiveShortcuts()['CmdOrCtrl+Shift+C']).toBeDefined();
+  });
+});
