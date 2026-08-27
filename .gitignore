@@ -38,6 +38,7 @@ playwright-report/
 
 # Git worktrees
 .worktrees/
+worktrees/
 
 # Claude Code local config (machine-specific)
 .claude/

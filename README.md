@@ -1,198 +1,105 @@
-# A House Divided — Desktop Client
+# A House Divided Desktop
 
-Thin Electron wrapper for the [A House Divided](https://github.com/Egg3901/a-house-divided) web app: native window, menus, tray, shortcuts, and optional PiP on **Windows, macOS, and Linux**.
+<img src="assets/ahd-logo.png" alt="" width="96" align="right">
 
----
+The desktop client for [A House Divided](https://www.ahousedividedgame.com). It wraps the hosted game in Electron and adds native windows, menus, tray behavior, shortcuts, notifications, pop-outs, and a compact picture-in-picture status view on Windows, macOS, and Linux.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="version 1.2.0" />
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome" />
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="license MIT" />
-</p>
+The game itself lives in [`Egg3901/AHDGame`](https://github.com/Egg3901/AHDGame). This repository contains only the desktop shell.
 
-<p align="center">
-  <img src="https://github.com/Egg3901/ahd-client/actions/workflows/ci.yml/badge.svg" alt="CI" />
-  <img src="https://github.com/Egg3901/ahd-client/actions/workflows/release.yml/badge.svg" alt="Release" />
-  <img src="https://github.com/Egg3901/ahd-client/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
-</p>
+## What it adds
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white" alt="Electron 33" />
-  <img src="https://img.shields.io/badge/node-v20%2B-339933?logo=node.js&logoColor=white" alt="node v20+" />
-  <img src="https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-lightgrey" alt="platform win | mac | linux" />
-</p>
+**Native navigation.** Game, Navigate, View, and Help menus provide stable entry points into a large web application. Country-aware links and auxiliary pop-out windows share the same authenticated session.
 
----
+**Focused play.** Mini mode, a configurable status bar, global shortcuts, tray controls, and focused-mode chrome keep frequently checked information available without a full browser tab.
 
-## Overview
+**Bulk actions the web UI makes tedious.** CEOs can set the wage level across every sector of their corporation in one step, paced to the server's write budget so large corporations apply cleanly instead of stalling against the rate limiter.
 
-The game runs as a hosted Next.js app. This client loads that site in a `BrowserWindow`, adds OS integration, and keeps one login session via the `persist:ahd` cookie jar.
+**One trusted origin boundary.** The main window loads an approved game origin into the persistent `persist:ahd` session. IPC and navigation policy stay in the Electron main and preload layers rather than being exposed directly to remote page code.
 
-More detail for contributors: **[docs/architecture.md](docs/architecture.md)** and **[docs/README.md](docs/README.md)**.
+## How it runs
 
-### Why use the desktop client?
+```text
+Electron main process
+  -> trusted BrowserWindow and persistent session
+  -> hosted A House Divided application
 
-- Application menu (**Game**, **Navigate**, **View**, **Help**) aligned with focused mode
-- System tray, optional **mini mode (PiP)** dashboard, and desktop notifications
-- **Pop-out** auxiliary windows (elections, legislature, etc.) sharing the same session
-- Global keyboard shortcuts (customizable)
-- **Auto-update** checks via `electron-updater` (when publishing update metadata)
-
----
-
-## Features (players)
-
-| Feature                                           | Where                                                                      |
-| ------------------------------------------------- | -------------------------------------------------------------------------- |
-| Quick links (Profile, Campaign, Notifications, …) | **Game** menu; **Customize Game Panel…** to change presets and custom URLs |
-| PiP status bar (AP, funds, turn, …)               | Same config window → **PiP status bar** tab                                |
-| Global shortcuts                                  | Same window → **Keyboard Shortcuts** tab (stored per machine)              |
-| Country-aware **Navigate** menu                   | **Navigate** → Profile, state, nation, world; **Pop Out Window** presets   |
-| Focused vs classic site chrome                    | **View** → **Focused Mode** (or `CmdOrCtrl+Shift+F` by default)            |
-| Sandbox / dev game URL                            | **View** → **Game server** (when not using `AHD_GAME_URL`)                 |
-
-**macOS unsigned builds:** the distributed DMG is not notarized. The first launch may require **right-click the app → Open** (or Security & Privacy) to bypass Gatekeeper.
-
----
-
-## Tech stack
-
-| Layer     | Technology               |
-| --------- | ------------------------ |
-| Shell     | Electron 33              |
-| Game UI   | Next.js / React (remote) |
-| Packaging | electron-builder         |
-| Lint      | ESLint 10                |
-| Format    | Prettier                 |
-| Tests     | Jest                     |
-| Node      | v20+                     |
-
----
-
-## Project structure
-
-```
-ahd-client/
-├── .github/workflows/
-│   ├── ci.yml           # Lint, format, tests (push / PR to master)
-│   ├── release.yml    # Tag v* → test + Win / Mac / Linux artifacts → GitHub Release
-│   └── codeql.yml
-├── assets/              # icon.ico, icon.icns, icon.png
-├── docs/
-│   ├── README.md        # Doc index
-│   └── architecture.md  # Main process, client-nav, IPC (contributors)
-├── src/
-│   ├── main.js          # App entry, lifecycle, client-nav orchestration
-│   ├── preload.js       # window.ahdClient bridge for the game page
-│   ├── ipc.js           # IPC handler registration
-│   ├── menu.js          # Application menu
-│   ├── config.js        # URLs, trusted hosts
-│   ├── corporation-enrich.js # pathId/ceoId merge logic
-│   ├── active-game-url.js
-│   ├── pip.js / pip.html / pip-view-poller.js
-│   ├── dashboard.js
-│   ├── shortcuts.js
-│   ├── game-panel-config.html / game-panel-config-*.js
-│   └── …                # tray, sse, cache, windows, nav, site-api, etc.
-├── tests/
-├── CHANGELOG.md
-├── package.json
-└── README.md
+Native integrations
+  -> constrained preload bridge and IPC handlers
+  -> menus, tray, shortcuts, notifications, PiP, and pop-outs
 ```
 
----
+See [Architecture](./docs/architecture.md) for process boundaries, navigation policy, the preload bridge, and IPC contracts.
 
-## Getting started
+## Running locally
 
-**Prerequisites:** Node.js v20+, npm v10+.
+Requires Node.js 22 or newer. Some runtime dependencies are ESM-only, which needs `require(esm)` support (Node ≥ 22.12); Electron 42 bundles Node 22.x, so this matches what ships.
 
 ```bash
 git clone https://github.com/Egg3901/ahd-client.git
 cd ahd-client
-npm install
+npm ci
+npm run dev
 ```
 
-**Run:**
+`npm start` runs with production-style menus. Override the loaded origin only when testing a trusted deployment:
 
 ```bash
-npm run dev    # DevTools menu, optional localhost server toggle in View
-npm start      # Production-style (no DevTools menu)
+AHD_GAME_URL=http://localhost:3000 npm run dev
 ```
 
-**Override game origin** (disables View menu server toggles):
+Development mode can also switch between the production, sandbox, and local game origins from the View menu.
 
-```bash
-AHD_GAME_URL=https://your-server.com npm start
-```
-
-**Defaults:** production `https://www.ahousedividedgame.com` (`AHD_MAIN_GAME_URL`), sandbox `https://test.ahousedividedgame.com` (`AHD_SANDBOX_GAME_URL`), local dev `http://localhost:3000` (`AHD_DEV_GAME_URL`). The localhost option appears in **View** when running `npm run dev` or when signed in as a **game admin**.
-
----
-
-## npm scripts
-
-| Script                                                    | Purpose                                                            |
-| --------------------------------------------------------- | ------------------------------------------------------------------ |
-| `npm start`                                               | Run Electron (production menu)                                     |
-| `npm run dev`                                             | `NODE_ENV=development`                                             |
-| `npm run build`                                           | electron-builder for **current** OS                                |
-| `npm run build:win` / `build:mac` / `npm run build:linux` | Target one platform (unsigned; see `package.json` env for Win/Mac) |
-| `npm test`                                                | Jest                                                               |
-| `npm run test:unit` / `test:integration` / `test:e2e`     | Subsets                                                            |
-| `npm run lint` / `lint:fix`                               | ESLint                                                             |
-| `npm run format` / `format:check`                         | Prettier                                                           |
-
-Artifacts land in **`dist/`**.
-
----
-
-## Releases
-
-1. Bump **`package.json`** version and add an entry to **[CHANGELOG.md](CHANGELOG.md)**.
-2. Push a **version tag**:
-
-```bash
-git tag v1.1.0
-git push origin v1.1.0
-```
-
-[`.github/workflows/release.yml`](.github/workflows/release.yml) runs tests on Ubuntu, then builds **Windows** (NSIS), **macOS** (DMG), and **Linux** (AppImage) on native runners and attaches them to one GitHub Release.
-
-**Signing:** CI uses **`CSC_IDENTITY_AUTO_DISCOVERY=false`** so builds succeed without Windows or Apple signing certificates. Local `npm run build:win` / `build:mac` do the same.
-
----
-
-## Code quality
+## Development
 
 ```bash
 npm run lint
 npm run format:check
-npm test
+npm test               # unit + integration (Electron is mocked)
+npm run test:e2e       # Playwright against a real Electron build
 npm run test:coverage
 ```
 
-| Check               | Workflow            |
-| ------------------- | ------------------- |
-| Lint, format, tests | `ci.yml`            |
-| Security            | `codeql.yml`        |
-| Dependencies        | Dependabot (weekly) |
+Run `npm run test:e2e` before any dependency bump that touches Electron. The unit suite mocks `electron`, `electron-store`, and `electron-updater`, so it can pass against a build that does not launch — that is exactly how the Electron 42 upgrade nearly shipped broken.
 
----
+Commits are checked by commitlint against [Conventional Commits](https://www.conventionalcommits.org/); `npm install` sets up the git hook.
 
-## Contributing
+### Mock game server
 
-1. Branch from `master`, run **lint**, **format:check**, and **tests** before opening a PR.
-2. Describe user-visible changes in **CHANGELOG.md** when behavior changes.
-3. Read **[docs/architecture.md](docs/architecture.md)** before large main-process changes.
+`npm run mock` serves stubbed game endpoints on `http://localhost:3000`, including the corporation and wage routes, and mirrors the server's rate limiter so paced flows can be exercised locally.
 
----
+```bash
+npm run mock                                   # 4 sectors, 20 writes/min
+MOCK_SECTORS=105 MOCK_WINDOW_MS=3000 npm run mock   # large corp, fast window
+npm run mock:client                            # point the client at it
+```
 
-## Related
+Useful entry points:
 
-- **[A House Divided](https://github.com/Egg3901/a-house-divided)** — Game (Next.js / MongoDB)
+- `src/main.js` owns application lifecycle and window orchestration.
+- `src/preload.js` exposes the constrained page bridge.
+- `src/ipc.js` registers trusted IPC handlers.
+- `src/config.js` defines approved origins and environment overrides.
+- `src/menu.js`, `src/tray.js`, and `src/shortcuts.js` own OS integration.
+- `src/pip.js` and related modules own the compact status view.
+- `tests/` contains unit, integration, and end-to-end coverage.
 
----
+## Building
+
+```bash
+npm run build          # current platform
+npm run build:win
+npm run build:mac
+npm run build:linux
+```
+
+Artifacts are written to `dist/`. CI builds unsigned Windows, macOS, and Linux artifacts from version tags and attaches them to a GitHub release. Unsigned macOS and Windows builds may trigger platform trust prompts.
+
+See [the documentation index](./docs/README.md), [the changelog](./CHANGELOG.md), and the release workflow for the complete packaging contract.
+
+## Security
+
+Treat every loaded page as remote content. Keep navigation allowlists narrow, expose the minimum preload API, validate every IPC message in the main process, and never enable Node integration in the game window. See [Contributing](./CONTRIBUTING.md) for normal changes and [Security](./SECURITY.md) for private vulnerability reporting.
 
 ## License
 
-[MIT](package.json) (see `package.json`).
+[MIT](./LICENSE). The A House Divided name, logo, hosted game, and game assets are separate from this client license.

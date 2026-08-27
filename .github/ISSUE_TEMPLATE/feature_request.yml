@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest a desktop integration or quality-of-life improvement.
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository is the desktop shell. Requests that change game rules or
+        content belong in [Egg3901/AHDGame](https://github.com/Egg3901/AHDGame/issues).
+
+        The best fits here are things a browser tab cannot do well: native menus,
+        tray, notifications, shortcuts, pop-out windows, offline behaviour, or
+        bulk actions that are tedious in the web UI.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem
+      description: What are you trying to do that the client makes awkward today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

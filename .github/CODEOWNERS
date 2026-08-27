@@ -1,0 +1,12 @@
+# Trust-boundary paths: PRs touching these require the maintainer.
+# Everything below decides what remote page code can reach, where the app is
+# allowed to navigate, or what gets installed on a user's machine.
+/src/preload.js          @Egg3901
+/src/pip-preload.js      @Egg3901
+/src/devtools-preload.js @Egg3901
+/src/game-panel-config-preload.js @Egg3901
+/src/ipc.js              @Egg3901
+/src/config.js           @Egg3901
+/src/safe-load-url.js    @Egg3901
+/src/updater.js          @Egg3901
+/.github/workflows/      @Egg3901

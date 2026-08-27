@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Game bug or balance issue
+    url: https://github.com/Egg3901/AHDGame/issues
+    about: Anything about the game itself — elections, economy, turns, content.
+  - name: Security vulnerability
+    url: https://github.com/Egg3901/ahd-client/blob/master/SECURITY.md
+    about: Report privately. Do not open a public issue.

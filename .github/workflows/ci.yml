@@ -28,3 +28,58 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # The unit suite mocks electron, electron-store and electron-updater, so it
+  # passes happily against a build that never opens a window — exactly what
+  # happened on the Electron 42 bump (399/399 green, app dead on launch).
+  # This job launches the real thing.
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: E2E (real Electron under xvfb)
+        run: xvfb-run -a npm run test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            tests/e2e/test-results/
+            test-results/
+          if-no-files-found: ignore
+
+  # Nothing else in CI runs electron-builder, so an invalid build config only
+  # surfaced when a release tag was pushed and all three platform builds
+  # failed at once. Packaging one platform is enough to validate the config
+  # and catch a packaging-time break before it reaches a tag.
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Package (linux)
+        run: npx electron-builder --linux AppImage --publish never
+
+      - name: Confirm an artifact was produced
+        run: test -n "$(find dist -maxdepth 1 -name '*.AppImage' -print -quit)"
