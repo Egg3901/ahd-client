@@ -12,6 +12,8 @@ The game itself lives in [`Egg3901/AHDGame`](https://github.com/Egg3901/AHDGame)
 
 **Focused play.** Mini mode, a configurable status bar, global shortcuts, tray controls, and focused-mode chrome keep frequently checked information available without a full browser tab.
 
+**Bulk actions the web UI makes tedious.** CEOs can set the wage level across every sector of their corporation in one step, paced to the server's write budget so large corporations apply cleanly instead of stalling against the rate limiter.
+
 **One trusted origin boundary.** The main window loads an approved game origin into the persistent `persist:ahd` session. IPC and navigation policy stay in the Electron main and preload layers rather than being exposed directly to remote page code.
 
 ## How it runs
@@ -30,7 +32,7 @@ See [Architecture](./docs/architecture.md) for process boundaries, navigation po
 
 ## Running locally
 
-Requires Node.js 20 or newer.
+Requires Node.js 22 or newer. Some runtime dependencies are ESM-only, which needs `require(esm)` support (Node ≥ 22.12); Electron 42 bundles Node 22.x, so this matches what ships.
 
 ```bash
 git clone https://github.com/Egg3901/ahd-client.git
@@ -52,8 +54,23 @@ Development mode can also switch between the production, sandbox, and local game
 ```bash
 npm run lint
 npm run format:check
-npm test
+npm test               # unit + integration (Electron is mocked)
+npm run test:e2e       # Playwright against a real Electron build
 npm run test:coverage
+```
+
+Run `npm run test:e2e` before any dependency bump that touches Electron. The unit suite mocks `electron`, `electron-store`, and `electron-updater`, so it can pass against a build that does not launch — that is exactly how the Electron 42 upgrade nearly shipped broken.
+
+Commits are checked by commitlint against [Conventional Commits](https://www.conventionalcommits.org/); `npm install` sets up the git hook.
+
+### Mock game server
+
+`npm run mock` serves stubbed game endpoints on `http://localhost:3000`, including the corporation and wage routes, and mirrors the server's rate limiter so paced flows can be exercised locally.
+
+```bash
+npm run mock                                   # 4 sectors, 20 writes/min
+MOCK_SECTORS=105 MOCK_WINDOW_MS=3000 npm run mock   # large corp, fast window
+npm run mock:client                            # point the client at it
 ```
 
 Useful entry points:
