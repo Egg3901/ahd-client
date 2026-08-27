@@ -46,8 +46,7 @@
     "linux": {
       "target": "AppImage",
       "icon": "assets/icon.png",
-      "category": "Game",
-      "desktopName": "a-house-divided.desktop"
+      "category": "Game"
     },
     "publish": {
       "provider": "github",
@@ -80,5 +79,8 @@
   "dependencies": {
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.9"
+  },
+  "overrides": {
+    "fast-uri": "^3.1.6"
   }
 }
