@@ -128,6 +128,24 @@ function fetchCountries(gameUrl) {
  * @param {object|null} body
  * @returns {Promise<{ statusCode: number, ok: boolean }>}
  */
+/**
+ * Parse a `Retry-After` header into whole seconds.
+ * Electron gives header values as arrays. Only the delta-seconds form is
+ * used by the game server (`rateLimitResponse` sets `Retry-After: <n>`);
+ * an HTTP-date is tolerated but treated as unknown.
+ * @param {Record<string, string|string[]>|undefined} headers
+ * @returns {number|null} Seconds to wait, or null when absent/unparseable.
+ */
+function parseRetryAfter(headers) {
+  if (!headers) return null;
+  const raw = headers['retry-after'] ?? headers['Retry-After'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value == null) return null;
+  const seconds = Number(String(value).trim());
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  return seconds;
+}
+
 function postJsonAuthed(gameUrl, path, body) {
   const fullUrl = `${gameUrl}${path.startsWith('/') ? path : `/${path}`}`;
   // Never reject on cookie-store failure — callers expect { statusCode, ok }
@@ -150,15 +168,67 @@ function postJsonAuthed(gameUrl, path, body) {
                   res.statusCode != null &&
                   res.statusCode >= 200 &&
                   res.statusCode < 300,
+                retryAfter: parseRetryAfter(res.headers),
               });
             });
-            res.on('error', () => resolve({ statusCode: 0, ok: false }));
+            res.on('error', () =>
+              resolve({ statusCode: 0, ok: false, retryAfter: null }),
+            );
           });
-          req.on('error', () => resolve({ statusCode: 0, ok: false }));
+          req.on('error', () =>
+            resolve({ statusCode: 0, ok: false, retryAfter: null }),
+          );
           if (body != null) req.write(JSON.stringify(body));
           req.end();
         }),
     );
+}
+
+/**
+ * GET /api/corporations/[id] detail and extract sector ids for bulk wage ops.
+ * Requires CEO auth; returns null if detail is unavailable or redacted.
+ * @param {string} gameUrl
+ * @param {string} corporationId - pathId / sequentialId / _id
+ * @returns {Promise<Array<{ _id: string }> | null>}
+ */
+function fetchCorporationSectorIds(gameUrl, corporationId) {
+  const seg = encodeURIComponent(String(corporationId));
+  return getJsonAuthed(gameUrl, `/api/corporations/${seg}`).then((data) => {
+    if (!data) return null;
+    // API returns { sectors: [...] } alongside corporation detail (see AHDGame detail route)
+    const sectors = data.sectors || data.corporation?.sectors || [];
+    if (!Array.isArray(sectors)) return null;
+    return sectors
+      .map((s) => {
+        const id = s._id || s.id;
+        return id ? { _id: String(id) } : null;
+      })
+      .filter(Boolean);
+  });
+}
+
+/**
+ * POST /api/corporations/[id]/sectors/[sectorId]/wage — set a single sector's wage level.
+ * @param {string} gameUrl
+ * @param {string} corporationId
+ * @param {string} sectorId
+ * @param {number} wageLevel - Will be clamped server-side; client also clamps to [0.8, 1.5]
+ * @returns {Promise<{ ok: boolean, statusCode: number, retryAfter: number|null }>}
+ */
+function postSectorWage(gameUrl, corporationId, sectorId, wageLevel) {
+  const corpSeg = encodeURIComponent(String(corporationId));
+  const secSeg = encodeURIComponent(String(sectorId));
+  return postJsonAuthed(
+    gameUrl,
+    `/api/corporations/${corpSeg}/sectors/${secSeg}/wage`,
+    {
+      wageLevel,
+    },
+  ).then((r) => ({
+    ok: r.ok,
+    statusCode: r.statusCode,
+    retryAfter: r.retryAfter ?? null,
+  }));
 }
 
 module.exports = {
@@ -166,4 +236,6 @@ module.exports = {
   fetchCharacterMe,
   fetchCountries,
   postJsonAuthed,
+  fetchCorporationSectorIds,
+  postSectorWage,
 };
