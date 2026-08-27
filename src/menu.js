@@ -12,10 +12,13 @@ const { safeLoadURL } = require('./safe-load-url');
 const {
   WAGE_PRESETS,
   WAGE_PRESET_LABELS,
+  BULK_WAGE_MAX_PER_WINDOW,
   clampWageLevel,
   formatWageLevel,
   validateCanAdjustWages,
   bulkSetWageLevel,
+  estimateBulkWageDurationMs,
+  formatDuration,
 } = require('./corporation-wages');
 
 /**
@@ -761,42 +764,12 @@ class MenuManager {
     const corporationId = validation.corporationId;
     const gameUrl = activeGameUrl.get();
 
-    const { response } = await dialog.showMessageBox(this.mainWindow, {
-      type: 'question',
-      title: 'Confirm wage change',
-      message: `Set ALL sectors of your corporation to ${formatWageLevel(clamped)}?`,
-      detail:
-        `This will update every sector you own (0.80x = minimum cost, 1.00x = baseline, 1.50x = maximum).\n` +
-        `Lower wages boost profit but raise unionization/strike risk; higher wages improve morale/quality.\n\n` +
-        `Corporation: ${corporationId}\n` +
-        `Range is clamped to [0.8, 1.5] — e.g. 0.7 becomes 0.80x, 2.0 becomes 1.50x.`,
-      buttons: ['Cancel', `Set to ${formatWageLevel(clamped)}`],
-      defaultId: 0,
-      cancelId: 0,
-    });
-    if (response !== 1) return;
-
-    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.setProgressBar(1);
-    }
-
-    let result;
+    // Enumerate sectors up front so the confirmation can state the real count
+    // and, for large corps, how long the paced apply will take.
+    let sectors;
     try {
-      result = await bulkSetWageLevel(
-        {
-          gameUrl,
-          corporationId,
-          wageLevel: clamped,
-          setOne: (corpId, sectorId, lvl) =>
-            siteApi.postSectorWage(gameUrl, corpId, sectorId, lvl),
-          listSectors: (url, corpId) =>
-            siteApi.fetchCorporationSectorIds(url, corpId),
-        },
-        { concurrency: 3 },
-      );
+      sectors = await siteApi.fetchCorporationSectorIds(gameUrl, corporationId);
     } catch (err) {
-      if (this.mainWindow && !this.mainWindow.isDestroyed())
-        this.mainWindow.setProgressBar(-1);
       dialog.showMessageBox(this.mainWindow, {
         type: 'error',
         title: 'Wages — Failed',
@@ -807,10 +780,7 @@ class MenuManager {
       return;
     }
 
-    if (this.mainWindow && !this.mainWindow.isDestroyed())
-      this.mainWindow.setProgressBar(-1);
-
-    if (result.total === 0) {
+    if (!sectors || sectors.length === 0) {
       dialog.showMessageBox(this.mainWindow, {
         type: 'info',
         title: 'Wages — Nothing to do',
@@ -820,15 +790,78 @@ class MenuManager {
       return;
     }
 
+    const estimateMs = estimateBulkWageDurationMs(sectors.length);
+    const paceNote =
+      estimateMs > 0
+        ? `\n\nThe server accepts ${BULK_WAGE_MAX_PER_WINDOW} wage changes per minute, so applying ` +
+          `${sectors.length} sectors is paced and will take ${formatDuration(estimateMs)}. ` +
+          `Leave the app open — progress shows on the taskbar icon.`
+        : '';
+
+    const { response } = await dialog.showMessageBox(this.mainWindow, {
+      type: 'question',
+      title: 'Confirm wage change',
+      message: `Set all ${sectors.length} sector(s) to ${formatWageLevel(clamped)}?`,
+      detail:
+        `This will update every sector you own (0.80x = minimum cost, 1.00x = baseline, 1.50x = maximum).\n` +
+        `Lower wages boost profit but raise unionization/strike risk; higher wages improve morale/quality.\n\n` +
+        `Corporation: ${corporationId}\n` +
+        `Range is clamped to [0.8, 1.5] — e.g. 0.7 becomes 0.80x, 2.0 becomes 1.50x.` +
+        paceNote,
+      buttons: ['Cancel', `Set to ${formatWageLevel(clamped)}`],
+      defaultId: 0,
+      cancelId: 0,
+    });
+    if (response !== 1) return;
+
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.setProgressBar(0);
+    }
+
+    let result;
+    try {
+      result = await bulkSetWageLevel({
+        gameUrl,
+        corporationId,
+        wageLevel: clamped,
+        setOne: (corpId, sectorId, lvl) =>
+          siteApi.postSectorWage(gameUrl, corpId, sectorId, lvl),
+        // Already enumerated above — don't re-fetch.
+        listSectors: () => Promise.resolve(sectors),
+        onProgress: ({ done, total }) => {
+          if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+            this.mainWindow.setProgressBar(total > 0 ? done / total : -1);
+          }
+        },
+      });
+    } catch (err) {
+      if (this.mainWindow && !this.mainWindow.isDestroyed())
+        this.mainWindow.setProgressBar(-1);
+      dialog.showMessageBox(this.mainWindow, {
+        type: 'error',
+        title: 'Wages — Failed',
+        message: 'Could not apply the wage change.',
+        detail: err?.message || String(err),
+        buttons: ['OK'],
+      });
+      return;
+    }
+
+    if (this.mainWindow && !this.mainWindow.isDestroyed())
+      this.mainWindow.setProgressBar(-1);
+
+    const pacedNote =
+      result.rateLimitWaits > 0
+        ? `\n\nPaused ${result.rateLimitWaits} time(s) to respect the server's ` +
+          `${BULK_WAGE_MAX_PER_WINDOW}-per-minute wage limit.`
+        : '';
+
     if (result.failed === 0) {
       dialog.showMessageBox(this.mainWindow, {
         type: 'info',
         title: 'Wages — Done',
         message: `All ${result.succeeded} sector(s) set to ${formatWageLevel(result.clamped)}.`,
-        detail:
-          result.succeeded > 10
-            ? 'Large corps may need a moment for the server to apply all changes.'
-            : undefined,
+        detail: pacedNote.trim() || undefined,
         buttons: ['OK'],
       });
     } else {
@@ -841,11 +874,12 @@ class MenuManager {
         (result.errors.length > 5
           ? `\n… and ${result.errors.length - 5} more`
           : '') +
+        pacedNote +
         '\n\nYou can retry from the same menu — successful sectors are already at the new level.';
       dialog.showMessageBox(this.mainWindow, {
         type: 'warning',
         title: 'Wages — Partially applied',
-        message: `Wages set to ${formatWageLevel(result.clamped)} — ${result.failed} sector(s) failed (rate limit or network).`,
+        message: `Wages set to ${formatWageLevel(result.clamped)} — ${result.failed} sector(s) failed.`,
         detail,
         buttons: ['OK'],
       });

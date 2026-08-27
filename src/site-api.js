@@ -128,6 +128,24 @@ function fetchCountries(gameUrl) {
  * @param {object|null} body
  * @returns {Promise<{ statusCode: number, ok: boolean }>}
  */
+/**
+ * Parse a `Retry-After` header into whole seconds.
+ * Electron gives header values as arrays. Only the delta-seconds form is
+ * used by the game server (`rateLimitResponse` sets `Retry-After: <n>`);
+ * an HTTP-date is tolerated but treated as unknown.
+ * @param {Record<string, string|string[]>|undefined} headers
+ * @returns {number|null} Seconds to wait, or null when absent/unparseable.
+ */
+function parseRetryAfter(headers) {
+  if (!headers) return null;
+  const raw = headers['retry-after'] ?? headers['Retry-After'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value == null) return null;
+  const seconds = Number(String(value).trim());
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  return seconds;
+}
+
 function postJsonAuthed(gameUrl, path, body) {
   const fullUrl = `${gameUrl}${path.startsWith('/') ? path : `/${path}`}`;
   // Never reject on cookie-store failure — callers expect { statusCode, ok }
@@ -150,11 +168,16 @@ function postJsonAuthed(gameUrl, path, body) {
                   res.statusCode != null &&
                   res.statusCode >= 200 &&
                   res.statusCode < 300,
+                retryAfter: parseRetryAfter(res.headers),
               });
             });
-            res.on('error', () => resolve({ statusCode: 0, ok: false }));
+            res.on('error', () =>
+              resolve({ statusCode: 0, ok: false, retryAfter: null }),
+            );
           });
-          req.on('error', () => resolve({ statusCode: 0, ok: false }));
+          req.on('error', () =>
+            resolve({ statusCode: 0, ok: false, retryAfter: null }),
+          );
           if (body != null) req.write(JSON.stringify(body));
           req.end();
         }),
@@ -190,7 +213,7 @@ function fetchCorporationSectorIds(gameUrl, corporationId) {
  * @param {string} corporationId
  * @param {string} sectorId
  * @param {number} wageLevel - Will be clamped server-side; client also clamps to [0.8, 1.5]
- * @returns {Promise<{ ok: boolean, statusCode: number }>}
+ * @returns {Promise<{ ok: boolean, statusCode: number, retryAfter: number|null }>}
  */
 function postSectorWage(gameUrl, corporationId, sectorId, wageLevel) {
   const corpSeg = encodeURIComponent(String(corporationId));
@@ -201,7 +224,11 @@ function postSectorWage(gameUrl, corporationId, sectorId, wageLevel) {
     {
       wageLevel,
     },
-  ).then((r) => ({ ok: r.ok, statusCode: r.statusCode }));
+  ).then((r) => ({
+    ok: r.ok,
+    statusCode: r.statusCode,
+    retryAfter: r.retryAfter ?? null,
+  }));
 }
 
 module.exports = {

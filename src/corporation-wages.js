@@ -12,6 +12,15 @@ const WAGE_LEVEL_MAX = 1.5;
 const WAGE_LEVEL_DEFAULT = 1.0;
 
 /**
+ * Server-side write budget for wage changes, mirrored so the client can pace
+ * itself instead of discovering the limit by getting 429'd.
+ * Source: `checkRateLimit(auth.user.userId, 20, 60000)` in AHDGame
+ * `src/lib/corporations/commands/sectorOperations/setSectorWageLevel.ts`.
+ */
+const BULK_WAGE_MAX_PER_WINDOW = 20;
+const BULK_WAGE_WINDOW_MS = 60000;
+
+/**
  * Preset levels shown in the Wages submenu / dialog.
  * Covers the full [0.8, 1.5] range with the commonly used baseline 1.0 in the middle.
  * @type {number[]}
@@ -75,25 +84,44 @@ function validateCanAdjustWages(manifest) {
 /**
  * Apply a wage level to every sector of a corporation via the authenticated API.
  * Fan-out strategy: fetch corporation detail to enumerate sectors, then POST
- * /api/corporations/[id]/sectors/[sectorId]/wage for each sector with concurrency cap.
+ * /api/corporations/[id]/sectors/[sectorId]/wage for each sector.
  *
- * The server rate-limits wage writes to 20/min per user (see
- * AHDGame/src/lib/corporations/commands/sectorOperations/setSectorWageLevel.ts).
- * We cap concurrency to 3 and add a small stagger to stay under the limit for
- * typical corps (< 30 sectors). Larger corps will partially succeed and report
- * per-sector results so the CEO can retry the remainder.
+ * Pacing is the whole problem here. The server allows 20 wage writes per
+ * 60 s per user, enforced as a FIXED window whose boundary the client cannot
+ * see (AHDGame `src/lib/api/rateLimit.ts`, called from
+ * `setSectorWageLevel.ts` as `checkRateLimit(userId, 20, 60_000)`).
+ *
+ * Sector counts in production: 661 corporations, mean 6.8 sectors, but 30
+ * corporations hold more than 20 and the largest holds 105. So the common
+ * case must stay instant while the tail must not shred itself against the
+ * limiter.
+ *
+ * Two mechanisms, belt and braces:
+ *   1. A rolling-window pacer admits at most MAX_PER_WINDOW starts in any
+ *      WINDOW_MS. A rolling window is strictly more conservative than the
+ *      server's fixed window, so it cannot overrun it. Corps at or under 20
+ *      sectors never wait at all.
+ *   2. Any 429 that still lands is honoured, not counted as a failure: the
+ *      worker sleeps for `Retry-After` and retries that sector.
  *
  * @param {object} deps
  * @param {string} deps.gameUrl - Active game origin (from activeGameUrl.get())
  * @param {string} deps.corporationId - Corporation pathId or sequentialId
  * @param {number} deps.wageLevel - Desired level (will be clamped to [0.8, 1.5])
- * @param {(corpId: string, sectorId: string, wageLevel: number) => Promise<{ ok: boolean, status?: number }>} deps.setOne - Injected per-sector setter (siteApi.postSectorWage)
- * @param {() => Promise<Array<{ _id: string }>>} deps.listSectors - Injected sector lister (siteApi.fetchCorporationSectorIds)
- * @param {{ concurrency?: number }} [opts]
- * @returns {Promise<{ clamped: number, total: number, succeeded: number, failed: number, errors: Array<{ sectorId: string, error: string }> }>}
+ * @param {(corpId: string, sectorId: string, wageLevel: number) => Promise<{ ok: boolean, statusCode?: number, retryAfter?: number|null }>} deps.setOne - Injected per-sector setter (siteApi.postSectorWage)
+ * @param {(gameUrl: string, corpId: string) => Promise<Array<{ _id: string }>>} deps.listSectors - Injected sector lister (siteApi.fetchCorporationSectorIds)
+ * @param {(progress: { done: number, total: number }) => void} [deps.onProgress] - Called after each sector settles
+ * @param {object} [opts]
+ * @param {number} [opts.maxPerWindow=20] - Requests admitted per window
+ * @param {number} [opts.windowMs=60000] - Pacing window in ms
+ * @param {number} [opts.maxRetries=3] - Retries per sector on 429
+ * @param {(ms: number) => Promise<void>} [opts.sleep] - Injected for tests
+ * @param {() => number} [opts.now] - Injected for tests
+ * @returns {Promise<{ clamped: number, total: number, succeeded: number, failed: number, rateLimitWaits: number, errors: Array<{ sectorId: string, error: string }> }>}
  */
 async function bulkSetWageLevel(deps, opts = {}) {
-  const { gameUrl, corporationId, wageLevel, setOne, listSectors } = deps;
+  const { gameUrl, corporationId, wageLevel, setOne, listSectors, onProgress } =
+    deps;
   if (
     !gameUrl ||
     !corporationId ||
@@ -105,50 +133,145 @@ async function bulkSetWageLevel(deps, opts = {}) {
   const clamped = clampWageLevel(wageLevel);
   const sectors = await listSectors(gameUrl, corporationId);
   if (!sectors || sectors.length === 0) {
-    return { clamped, total: 0, succeeded: 0, failed: 0, errors: [] };
+    return {
+      clamped,
+      total: 0,
+      succeeded: 0,
+      failed: 0,
+      rateLimitWaits: 0,
+      errors: [],
+    };
   }
 
-  const concurrency = Math.max(1, Math.min(5, opts.concurrency ?? 3));
+  const maxPerWindow = Math.max(
+    1,
+    opts.maxPerWindow ?? BULK_WAGE_MAX_PER_WINDOW,
+  );
+  const windowMs = Math.max(0, opts.windowMs ?? BULK_WAGE_WINDOW_MS);
+  const maxRetries = Math.max(0, opts.maxRetries ?? 3);
+  const now = opts.now ?? (() => Date.now());
+  const sleep =
+    opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, Math.max(0, ms))));
+
   let succeeded = 0;
   let failed = 0;
+  let rateLimitWaits = 0;
+  let done = 0;
   const errors = [];
 
-  // Simple concurrency pool
-  let idx = 0;
-  async function worker() {
-    while (idx < sectors.length) {
-      const i = idx++;
-      const sector = sectors[i];
-      const sectorId = sector._id || sector.id || String(sector);
-      try {
-        const res = await setOne(corporationId, sectorId, clamped);
-        if (res && res.ok) succeeded++;
-        else {
-          failed++;
-          errors.push({
-            sectorId: String(sectorId),
-            error: `HTTP ${res?.status ?? 'unknown'}`,
-          });
-        }
-      } catch (err) {
-        failed++;
-        errors.push({
-          sectorId: String(sectorId),
-          error: err?.message || String(err),
-        });
+  /**
+   * Timestamps of requests admitted inside the current rolling window.
+   * @type {number[]}
+   */
+  const admitted = [];
+
+  /** Block until the pacer can admit another request. */
+  async function admit() {
+    for (;;) {
+      const t = now();
+      while (admitted.length > 0 && t - admitted[0] >= windowMs) {
+        admitted.shift();
       }
-      // Stagger to respect 20/min server rate limit when concurrency >1
-      if (i < sectors.length - 1) await new Promise((r) => setTimeout(r, 120));
+      if (admitted.length < maxPerWindow) {
+        admitted.push(t);
+        return;
+      }
+      // +250ms of slack so we land clear of the boundary, not exactly on it.
+      await sleep(windowMs - (t - admitted[0]) + 250);
     }
   }
 
-  const workers = Array.from(
-    { length: Math.min(concurrency, sectors.length) },
-    () => worker(),
-  );
-  await Promise.all(workers);
+  // Serial by design: with a 20-per-60s ceiling, concurrency buys nothing
+  // once the pacer is the bottleneck, and it makes the 429 path racy.
+  for (const sector of sectors) {
+    const sectorId = String(sector?._id || sector?.id || sector);
+    let attempt = 0;
 
-  return { clamped, total: sectors.length, succeeded, failed, errors };
+    for (;;) {
+      await admit();
+      let res;
+      try {
+        res = await setOne(corporationId, sectorId, clamped);
+      } catch (err) {
+        failed++;
+        errors.push({ sectorId, error: err?.message || String(err) });
+        break;
+      }
+
+      if (res && res.ok) {
+        succeeded++;
+        break;
+      }
+
+      // 429 is a pacing miss, not a failure — wait it out and retry.
+      if (res && res.statusCode === 429 && attempt < maxRetries) {
+        attempt++;
+        rateLimitWaits++;
+        const waitSec =
+          typeof res.retryAfter === 'number' && res.retryAfter > 0
+            ? res.retryAfter
+            : Math.ceil(windowMs / 1000);
+        // The server's window clearly does not match ours — drop our
+        // bookkeeping so the pacer restarts from the post-wait boundary.
+        admitted.length = 0;
+        await sleep(waitSec * 1000 + 250);
+        continue;
+      }
+
+      failed++;
+      errors.push({
+        sectorId,
+        error:
+          res && res.statusCode === 429
+            ? `rate limited (gave up after ${maxRetries} retries)`
+            : `HTTP ${res?.statusCode ?? 'unknown'}`,
+      });
+      break;
+    }
+
+    done++;
+    if (typeof onProgress === 'function') {
+      onProgress({ done, total: sectors.length });
+    }
+  }
+
+  return {
+    clamped,
+    total: sectors.length,
+    succeeded,
+    failed,
+    rateLimitWaits,
+    errors,
+  };
+}
+
+/**
+ * Lower bound on how long a bulk apply will take, in ms, given the pacer.
+ * Used to warn the CEO before starting: a 105-sector corp is a ~5 minute job
+ * and it should not look like a hang.
+ * @param {number} sectorCount
+ * @param {{ maxPerWindow?: number, windowMs?: number }} [opts]
+ * @returns {number}
+ */
+function estimateBulkWageDurationMs(sectorCount, opts = {}) {
+  const maxPerWindow = Math.max(
+    1,
+    opts.maxPerWindow ?? BULK_WAGE_MAX_PER_WINDOW,
+  );
+  const windowMs = Math.max(0, opts.windowMs ?? BULK_WAGE_WINDOW_MS);
+  if (!Number.isFinite(sectorCount) || sectorCount <= maxPerWindow) return 0;
+  return Math.ceil(sectorCount / maxPerWindow - 1) * windowMs;
+}
+
+/**
+ * Human phrasing for an estimate, e.g. "about 5 minutes".
+ * @param {number} ms
+ * @returns {string}
+ */
+function formatDuration(ms) {
+  if (ms < 60000) return 'under a minute';
+  const minutes = Math.round(ms / 60000);
+  return `about ${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
 module.exports = {
@@ -157,8 +280,12 @@ module.exports = {
   WAGE_LEVEL_DEFAULT,
   WAGE_PRESETS,
   WAGE_PRESET_LABELS,
+  BULK_WAGE_MAX_PER_WINDOW,
+  BULK_WAGE_WINDOW_MS,
   clampWageLevel,
   formatWageLevel,
   validateCanAdjustWages,
   bulkSetWageLevel,
+  estimateBulkWageDurationMs,
+  formatDuration,
 };

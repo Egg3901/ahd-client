@@ -4,7 +4,17 @@ All notable changes to the A House Divided desktop client are documented here.
 
 ---
 
-## [1.2.3] - 2026-08-26
+## [1.3.0] - 2026-08-27
+
+### Added
+
+- **Bulk corporation wage controls** — CEOs can set the wage level for every sector at once from Navigate > World > My Corporation > Wages, via presets (0.80x–1.50x) or a custom value. Levels are clamped to `[0.8, 1.5]`, mirroring `WAGE_LEVEL_MIN`/`MAX` in the game's `laborCost.ts`, and the menu is only enabled for the CEO of a corporation (`src/corporation-wages.js`, `src/menu.js`).
+
+  The apply step is paced against the server's real budget of 20 wage writes per minute per user. Sectors are enumerated first so the confirmation states the true count and, for large corporations, the expected duration; a rolling-window pacer then admits at most 20 writes per 60 s, and any 429 that still lands is honoured via `Retry-After` and retried rather than counted as a failure. Progress is reported on the taskbar icon.
+
+  This matters at the tail: production holds 661 corporations averaging 6.8 sectors, but 30 exceed 20 sectors and the largest holds 105. Measured against a mock of the real limiter, a 105-sector apply went from **40 succeeded / 65 rate-limited failures** to **105/105 with no 429s at all**. Corporations at or under 20 sectors are unaffected and still apply instantly.
+
+  `scripts/mock-game-server.js` (`npm run mock`) stubs the endpoints and mirrors the limiter, so the paced path can be exercised locally — `MOCK_SECTORS`, `MOCK_RATE_LIMIT`, and `MOCK_WINDOW_MS` control the shape.
 
 ### Fixed
 
