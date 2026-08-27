@@ -1,4 +1,4 @@
-const { Menu, session, shell, clipboard, app } = require('electron');
+const { Menu, session, shell, clipboard, app, dialog } = require('electron');
 const activeGameUrl = require('./active-game-url');
 const siteApi = require('./site-api');
 const urls = require('./urls');
@@ -9,6 +9,14 @@ const {
 const { getNavForCountry } = require('./nav');
 const { buildGamePanelMenuTemplate } = require('./game-panel-links');
 const { safeLoadURL } = require('./safe-load-url');
+const {
+  WAGE_PRESETS,
+  WAGE_PRESET_LABELS,
+  clampWageLevel,
+  formatWageLevel,
+  validateCanAdjustWages,
+  bulkSetWageLevel,
+} = require('./corporation-wages');
 
 /**
  * Custom application menu replacing the default Electron menu.
@@ -362,12 +370,41 @@ class MenuManager {
         },
       ];
       if (manifest.myCorporationId != null) {
+        const corpSeg = encodeURIComponent(String(manifest.myCorporationId));
+        const wageEnabled = manifest.isCeo === true;
+        const wagePresetItems = WAGE_PRESETS.map((level) => ({
+          label: WAGE_PRESET_LABELS[level] || `${formatWageLevel(level)}`,
+          enabled: wageEnabled,
+          click: () => this.handleBulkWage(level),
+        }));
+        const wagesSubmenu = [
+          ...wagePresetItems,
+          { type: 'separator' },
+          {
+            label: 'Custom level…',
+            enabled: wageEnabled,
+            click: () => this.promptCustomWage(),
+          },
+        ];
         worldSub.push({
           label: 'My Corporation',
-          click: () =>
-            this.navigate(
-              `/corporation/${encodeURIComponent(String(manifest.myCorporationId))}`,
-            ),
+          submenu: [
+            {
+              label: 'Open',
+              click: () => this.navigate(`/corporation/${corpSeg}`),
+            },
+            {
+              label: 'CEO Office',
+              enabled: wageEnabled,
+              click: () => this.navigate(`/corporation/${corpSeg}/ceo`),
+            },
+            { type: 'separator' },
+            {
+              label: 'Wages — Set all sectors',
+              enabled: wageEnabled,
+              submenu: wagesSubmenu,
+            },
+          ],
         });
       }
       worldSub.push({
@@ -658,6 +695,154 @@ class MenuManager {
 
   setWindow(win) {
     this.mainWindow = win;
+  }
+
+  /**
+   * Prompt for a custom wage level (0.8–1.5) via a simple input dialog injected into the page.
+   * Falls back to 1.0 if the user cancels or enters an invalid value.
+   */
+  async promptCustomWage() {
+    const validation = validateCanAdjustWages(this.manifest);
+    if (!validation.ok) {
+      dialog.showMessageBox(this.mainWindow, {
+        type: 'warning',
+        title: 'Wages — Cannot adjust',
+        message: validation.reason,
+        buttons: ['OK'],
+      });
+      return;
+    }
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return;
+    try {
+      const raw = await this.mainWindow.webContents.executeJavaScript(
+        `(() => { const v = window.prompt('Enter wage level for ALL sectors (0.8 – 1.5):\\n0.8 = minimum, 1.0 = baseline, 1.5 = maximum', '1.0'); return v == null ? null : String(v).trim(); })()`,
+      );
+      if (raw == null || raw === '') return;
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed)) {
+        dialog.showMessageBox(this.mainWindow, {
+          type: 'error',
+          title: 'Wages — Invalid input',
+          message: `"${raw}" is not a number. Enter a value between 0.8 and 1.5.`,
+          buttons: ['OK'],
+        });
+        return;
+      }
+      await this.handleBulkWage(parsed);
+    } catch {
+      // prompt dismissed or webContents gone — ignore
+    }
+  }
+
+  /**
+   * Bulk-set all corporation sectors to wageLevel (clamped to [0.8, 1.5]).
+   * Shows confirmation, fans out per-sector POSTs, and reports the result.
+   * @param {number} wageLevel
+   */
+  async handleBulkWage(wageLevel) {
+    const clamped = clampWageLevel(wageLevel);
+    const validation = validateCanAdjustWages(this.manifest);
+    if (!validation.ok) {
+      dialog.showMessageBox(this.mainWindow, {
+        type: 'warning',
+        title: 'Wages — Cannot adjust',
+        message: validation.reason,
+        buttons: ['OK'],
+      });
+      return;
+    }
+    const corporationId = validation.corporationId;
+    const gameUrl = activeGameUrl.get();
+
+    const { response } = await dialog.showMessageBox(this.mainWindow, {
+      type: 'question',
+      title: 'Confirm wage change',
+      message: `Set ALL sectors of your corporation to ${formatWageLevel(clamped)}?`,
+      detail:
+        `This will update every sector you own (0.80x = minimum cost, 1.00x = baseline, 1.50x = maximum).\n` +
+        `Lower wages boost profit but raise unionization/strike risk; higher wages improve morale/quality.\n\n` +
+        `Corporation: ${corporationId}\n` +
+        `Range is clamped to [0.8, 1.5] — e.g. 0.7 becomes 0.80x, 2.0 becomes 1.50x.`,
+      buttons: ['Cancel', `Set to ${formatWageLevel(clamped)}`],
+      defaultId: 0,
+      cancelId: 0,
+    });
+    if (response !== 1) return;
+
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.setProgressBar(1);
+    }
+
+    let result;
+    try {
+      result = await bulkSetWageLevel(
+        {
+          gameUrl,
+          corporationId,
+          wageLevel: clamped,
+          setOne: (corpId, sectorId, lvl) =>
+            siteApi.postSectorWage(gameUrl, corpId, sectorId, lvl),
+          listSectors: (url, corpId) =>
+            siteApi.fetchCorporationSectorIds(url, corpId),
+        },
+        { concurrency: 3 },
+      );
+    } catch (err) {
+      if (this.mainWindow && !this.mainWindow.isDestroyed())
+        this.mainWindow.setProgressBar(-1);
+      dialog.showMessageBox(this.mainWindow, {
+        type: 'error',
+        title: 'Wages — Failed',
+        message: 'Could not fetch corporation sectors.',
+        detail: err?.message || String(err),
+        buttons: ['OK'],
+      });
+      return;
+    }
+
+    if (this.mainWindow && !this.mainWindow.isDestroyed())
+      this.mainWindow.setProgressBar(-1);
+
+    if (result.total === 0) {
+      dialog.showMessageBox(this.mainWindow, {
+        type: 'info',
+        title: 'Wages — Nothing to do',
+        message: 'No sectors found for this corporation.',
+        buttons: ['OK'],
+      });
+      return;
+    }
+
+    if (result.failed === 0) {
+      dialog.showMessageBox(this.mainWindow, {
+        type: 'info',
+        title: 'Wages — Done',
+        message: `All ${result.succeeded} sector(s) set to ${formatWageLevel(result.clamped)}.`,
+        detail:
+          result.succeeded > 10
+            ? 'Large corps may need a moment for the server to apply all changes.'
+            : undefined,
+        buttons: ['OK'],
+      });
+    } else {
+      const detail =
+        `${result.succeeded} succeeded, ${result.failed} failed of ${result.total}.\n` +
+        result.errors
+          .slice(0, 5)
+          .map((e) => `• ${e.sectorId}: ${e.error}`)
+          .join('\n') +
+        (result.errors.length > 5
+          ? `\n… and ${result.errors.length - 5} more`
+          : '') +
+        '\n\nYou can retry from the same menu — successful sectors are already at the new level.';
+      dialog.showMessageBox(this.mainWindow, {
+        type: 'warning',
+        title: 'Wages — Partially applied',
+        message: `Wages set to ${formatWageLevel(result.clamped)} — ${result.failed} sector(s) failed (rate limit or network).`,
+        detail,
+        buttons: ['OK'],
+      });
+    }
   }
 }
 

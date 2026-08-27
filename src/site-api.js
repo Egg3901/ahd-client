@@ -161,9 +161,54 @@ function postJsonAuthed(gameUrl, path, body) {
     );
 }
 
+/**
+ * GET /api/corporations/[id] detail and extract sector ids for bulk wage ops.
+ * Requires CEO auth; returns null if detail is unavailable or redacted.
+ * @param {string} gameUrl
+ * @param {string} corporationId - pathId / sequentialId / _id
+ * @returns {Promise<Array<{ _id: string }> | null>}
+ */
+function fetchCorporationSectorIds(gameUrl, corporationId) {
+  const seg = encodeURIComponent(String(corporationId));
+  return getJsonAuthed(gameUrl, `/api/corporations/${seg}`).then((data) => {
+    if (!data) return null;
+    // API returns { sectors: [...] } alongside corporation detail (see AHDGame detail route)
+    const sectors = data.sectors || data.corporation?.sectors || [];
+    if (!Array.isArray(sectors)) return null;
+    return sectors
+      .map((s) => {
+        const id = s._id || s.id;
+        return id ? { _id: String(id) } : null;
+      })
+      .filter(Boolean);
+  });
+}
+
+/**
+ * POST /api/corporations/[id]/sectors/[sectorId]/wage — set a single sector's wage level.
+ * @param {string} gameUrl
+ * @param {string} corporationId
+ * @param {string} sectorId
+ * @param {number} wageLevel - Will be clamped server-side; client also clamps to [0.8, 1.5]
+ * @returns {Promise<{ ok: boolean, statusCode: number }>}
+ */
+function postSectorWage(gameUrl, corporationId, sectorId, wageLevel) {
+  const corpSeg = encodeURIComponent(String(corporationId));
+  const secSeg = encodeURIComponent(String(sectorId));
+  return postJsonAuthed(
+    gameUrl,
+    `/api/corporations/${corpSeg}/sectors/${secSeg}/wage`,
+    {
+      wageLevel,
+    },
+  ).then((r) => ({ ok: r.ok, statusCode: r.statusCode }));
+}
+
 module.exports = {
   fetchClientNav,
   fetchCharacterMe,
   fetchCountries,
   postJsonAuthed,
+  fetchCorporationSectorIds,
+  postSectorWage,
 };
