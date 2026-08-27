@@ -284,6 +284,94 @@ describe('SSEClient', () => {
     });
   });
 
+  // --- Frames split across TCP chunks ---
+  //
+  // A single SSE frame is routinely delivered over more than one 'data'
+  // chunk. Parse state used to be local to processBuffer(), so the `event:`
+  // line was forgotten between chunks and the frame surfaced as a generic
+  // 'message' — silently skipping the turn_complete / theme_changed
+  // listeners and the post-turn dashboard re-poll.
+
+  test('event type survives a frame split between the event: and data: lines', () => {
+    const handler = jest.fn();
+    const typed = jest.fn();
+    client.on('event', handler);
+    client.on('turn_complete', typed);
+
+    client.buffer += 'event: turn_complete\n';
+    client.processBuffer();
+    client.buffer += 'data: {"turn":5}\n\n';
+    client.processBuffer();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith({
+      type: 'turn_complete',
+      data: { turn: 5 },
+    });
+    expect(typed).toHaveBeenCalledWith({ turn: 5 });
+  });
+
+  test('frame split mid-line still parses once the remainder arrives', () => {
+    const handler = jest.fn();
+    client.on('event', handler);
+
+    client.buffer += 'event: election_res';
+    client.processBuffer();
+    expect(handler).not.toHaveBeenCalled();
+
+    client.buffer += 'olved\ndata: {"winner":"A"}\n\n';
+    client.processBuffer();
+
+    expect(handler).toHaveBeenCalledWith({
+      type: 'election_resolved',
+      data: { winner: 'A' },
+    });
+  });
+
+  test('multi-line data: accumulates across chunks', () => {
+    const handler = jest.fn();
+    client.on('event', handler);
+
+    client.buffer += 'event: notification\ndata: line one\n';
+    client.processBuffer();
+    client.buffer += 'data: line two\n\n';
+    client.processBuffer();
+
+    expect(handler).toHaveBeenCalledWith({
+      type: 'notification',
+      data: 'line one\nline two',
+    });
+  });
+
+  test('event type does not leak from one frame into the next', () => {
+    const handler = jest.fn();
+    client.on('event', handler);
+
+    client.buffer += 'event: turn_complete\ndata: {"turn":1}\n\n';
+    client.processBuffer();
+    // A following frame with no event: line is a plain message again.
+    client.buffer += 'data: {"msg":"plain"}\n\n';
+    client.processBuffer();
+
+    expect(handler).toHaveBeenNthCalledWith(2, {
+      type: 'message',
+      data: { msg: 'plain' },
+    });
+  });
+
+  test('resetParseState drops a half-assembled frame', () => {
+    const handler = jest.fn();
+    client.on('event', handler);
+
+    client.buffer += 'event: turn_complete\ndata: {"turn":9}\n';
+    client.processBuffer();
+    client.resetParseState();
+    client.buffer += '\n';
+    client.processBuffer();
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   // --- scheduleReconnect: exponential backoff ---
 
   test('scheduleReconnect schedules timeout with base delay on first attempt', () => {

@@ -24,6 +24,8 @@ class UpdateManager {
     this.onUpdateAvailable = null;
     /** @type {((info: object) => void)|null} */
     this.onUpdateReady = null;
+    /** @type {boolean} True while a download is in flight (guards re-entry). */
+    this._downloading = false;
 
     // Don't auto-download — let user decide
     autoUpdater.autoDownload = false;
@@ -103,8 +105,44 @@ class UpdateManager {
     });
 
     if (result.response === 0) {
-      autoUpdater.downloadUpdate();
+      this.startDownload();
     }
+  }
+
+  /**
+   * Download the pending update with visible failure feedback.
+   * `downloadUpdate()` used to be fire-and-forget: on a flaky connection the
+   * promise rejected silently, the "Downloading…" taskbar progress vanished,
+   * and the user was left waiting forever after clicking Download.
+   * @private
+   * @returns {void}
+   */
+  startDownload() {
+    if (this._downloading || this.updateReady) return;
+    this._downloading = true;
+    // Promise.resolve(): never blow up if downloadUpdate() returns
+    // non-promise (older electron-updater versions).
+    Promise.resolve(autoUpdater.downloadUpdate())
+      .catch((err) => {
+        console.error('Update download failed:', err?.message || err);
+        this.sendStatus('Update download failed.');
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          dialog
+            .showMessageBox(this.mainWindow, {
+              type: 'error',
+              title: 'Update Failed',
+              message: 'The update could not be downloaded.',
+              detail:
+                `${err?.message || err}\n\n` +
+                'Check your internet connection and restart the app to try again.',
+              buttons: ['OK'],
+            })
+            .catch(() => {});
+        }
+      })
+      .finally(() => {
+        this._downloading = false;
+      });
   }
 
   /**
@@ -126,7 +164,10 @@ class UpdateManager {
     });
 
     if (result.response === 0) {
-      autoUpdater.quitAndInstall();
+      // isForceRunAfter=true: relaunch the freshly installed build. The
+      // default (false) installs silently and leaves the app CLOSED, which
+      // reads as "the update ate my app" to the user who clicked Restart Now.
+      autoUpdater.quitAndInstall(false, true);
     }
   }
 
