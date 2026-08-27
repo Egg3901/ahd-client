@@ -18,7 +18,9 @@
     "test:unit": "jest --testPathPatterns=tests/unit",
     "test:integration": "jest --testPathPatterns=tests/integration",
     "test:e2e": "npx playwright test --config=tests/e2e/playwright.config.js",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "mock": "node scripts/mock-game-server.js",
+    "mock:client": "cross-env AHD_GAME_URL=http://localhost:3000 NODE_ENV=development electron ."
   },
   "build": {
     "appId": "com.ahousedivided.client",
