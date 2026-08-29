@@ -64,6 +64,24 @@ When SSE disconnects (common with Vercel multi-instance), `main.js` starts a 30-
 
 All authenticated `net.request()` calls (`site-api.js`) send `X-AHD-Client-Version: <package.json version>` so the server can detect outdated clients.
 
+## Failure and recovery behavior
+
+- **API reads** resolve to `null` on transport, HTTP, size-limit, or JSON errors. Callers treat this as unavailable data and retain their last known state where appropriate.
+- **SSE** emits connection status and retries transient failures with exponential backoff. A missing endpoint (404/410) does not retry forever; the main process enables fallback client-nav polling instead.
+- **Offline actions** are persisted by `CacheManager`, replayed by the renderer after reconnect, and removed only after a successful result. Failed actions are retried up to the queue limit and then surfaced to the user.
+- **Navigation failures** are handled by overlays rather than exposing raw server error pages. New loads dismiss the overlay so recovery remains possible.
+
+## Change checklist
+
+Before submitting a change that touches the shell boundary:
+
+1. Keep remote pages on trusted origins and preserve `contextIsolation`, `sandbox`, and disabled Node integration.
+2. Add a preload channel only when an existing channel cannot express the feature; validate arguments again in the main process.
+3. Make timers and listeners part of the owning module's cleanup path.
+4. Preserve the persistent `persist:ahd` session when a feature needs login state.
+5. Run `npm run lint`, `npm run format:check`, and the relevant Jest or Playwright tests.
+6. Update this guide when ownership, data flow, or recovery behavior changes.
+
 ## Builds
 
 `electron-builder` targets: **Windows** NSIS (`.exe`), **macOS** DMG, **Linux** AppImage. CI builds are **unsigned** (`CSC_IDENTITY_AUTO_DISCOVERY=false`); see the main README for macOS Gatekeeper notes.

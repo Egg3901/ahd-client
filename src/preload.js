@@ -1,5 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Keep these lists explicit: the game page is remote content, so the preload
+// bridge must never forward arbitrary IPC channel names from renderer input.
 // Channels the renderer is allowed to receive on
 const RECEIVE_CHANNELS = [
   'sse-status',
@@ -19,7 +21,8 @@ const RECEIVE_CHANNELS = [
   'action-failed',
 ];
 
-// Channels the renderer is allowed to invoke (request/response)
+// Channels the renderer is allowed to invoke (request/response). Every new
+// entry also needs a validating handler in ipc.js.
 const INVOKE_CHANNELS = [
   'get-game-state',
   'get-cached-turn',

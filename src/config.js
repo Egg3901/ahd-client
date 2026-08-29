@@ -1,5 +1,6 @@
 'use strict';
 
+/** Normalize configured origins so path joining remains predictable. */
 function stripTrailingSlash(url) {
   return String(url || '').replace(/\/$/, '');
 }
@@ -42,6 +43,9 @@ function isEnvGameUrlOverride() {
  * Bare hostnames (no www) for main and sandbox, plus env URL if set.
  * @returns {string[]}
  */
+// Compare hostnames rather than raw origins because the live site may redirect
+// between www and bare-host variants. Port/protocol validation belongs to the
+// caller's deployment configuration; localhost is intentionally allowed for dev.
 function trustedGameHostsBare() {
   const out = [];
   for (const u of [MAIN_GAME_URL, SANDBOX_GAME_URL]) {
