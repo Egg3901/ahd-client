@@ -51,6 +51,8 @@ Development mode can also switch between the production, sandbox, and local game
 
 ## Development
 
+The desktop shell has three runtime boundaries worth keeping in mind: the Electron main process owns privileged OS APIs, preload exposes a narrow bridge to the remote game page, and `site-api.js` performs authenticated background requests through the shared `persist:ahd` session. See [Architecture](./docs/architecture.md) before changing any of these boundaries.
+
 ```bash
 npm run lint
 npm run format:check
@@ -75,7 +77,7 @@ npm run mock:client                            # point the client at it
 
 Useful entry points:
 
-- `src/main.js` owns application lifecycle and window orchestration.
+- `src/main.js` owns application lifecycle and window orchestration. Feature modules are created there and receive dependencies/callbacks rather than reaching into each other's state.
 - `src/preload.js` exposes the constrained page bridge.
 - `src/ipc.js` registers trusted IPC handlers.
 - `src/config.js` defines approved origins and environment overrides.
