@@ -73,7 +73,7 @@
     "eslint": "^10.4.1",
     "globals": "^17.6.0",
     "husky": "^9.1.7",
-    "jest": "^30.4.2",
+    "jest": "^30.5.0",
     "prettier": "^3.8.3"
   },
   "dependencies": {
